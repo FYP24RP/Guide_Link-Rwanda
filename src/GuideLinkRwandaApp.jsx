@@ -1,114 +1,54 @@
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase Client (Replace with your actual keys or use environment variables)
-const SUPABASE_URL = 'https://your-project.supabase.co';
-const SUPABASE_ANON_KEY = 'your-anon-key';
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export default function GuideLinkRwandaApp() {
   const [currentRole, setCurrentRole] = useState('welcome');
   const [ownerTab, setOwnerTab] = useState('pending');
   const [activeTab, setActiveTab] = useState('jobs');
-  const [selectedTask, setSelectedTask] = useState(null);
   const [showOwnerPinModal, setShowOwnerPinModal] = useState(false);
   const [ownerPinInput, setOwnerPinInput] = useState('');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
 
   const MOMO_PAYMENT_CODE = '612771';
 
-  const [ownerProfile, setOwnerProfile] = useState({
-    name: 'RUTUNGURA Bonheur',
-    title: 'Founder & Platform Administrator • GuideLink Rwanda',
-    contact: '+250780000000',
-    bio: 'Tourism Management Specialist & Creator of GuideLink Rwanda.',
-    photo: ''
+  const [ownerProfile, setOwnerProfile] = useState(() => {
+    const saved = localStorage.getItem('gl_owner_profile');
+    return saved ? JSON.parse(saved) : {
+      name: 'RUTUNGURA Bonheur',
+      title: 'Founder & Platform Administrator • GuideLink Rwanda',
+      contact: '+250780000000',
+      bio: 'Tourism Management Specialist & Creator of GuideLink Rwanda.',
+      photo: ''
+    };
   });
 
-  const [exemptAccounts, setExemptAccounts] = useState([
-    { id: 'owner', name: 'RUTUNGURA Bonheur (Owner)', contact: '+250780000000', role: 'owner', confirmed: true },
-    { id: 'vip1', name: 'VIP Partner 1', contact: '+250781111111', role: 'graduate', confirmed: true },
-    { id: 'vip2', name: 'VIP Partner 2', contact: '+250782222222', role: 'agency', confirmed: true },
-    { id: 'vip3', name: 'VIP Partner 3', contact: '+250783333333', role: 'graduate', confirmed: true }
-  ]);
+  const [exemptAccounts, setExemptAccounts] = useState(() => {
+    const saved = localStorage.getItem('gl_exempt_users');
+    return saved ? JSON.parse(saved) : [
+      { id: 'owner', name: 'RUTUNGURA Bonheur (Owner)', contact: '+250780000000', role: 'owner', confirmed: true },
+      { id: 'vip1', name: 'VIP Partner 1', contact: '+250781111111', role: 'graduate', confirmed: true },
+      { id: 'vip2', name: 'VIP Partner 2', contact: '+250782222222', role: 'agency', confirmed: true }
+    ];
+  });
 
   const [registeredUsers, setRegisteredUsers] = useState(() => {
     const saved = localStorage.getItem('gl_registered_users');
     return saved ? JSON.parse(saved) : [];
   });
 
-  const [userProfiles, setUserProfiles] = useState({});
-  const [activeUser, setActiveUser] = useState(null);
-  const [regStep, setRegStep] = useState('details');
-  const [regForm, setRegForm] = useState({
-    name: '',
-    contact: '',
-    role: 'graduate',
-    paymentMethod: 'mtn',
-    momoRef: ''
+  const [userProfiles, setUserProfiles] = useState(() => {
+    const saved = localStorage.getItem('gl_user_profiles');
+    return saved ? JSON.parse(saved) : {};
   });
 
+  const [activeUser, setActiveUser] = useState(null);
+  const [regStep, setRegStep] = useState('details');
+  const [regForm, setRegForm] = useState({ name: '', contact: '', role: 'graduate', momoRef: '' });
   const [newDegreeInput, setNewDegreeInput] = useState('');
-  const [newExpTitle, setNewExpTitle] = useState('');
-  const [newExpOrg, setNewExpOrg] = useState('');
-  const [newSkillInput, setNewSkillInput] = useState('');
 
-  const [platformSettings, setPlatformSettings] = useState({ commissionRatePercent: 10 });
-
-  // Fetch profiles from Supabase on load
-  useEffect(() => {
-    fetchCloudProfiles();
-  }, []);
-
-  const fetchCloudProfiles = async () => {
-    try {
-      const { data, error } = await supabase.from('user_profiles').select('*');
-      if (data && !error) {
-        const loadedProfiles = {};
-        data.forEach(row => {
-          loadedProfiles[row.contact_key] = row.profile_data;
-        });
-        setUserProfiles(loadedProfiles);
-      }
-    } catch (err) {
-      console.log('Using local fallback state');
-    }
-  };
-
-  const handleSaveToCloud = async (profileData, identifier) => {
-    setIsSaving(true);
-    const cleanKey = (identifier || 'owner').replace(/\s+/g, '').toLowerCase();
-    
-    try {
-      const { error } = await supabase
-        .from('user_profiles')
-        .upsert({ contact_key: cleanKey, profile_data: profileData, updated_at: new Date() }, { onConflict: 'contact_key' });
-
-      if (error) throw error;
-      alert('Success! Profile saved to cloud and synced across all devices.');
-    } catch (err) {
-      // Fallback to local storage if offline
-      localStorage.setItem(`profile_${cleanKey}`, JSON.stringify(profileData));
-      alert('Saved locally and synced!');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const [tasks, setTasks] = useState([
-    {
-      id: 1,
-      title: 'Half-day Kigali city tour & cultural heritage',
-      agency: 'Cheetah Safaris / Partner Agency',
-      rawPay: 35000,
-      pay: 'RWF 35,000',
-      date: 'Sat 21 Nov, 09:00 to 13:00',
-      timeLabel: 'Sat 21 Nov, 4 hours',
-      status: 'confirmed',
-      paymentStatus: 'pending'
-    }
-  ]);
+  useEffect(() => { localStorage.setItem('gl_owner_profile', JSON.stringify(ownerProfile)); }, [ownerProfile]);
+  useEffect(() => { localStorage.setItem('gl_exempt_users', JSON.stringify(exemptAccounts)); }, [exemptAccounts]);
+  useEffect(() => { localStorage.setItem('gl_registered_users', JSON.stringify(registeredUsers)); }, [registeredUsers]);
+  useEffect(() => { localStorage.setItem('gl_user_profiles', JSON.stringify(userProfiles)); }, [userProfiles]);
 
   const normalizeContact = (str) => (str || '').replace(/\s+/g, '').toLowerCase();
 
@@ -121,17 +61,9 @@ export default function GuideLinkRwandaApp() {
       contact: activeUser.contact || '',
       role: activeUser.role,
       photo: '',
-      headline:
-        activeUser.role === 'graduate'
-          ? 'Certified Tourism Graduate & Guide'
-          : activeUser.role === 'agency'
-          ? 'Licensed Tour Operator'
-          : 'Verified Traveler',
+      headline: activeUser.role === 'graduate' ? 'Certified Tourism Graduate & Guide' : 'Verified User',
       location: 'Kigali, Rwanda',
-      bio: '',
-      degrees: [],
-      experiences: [],
-      skills: ['English', 'Kinyarwanda']
+      degrees: []
     };
   };
 
@@ -144,9 +76,7 @@ export default function GuideLinkRwandaApp() {
     const existing = getCurrentProfile();
     const updated = { ...existing, ...updates };
     setUserProfiles({ ...userProfiles, [key]: updated });
-    if (updates.name) {
-      setActiveUser({ ...activeUser, name: updates.name });
-    }
+    if (updates.name) setActiveUser({ ...activeUser, name: updates.name });
   };
 
   const handleImageUpload = (e, onSuccess) => {
@@ -160,80 +90,56 @@ export default function GuideLinkRwandaApp() {
   const resetToWelcome = () => {
     setCurrentRole('welcome');
     setActiveTab('jobs');
-    setSelectedTask(null);
     setRegStep('details');
     setActiveUser(null);
-  };
-
-  const checkExemptUser = (contactInput) => {
-    const cleanInput = normalizeContact(contactInput);
-    return exemptAccounts.find(
-      (acc) => acc.confirmed && normalizeContact(acc.contact) === cleanInput
-    );
   };
 
   const handleProceedRegistration = (e) => {
     e.preventDefault();
     if (!regForm.name.trim() || !regForm.contact.trim()) {
-      alert('Please enter your Full Name and Phone Number / Email.');
+      alert('Please enter your Full Name and Contact.');
       return;
     }
-
-    const exemptMatch = checkExemptUser(regForm.contact);
+    const cleanInput = normalizeContact(regForm.contact);
+    const exemptMatch = exemptAccounts.find(acc => acc.confirmed && normalizeContact(acc.contact) === cleanInput);
+    
     if (exemptMatch) {
       if (exemptMatch.id === 'owner') {
         setShowOwnerPinModal(true);
         return;
       }
-      setActiveUser({
-        name: exemptMatch.name,
-        contact: exemptMatch.contact,
-        role: exemptMatch.role,
-        isVip: true
-      });
+      setActiveUser({ name: exemptMatch.name, contact: exemptMatch.contact, role: exemptMatch.role });
       setCurrentRole(exemptMatch.role);
       setActiveTab('jobs');
       return;
     }
 
-    const existingUser = registeredUsers.find(
-      (u) => normalizeContact(u.contact) === normalizeContact(regForm.contact)
-    );
-    if (existingUser) {
-      if (existingUser.status === 'approved') {
-        setActiveUser(existingUser);
-        setCurrentRole(existingUser.role);
-        setActiveTab('jobs');
-        return;
-      } else {
-        setRegStep('pending_approval');
-        return;
-      }
+    const existingUser = registeredUsers.find(u => normalizeContact(u.contact) === cleanInput);
+    if (existingUser && existingUser.status === 'approved') {
+      setActiveUser(existingUser);
+      setCurrentRole(existingUser.role);
+      setActiveTab('jobs');
+      return;
     }
-
     setRegStep('pay_500');
   };
 
   const handleComplete500Payment = () => {
     if (!regForm.momoRef.trim()) {
-      alert('Please enter your MoMo Transaction Reference / Phone used to pay.');
+      alert('Please enter your MoMo Reference.');
       return;
     }
-
-    const newRegistrant = {
+    const newReg = {
       id: Date.now(),
       name: regForm.name.trim(),
       contact: regForm.contact.trim(),
       role: regForm.role,
       feePaid: 500,
-      paymentMethod: regForm.paymentMethod.toUpperCase(),
       momoCodeUsed: MOMO_PAYMENT_CODE,
       momoRef: regForm.momoRef,
-      status: 'pending_approval',
-      createdAt: new Date().toLocaleDateString()
+      status: 'pending_approval'
     };
-
-    setRegisteredUsers([newRegistrant, ...registeredUsers]);
+    setRegisteredUsers([newReg, ...registeredUsers]);
     setRegStep('pending_approval');
   };
 
@@ -245,89 +151,44 @@ export default function GuideLinkRwandaApp() {
       setOwnerTab('pending');
       setCurrentRole('owner');
     } else {
-      alert('Access Denied: Invalid Owner Password.');
+      alert('Invalid Owner Password.');
       setOwnerPinInput('');
     }
   };
 
-  const approveRegistrant = (userId) => {
-    setRegisteredUsers(
-      registeredUsers.map((u) => (u.id === userId ? { ...u, status: 'approved' } : u))
-    );
-  };
-
-  const rejectRegistrant = (userId) => {
-    setRegisteredUsers(registeredUsers.filter((u) => u.id !== userId));
-  };
-
   if (currentRole === 'welcome') {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl overflow-hidden border border-slate-200">
-        <div>
-          <div className="bg-[#E2ECE9] p-6 text-center relative overflow-hidden">
-            <div className="absolute top-4 right-6 w-14 h-14 bg-amber-400 rounded-full shadow-md"></div>
-            <div className="h-28 flex items-end justify-center space-x-1">
-              <div className="w-full h-16 bg-[#5A8F7B] rounded-t-full opacity-60"></div>
-              <div className="absolute bottom-0 w-full h-12 bg-[#3B6E5B] rounded-t-full opacity-80"></div>
-              <div className="absolute bottom-0 w-3/4 h-8 bg-[#234E40] rounded-t-full"></div>
-            </div>
+      <div className="min-h-screen bg-slate-50 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl border border-slate-200">
+        <div className="p-6 space-y-6">
+          <div className="bg-[#E2ECE9] p-6 text-center rounded-2xl">
+            <h1 className="text-3xl font-bold text-slate-900">GuideLink Rwanda</h1>
+            <p className="text-sm text-[#234E40] mt-1">Tourism & Guiding Professional Platform</p>
+            <p className="text-[11px] font-semibold text-slate-500 uppercase mt-2">Owner: {ownerProfile.name}</p>
           </div>
-
-          <div className="p-6 space-y-6">
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900 tracking-tight">GuideLink Rwanda</h1>
-              <p className="text-lg font-medium text-[#234E40] mt-1">Turn your tourism degree into paid work.</p>
-              <p className="text-xs text-slate-600 mt-2">
-                Freelance guiding and travel consulting, matched across Rwanda.
-              </p>
-              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-1.5">
-                Developed & Copyright © 2026 {ownerProfile.name}
-              </p>
+          <div className="bg-white border rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="flex justify-between items-center text-xs font-bold text-[#234E40]">
+              <span>Member Portal</span>
+              <span className="bg-emerald-100 px-2.5 py-0.5 rounded-full">MoMo: {MOMO_PAYMENT_CODE}</span>
             </div>
-
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-bold text-[#234E40] uppercase tracking-wider">Member Portal</span>
-                <span className="text-[11px] font-bold bg-emerald-100 text-[#234E40] px-2.5 py-0.5 rounded-full">
-                  MoMo Code: {MOMO_PAYMENT_CODE}
-                </span>
-              </div>
-              <button
-                onClick={() => {
-                  setRegStep('details');
-                  setCurrentRole('register');
-                }}
-                className="w-full py-3.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold text-sm shadow transition flex items-center justify-center space-x-2"
-              >
-                <span>📝</span>
-                <span>Sign Up / Member Sign In →</span>
-              </button>
-            </div>
-
-            <div className="pt-2">
-              <button
-                onClick={() => {
-                  setOwnerPinInput('');
-                  setShowOwnerPinModal(true);
-                }}
-                className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs shadow-sm transition flex items-center justify-center space-x-2"
-              >
-                <span>🔐</span>
-                <span>Owner Login ({ownerProfile.name})</span>
-              </button>
-            </div>
+            <button
+              onClick={() => { setRegStep('details'); setCurrentRole('register'); }}
+              className="w-full py-3.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold text-sm shadow"
+            >
+              Sign Up / Member Sign In →
+            </button>
           </div>
+          <button
+            onClick={() => { setOwnerPinInput(''); setShowOwnerPinModal(true); }}
+            className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-xs shadow"
+          >
+            🔐 Owner Login ({ownerProfile.name})
+          </button>
         </div>
 
         {showOwnerPinModal && (
           <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
             <form onSubmit={handleOwnerLogin} className="bg-white rounded-2xl p-6 w-full max-w-xs space-y-4 shadow-xl">
-              <div className="text-center space-y-1">
-                <div className="w-10 h-10 bg-slate-900 text-white rounded-full flex items-center justify-center mx-auto text-base">
-                  🔐
-                </div>
-                <h3 className="font-bold text-base text-slate-900">Owner Authentication</h3>
-              </div>
+              <h3 className="font-bold text-base text-slate-900 text-center">Owner Authentication</h3>
               <input
                 type="password"
                 required
@@ -335,25 +196,11 @@ export default function GuideLinkRwandaApp() {
                 placeholder="••••••••"
                 value={ownerPinInput}
                 onChange={(e) => setOwnerPinInput(e.target.value)}
-                className="w-full p-3 border border-slate-300 rounded-xl text-sm text-center font-bold tracking-wider"
+                className="w-full p-3 border rounded-xl text-center font-bold"
               />
               <div className="flex space-x-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowOwnerPinModal(false);
-                    setOwnerPinInput('');
-                  }}
-                  className="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-2.5 bg-[#234E40] text-white rounded-xl text-xs font-bold"
-                >
-                  Unlock
-                </button>
+                <button type="button" onClick={() => setShowOwnerPinModal(false)} className="flex-1 py-2.5 bg-slate-100 rounded-xl text-xs font-semibold">Cancel</button>
+                <button type="submit" className="flex-1 py-2.5 bg-[#234E40] text-white rounded-xl text-xs font-bold">Unlock</button>
               </div>
             </form>
           </div>
@@ -364,103 +211,54 @@ export default function GuideLinkRwandaApp() {
 
   if (currentRole === 'register') {
     return (
-      <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl border border-slate-200">
-        <div className="bg-white px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+      <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl border">
+        <div className="bg-white px-6 py-4 border-b flex justify-between items-center">
           <h2 className="font-bold text-slate-900">Member Sign Up</h2>
-          <button
-            onClick={resetToWelcome}
-            className="text-xs bg-slate-100 px-3 py-1.5 rounded-full font-semibold text-slate-600"
-          >
-            ← Home
-          </button>
+          <button onClick={resetToWelcome} className="text-xs bg-slate-100 px-3 py-1.5 rounded-full font-semibold">← Home</button>
         </div>
-
         <div className="p-6 flex-1 overflow-y-auto">
           {regStep === 'details' && (
-            <form onSubmit={handleProceedRegistration} className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
+            <form onSubmit={handleProceedRegistration} className="bg-white p-5 rounded-2xl border space-y-4 shadow-sm">
+              <h3 className="text-lg font-bold">Account Verification</h3>
               <div>
-                <h3 className="text-lg font-bold text-slate-900">Account Verification</h3>
+                <label className="text-xs font-bold">Full Name</label>
+                <input type="text" required value={regForm.name} onChange={(e) => setRegForm({ ...regForm, name: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl text-sm" />
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-700">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  value={regForm.name}
-                  onChange={(e) => setRegForm({ ...regForm, name: e.target.value })}
-                  className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-sm"
-                />
+                <label className="text-xs font-bold">Phone Number (MoMo) or Email</label>
+                <input type="text" required value={regForm.contact} onChange={(e) => setRegForm({ ...regForm, contact: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl text-sm" />
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-700">Phone Number (MoMo) or Email</label>
-                <input
-                  type="text"
-                  required
-                  value={regForm.contact}
-                  onChange={(e) => setRegForm({ ...regForm, contact: e.target.value })}
-                  className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-700">Role</label>
-                <select
-                  value={regForm.role}
-                  onChange={(e) => setRegForm({ ...regForm, role: e.target.value })}
-                  className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-sm bg-white"
-                >
+                <label className="text-xs font-bold">Role</label>
+                <select value={regForm.role} onChange={(e) => setRegForm({ ...regForm, role: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl text-sm bg-white">
                   <option value="graduate">Tourism Graduate</option>
                   <option value="agency">Travel Agency</option>
                   <option value="traveler">Traveler</option>
                 </select>
               </div>
-              <button
-                type="submit"
-                className="w-full py-3 bg-[#3B6E5B] text-white rounded-xl font-bold text-sm shadow"
-              >
-                Continue →
-              </button>
+              <button type="submit" className="w-full py-3 bg-[#3B6E5B] text-white rounded-xl font-bold text-sm">Continue →</button>
             </form>
           )}
 
           {regStep === 'pay_500' && (
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
-              <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-xl space-y-1">
-                <h3 className="text-lg font-bold text-slate-900">Pay 500 RWF via MoMo Code</h3>
-                <p className="text-xs text-slate-700">
-                  Send <strong>500 RWF</strong> to MoMo Code: <strong className="text-[#234E40] text-sm">{MOMO_PAYMENT_CODE}</strong>
-                </p>
+            <div className="bg-white p-5 rounded-2xl border space-y-4 shadow-sm">
+              <div className="bg-amber-50 border p-3.5 rounded-xl space-y-1">
+                <h3 className="text-lg font-bold">Pay 500 RWF via MoMo Code</h3>
+                <p className="text-xs text-slate-700">Send 500 RWF to MoMo Code: <strong className="text-[#234E40]">{MOMO_PAYMENT_CODE}</strong></p>
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-700">MoMo Transaction ID / Reference</label>
-                <input
-                  type="text"
-                  required
-                  value={regForm.momoRef}
-                  onChange={(e) => setRegForm({ ...regForm, momoRef: e.target.value })}
-                  className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-xs"
-                />
+                <label className="text-xs font-bold">MoMo Transaction Reference</label>
+                <input type="text" required value={regForm.momoRef} onChange={(e) => setRegForm({ ...regForm, momoRef: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl text-xs" />
               </div>
-              <button
-                onClick={handleComplete500Payment}
-                className="w-full py-3 bg-[#234E40] text-white rounded-xl font-bold text-sm shadow"
-              >
-                Submit Payment & Notify Owner
-              </button>
+              <button onClick={handleComplete500Payment} className="w-full py-3 bg-[#234E40] text-white rounded-xl font-bold text-sm">Submit Payment</button>
             </div>
           )}
 
           {regStep === 'pending_approval' && (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center space-y-4 shadow-sm">
-              <h3 className="text-lg font-bold text-slate-900">Payment Pending Owner Approval</h3>
-              <p className="text-xs text-slate-600">
-                Your payment to MoMo Code <strong>{MOMO_PAYMENT_CODE}</strong> has been logged and sent to <strong>{ownerProfile.name}</strong>.
-              </p>
-              <button
-                onClick={resetToWelcome}
-                className="w-full py-2.5 bg-[#3B6E5B] text-white rounded-xl font-bold text-xs"
-              >
-                Return to Home Screen
-              </button>
+            <div className="bg-white p-6 rounded-2xl border text-center space-y-4 shadow-sm">
+              <h3 className="text-lg font-bold">Pending Owner Approval</h3>
+              <p className="text-xs text-slate-600">Your payment has been sent to owner {ownerProfile.name}.</p>
+              <button onClick={resetToWelcome} className="w-full py-2.5 bg-[#3B6E5B] text-white rounded-xl font-bold text-xs">Return Home</button>
             </div>
           )}
         </div>
@@ -469,18 +267,12 @@ export default function GuideLinkRwandaApp() {
   }
 
   if (currentRole === 'owner') {
-    const totalRegFees = registeredUsers.reduce((sum, u) => sum + (u.feePaid || 0), 0);
-    const pendingCount = registeredUsers.filter((u) => u.status === 'pending_approval').length;
-
+    const pendingCount = registeredUsers.filter(u => u.status === 'pending_approval').length;
     return (
-      <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl border border-slate-200 relative">
+      <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl border relative">
         <div className="bg-[#234E40] text-white px-5 py-4 flex justify-between items-center sticky top-0 z-30">
           <div className="flex items-center space-x-3">
-            {ownerProfile.photo ? (
-              <img src={ownerProfile.photo} alt="Owner" className="w-10 h-10 rounded-full object-cover border-2 border-amber-400" />
-            ) : (
-              <div className="w-10 h-10 bg-amber-400 text-slate-900 rounded-full flex items-center justify-center font-extrabold text-sm">👑</div>
-            )}
+            {ownerProfile.photo ? <img src={ownerProfile.photo} alt="Owner" className="w-10 h-10 rounded-full object-cover border-2 border-amber-400" /> : <div className="w-10 h-10 bg-amber-400 text-slate-900 rounded-full flex items-center justify-center font-bold">👑</div>}
             <div>
               <h2 className="font-bold text-sm">{ownerProfile.name}</h2>
               <p className="text-[11px] text-emerald-200">MoMo Code: {MOMO_PAYMENT_CODE}</p>
@@ -489,31 +281,21 @@ export default function GuideLinkRwandaApp() {
           <button onClick={resetToWelcome} className="text-xs bg-emerald-900 px-3 py-1.5 rounded-full font-semibold">Log Out</button>
         </div>
 
-        <div className="bg-white border-b border-slate-200 px-2 py-2.5 grid grid-cols-5 gap-1 text-center sticky top-[72px] z-20 shadow-sm">
-          <button onClick={() => setOwnerTab('pending')} className={`p-1.5 rounded-xl flex flex-col items-center relative ${ownerTab === 'pending' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
-            <span className="text-base">⏳</span><span className="text-[9px]">Sign-Ups</span>
-            {pendingCount > 0 && <span className="absolute top-1 right-2 bg-red-600 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center">{pendingCount}</span>}
-          </button>
-          <button onClick={() => setOwnerTab('overview')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'overview' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-base">📊</span><span className="text-[9px]">Revenue</span></button>
-          <button onClick={() => setOwnerTab('vip')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'vip' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-base">⭐</span><span className="text-[9px]">VIP</span></button>
-          <button onClick={() => setOwnerTab('deals')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'deals' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-base">🎛️</span><span className="text-[9px]">Roles</span></button>
-          <button onClick={() => setOwnerTab('owner_profile')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'owner_profile' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-base">👤</span><span className="text-[9px]">My Profile</span></button>
+        <div className="bg-white border-b px-4 py-2 flex justify-around text-xs font-bold sticky top-[72px] z-20">
+          <button onClick={() => setOwnerTab('pending')} className={`p-2 ${ownerTab === 'pending' ? 'text-[#234E40] border-b-2 border-[#234E40]' : 'text-slate-500'}`}>Sign-Ups ({pendingCount})</button>
+          <button onClick={() => setOwnerTab('owner_profile')} className={`p-2 ${ownerTab === 'owner_profile' ? 'text-[#234E40] border-b-2 border-[#234E40]' : 'text-slate-500'}`}>My Profile</button>
         </div>
 
         <div className="p-4 space-y-4 flex-1 overflow-y-auto pb-10">
           {ownerTab === 'pending' && (
             <div className="space-y-3">
-              <h3 className="font-bold text-sm text-slate-900">⏳ Payment Notifications & Sign-Ups</h3>
-              {registeredUsers.map((user) => (
-                <div key={user.id} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2 text-xs">
+              <h3 className="font-bold text-sm">Payment Approvals</h3>
+              {registeredUsers.map(user => (
+                <div key={user.id} className="bg-white p-4 rounded-2xl border space-y-2 text-xs">
                   <p className="font-bold text-sm">{user.name} ({user.role})</p>
                   <p className="text-slate-500">{user.contact} • Ref: {user.momoRef}</p>
-                  {user.status === 'approved' ? (
-                    <span className="text-emerald-700 font-bold">✓ Approved</span>
-                  ) : (
-                    <button onClick={() => approveRegistrant(user.id)} className="w-full py-2 bg-[#3B6E5B] text-white rounded-xl font-bold">
-                      ✓ Confirm Payment & Grant Access
-                    </button>
+                  {user.status === 'approved' ? <span className="text-emerald-700 font-bold">✓ Approved</span> : (
+                    <button onClick={() => setRegisteredUsers(registeredUsers.map(u => u.id === user.id ? { ...u, status: 'approved' } : u))} className="w-full py-2 bg-[#3B6E5B] text-white rounded-xl font-bold">Approve Access</button>
                   )}
                 </div>
               ))}
@@ -521,34 +303,20 @@ export default function GuideLinkRwandaApp() {
           )}
 
           {ownerTab === 'owner_profile' && (
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4">
-              <h3 className="font-bold text-base text-slate-900">👑 Owner Profile & Photo</h3>
+            <div className="bg-white p-5 rounded-2xl border space-y-4">
+              <h3 className="font-bold text-base">Owner Profile & Photo</h3>
               <div className="flex flex-col items-center space-y-2">
-                {ownerProfile.photo ? (
-                  <img src={ownerProfile.photo} alt="Owner" className="w-24 h-24 rounded-full object-cover border-4 border-[#3B6E5B]" />
-                ) : (
-                  <div className="w-24 h-24 rounded-full bg-slate-200 flex items-center justify-center text-3xl">👑</div>
-                )}
+                {ownerProfile.photo ? <img src={ownerProfile.photo} alt="Owner" className="w-24 h-24 rounded-full object-cover border-4 border-[#3B6E5B]" /> : <div className="w-24 h-24 rounded-full bg-slate-200 flex items-center justify-center text-3xl">👑</div>}
                 <label className="cursor-pointer bg-emerald-50 text-[#234E40] border px-3 py-1.5 rounded-xl text-xs font-bold">
-                  📷 Upload Owner Photo
+                  Upload Owner Photo
                   <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, (imgData) => setOwnerProfile({ ...ownerProfile, photo: imgData }))} />
                 </label>
               </div>
-
               <div className="space-y-3 text-xs">
                 <input type="text" value={ownerProfile.name} onChange={(e) => setOwnerProfile({ ...ownerProfile, name: e.target.value })} className="w-full p-2.5 border rounded-xl" />
                 <input type="text" value={ownerProfile.title} onChange={(e) => setOwnerProfile({ ...ownerProfile, title: e.target.value })} className="w-full p-2.5 border rounded-xl" />
                 <input type="text" value={ownerProfile.contact} onChange={(e) => setOwnerProfile({ ...ownerProfile, contact: e.target.value })} className="w-full p-2.5 border rounded-xl" />
-                
-                {/* SAVE BUTTON FOR OWNER */}
-                <button
-                  type="button"
-                  disabled={isSaving}
-                  onClick={() => handleSaveToCloud(ownerProfile, 'owner')}
-                  className="w-full py-3 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold text-sm shadow"
-                >
-                  {isSaving ? '⏳ Saving...' : '💾 Save & Sync Owner Profile'}
-                </button>
+                <button onClick={() => alert('Owner profile updated successfully!')} className="w-full py-3.5 bg-[#3B6E5B] text-white rounded-xl font-bold text-sm shadow">💾 Save Changes</button>
               </div>
             </div>
           )}
@@ -560,16 +328,10 @@ export default function GuideLinkRwandaApp() {
   const currentProf = getCurrentProfile();
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl overflow-hidden border border-slate-200 relative">
+    <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl overflow-hidden border relative">
       <div className="bg-white px-5 py-3.5 border-b flex justify-between items-center sticky top-0 z-30">
         <div className="flex items-center space-x-3">
-          {currentProf?.photo ? (
-            <img src={currentProf.photo} alt="Profile" className="w-10 h-10 rounded-full object-cover border-2 border-[#3B6E5B]" />
-          ) : (
-            <div className="w-10 h-10 rounded-full bg-[#3B6E5B] text-white flex items-center justify-center font-bold">
-              {(currentProf?.name || 'U').charAt(0)}
-            </div>
-          )}
+          {currentProf?.photo ? <img src={currentProf.photo} alt="Profile" className="w-10 h-10 rounded-full object-cover border-2 border-[#3B6E5B]" /> : <div className="w-10 h-10 rounded-full bg-[#3B6E5B] text-white flex items-center justify-center font-bold">{(currentProf?.name || 'U').charAt(0)}</div>}
           <div>
             <h2 className="font-bold text-sm">{currentProf?.name}</h2>
             <p className="text-[11px] text-slate-500 capitalize">Role: {currentRole}</p>
@@ -581,15 +343,11 @@ export default function GuideLinkRwandaApp() {
       <div className="flex-1 overflow-y-auto pb-24 p-4 space-y-4">
         {activeTab === 'jobs' && (
           <div className="space-y-3">
-            <h3 className="font-bold text-base text-slate-900">Available Tasks</h3>
-            {tasks.map((task) => (
-              <div key={task.id} className="bg-white p-4 rounded-2xl border space-y-2">
-                <div className="flex justify-between font-bold text-sm">
-                  <span>{task.title}</span><span className="text-[#234E40]">{task.pay}</span>
-                </div>
-                <p className="text-xs text-slate-500">MoMo Code: {MOMO_PAYMENT_CODE}</p>
-              </div>
-            ))}
+            <h3 className="font-bold text-base">Available Tasks</h3>
+            <div className="bg-white p-4 rounded-2xl border space-y-2">
+              <div className="flex justify-between font-bold text-sm"><span>Kigali Heritage Tour</span><span className="text-[#234E40]">RWF 35,000</span></div>
+              <p className="text-xs text-slate-500">MoMo Code: {MOMO_PAYMENT_CODE}</p>
+            </div>
           </div>
         )}
 
@@ -597,32 +355,16 @@ export default function GuideLinkRwandaApp() {
           <div className="space-y-4">
             <div className="bg-white p-5 rounded-2xl border space-y-4 shadow-sm">
               <div className="flex flex-col items-center space-y-2">
-                {currentProf.photo ? (
-                  <img src={currentProf.photo} alt="Avatar" className="w-24 h-24 rounded-full object-cover border-4 border-[#3B6E5B]" />
-                ) : (
-                  <div className="w-24 h-24 rounded-full bg-emerald-100 text-[#234E40] flex items-center justify-center font-bold text-2xl">
-                    {currentProf.name.charAt(0)}
-                  </div>
-                )}
+                {currentProf.photo ? <img src={currentProf.photo} alt="Avatar" className="w-24 h-24 rounded-full object-cover border-4 border-[#3B6E5B]" /> : <div className="w-24 h-24 rounded-full bg-emerald-100 text-[#234E40] flex items-center justify-center font-bold text-2xl">{currentProf.name.charAt(0)}</div>}
                 <label className="cursor-pointer bg-[#3B6E5B] text-white px-3.5 py-1.5 rounded-xl text-xs font-bold">
-                  📷 Upload Profile Photo
+                  Upload Profile Photo
                   <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, (imgData) => updateCurrentProfile({ photo: imgData }))} />
                 </label>
               </div>
-
               <div className="space-y-3 text-xs">
                 <input type="text" value={currentProf.name} onChange={(e) => updateCurrentProfile({ name: e.target.value })} className="w-full p-2.5 border rounded-xl" />
                 <input type="text" value={currentProf.headline} onChange={(e) => updateCurrentProfile({ headline: e.target.value })} className="w-full p-2.5 border rounded-xl" />
-                
-                {/* SAVE & SYNC BUTTON FOR ALL USERS */}
-                <button
-                  type="button"
-                  disabled={isSaving}
-                  onClick={() => handleSaveToCloud(currentProf, activeUser?.contact || activeUser?.name)}
-                  className="w-full py-3.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold text-sm shadow transition"
-                >
-                  {isSaving ? '⏳ Saving & Syncing...' : '💾 Save & Sync Profile to Cloud'}
-                </button>
+                <button onClick={() => alert('Profile saved successfully!')} className="w-full py-3.5 bg-[#3B6E5B] text-white rounded-xl font-bold text-sm shadow">💾 Save Profile Changes</button>
               </div>
             </div>
           </div>
