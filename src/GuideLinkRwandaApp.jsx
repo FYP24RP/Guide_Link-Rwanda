@@ -11,7 +11,6 @@ export default function GuideLinkRwandaApp() {
 
   const MOMO_PAYMENT_CODE = '612771';
 
-  // Owner Profile State (with Photo Upload & Editable Details)
   const [ownerProfile, setOwnerProfile] = useState(() => {
     const saved = localStorage.getItem('gl_owner_profile');
     return saved
@@ -25,7 +24,6 @@ export default function GuideLinkRwandaApp() {
         };
   });
 
-  // VIP / Exempt Users
   const [exemptAccounts, setExemptAccounts] = useState(() => {
     const saved = localStorage.getItem('gl_exempt_users');
     return saved
@@ -38,13 +36,11 @@ export default function GuideLinkRwandaApp() {
         ];
   });
 
-  // Paid & Registered Users List
   const [registeredUsers, setRegisteredUsers] = useState(() => {
     const saved = localStorage.getItem('gl_registered_users');
     return saved ? JSON.parse(saved) : [];
   });
 
-  // Custom Rich Profiles keyed by normalized contact
   const [userProfiles, setUserProfiles] = useState(() => {
     const saved = localStorage.getItem('gl_user_profiles');
     return saved ? JSON.parse(saved) : {};
@@ -60,7 +56,6 @@ export default function GuideLinkRwandaApp() {
     momoRef: ''
   });
 
-  // Form states for adding new Degrees, Experience, or Skills in Profile Editor
   const [newDegreeInput, setNewDegreeInput] = useState('');
   const [newExpTitle, setNewExpTitle] = useState('');
   const [newExpOrg, setNewExpOrg] = useState('');
@@ -106,17 +101,6 @@ export default function GuideLinkRwandaApp() {
             timeLabel: 'Sat 21 Nov, 4 hours',
             status: 'confirmed',
             paymentStatus: 'pending'
-          },
-          {
-            id: 2,
-            title: 'Airport transfer & Volcanic region briefing',
-            agency: 'Rwanda Eco-Tours',
-            rawPay: 20000,
-            pay: 'RWF 20,000',
-            date: 'Mon 23 Nov, 14:00 to 16:00',
-            timeLabel: 'Mon 23 Nov, 2 hours',
-            status: 'open',
-            paymentStatus: 'pending'
           }
         ];
   });
@@ -127,7 +111,6 @@ export default function GuideLinkRwandaApp() {
 
   const normalizeContact = (str) => (str || '').replace(/\s+/g, '').toLowerCase();
 
-  // Helper to get or initialize a user's rich profile
   const getCurrentProfile = () => {
     if (!activeUser) return null;
     const key = normalizeContact(activeUser.contact || activeUser.name);
@@ -143,7 +126,7 @@ export default function GuideLinkRwandaApp() {
         activeUser.role === 'graduate'
           ? 'Certified Tourism Graduate & Guide'
           : activeUser.role === 'agency'
-          ? 'Licensed Tour & Travel Operator'
+          ? 'Licensed Tour Operator'
           : 'Verified Traveler',
       location: 'Kigali, Rwanda',
       bio: '',
@@ -166,18 +149,11 @@ export default function GuideLinkRwandaApp() {
     }
   };
 
-  // Convert uploaded image file to Base64 data URL so it saves cleanly
   const handleImageUpload = (e, onSuccess) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      alert('Please choose an image smaller than 2MB.');
-      return;
-    }
     const reader = new FileReader();
-    reader.onloadend = () => {
-      onSuccess(reader.result);
-    };
+    reader.onloadend = () => onSuccess(reader.result);
     reader.readAsDataURL(file);
   };
 
@@ -309,7 +285,6 @@ export default function GuideLinkRwandaApp() {
     alert('Task completed and commission settled to MoMo Code 612771!');
   };
 
-  // ==================== 1. WELCOME SCREEN ====================
   if (currentRole === 'welcome') {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl overflow-hidden border border-slate-200">
@@ -343,7 +318,7 @@ export default function GuideLinkRwandaApp() {
                 </span>
               </div>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Register or sign in. New accounts pay <strong>500 RWF</strong> via MoMo Code <strong>{MOMO_PAYMENT_CODE}</strong>. Once confirmed, customize your full profile, upload your photo, degrees, and experience.
+                Register or sign in. New accounts pay <strong>500 RWF</strong> via MoMo Code <strong>{MOMO_PAYMENT_CODE}</strong>. Once confirmed, customize your full profile and upload credentials.
               </p>
               <button
                 onClick={() => {
@@ -416,7 +391,6 @@ export default function GuideLinkRwandaApp() {
     );
   }
 
-  // ==================== 2. REGISTRATION & PAYMENT GATE ====================
   if (currentRole === 'register') {
     return (
       <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl border border-slate-200">
@@ -533,7 +507,7 @@ export default function GuideLinkRwandaApp() {
               </div>
               <h3 className="text-lg font-bold text-slate-900">Payment Pending Owner Approval</h3>
               <p className="text-xs text-slate-600">
-                Your payment to MoMo Code <strong>{MOMO_PAYMENT_CODE}</strong> has been logged. Once <strong>{ownerProfile.name}</strong> confirms your access, sign in to edit your profile and upload your credentials.
+                Your payment to MoMo Code <strong>{MOMO_PAYMENT_CODE}</strong> has been logged. Once <strong>{ownerProfile.name}</strong> confirms your access, sign in to edit your profile.
               </p>
               <button
                 onClick={resetToWelcome}
@@ -548,7 +522,6 @@ export default function GuideLinkRwandaApp() {
     );
   }
 
-  // ==================== 3. OWNER HQ DASHBOARD (WITH OWNER PROFILE & PHOTO UPLOAD) ====================
   if (currentRole === 'owner') {
     const totalRegFees = registeredUsers.reduce((sum, u) => sum + (u.feePaid || 0), 0);
     const totalDealCommissions = tasks
@@ -585,7 +558,6 @@ export default function GuideLinkRwandaApp() {
           </button>
         </div>
 
-        {/* Owner 5-Icon Navigation Bar */}
         <div className="bg-white border-b border-slate-200 px-2 py-2.5 grid grid-cols-5 gap-1 text-center sticky top-[72px] z-20 shadow-sm">
           <button
             onClick={() => setOwnerTab('pending')}
@@ -813,7 +785,6 @@ export default function GuideLinkRwandaApp() {
             </div>
           )}
 
-          {/* OWNER PROFILE & PHOTO EDITOR */}
           {ownerTab === 'owner_profile' && (
             <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4">
               <h3 className="font-bold text-base text-slate-900">👑 Owner Profile & Photo</h3>
@@ -881,9 +852,6 @@ export default function GuideLinkRwandaApp() {
                   />
                 </div>
               </div>
-              <div className="text-center text-[11px] text-emerald-700 font-semibold">
-                ✓ All profile changes save automatically
-              </div>
             </div>
           )}
         </div>
@@ -891,12 +859,10 @@ export default function GuideLinkRwandaApp() {
     );
   }
 
-  // ==================== 4. PAID USER WORKSPACES + FULL CUSTOM PROFILE EDITOR ====================
   const currentProf = getCurrentProfile();
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl overflow-hidden border border-slate-200 relative">
-      {/* Top User Bar with Profile Photo */}
       <div className="bg-white px-5 py-3.5 border-b border-slate-200 flex justify-between items-center sticky top-0 z-30">
         <div className="flex items-center space-x-3">
           {currentProf?.photo ? (
@@ -923,9 +889,7 @@ export default function GuideLinkRwandaApp() {
         </button>
       </div>
 
-      {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto pb-24 p-4 space-y-4">
-        {/* TAB 1: WORKSPACE / JOBS / BOOKINGS */}
         {activeTab === 'jobs' && (
           <>
             {currentRole === 'graduate' && (
@@ -974,15 +938,6 @@ export default function GuideLinkRwandaApp() {
                 <p className="text-xs text-slate-500">
                   All deal commissions settle to MoMo Code: <strong>{MOMO_PAYMENT_CODE}</strong>
                 </p>
-                {tasks.map((t) => (
-                  <div key={t.id} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-1 text-xs">
-                    <div className="flex justify-between font-bold text-sm">
-                      <span>{t.title}</span>
-                      <span className="text-[#234E40]">{t.pay}</span>
-                    </div>
-                    <p className="text-slate-500">{t.date}</p>
-                  </div>
-                ))}
               </div>
             )}
 
@@ -997,26 +952,19 @@ export default function GuideLinkRwandaApp() {
                     Edit My Profile →
                   </button>
                 </div>
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3">
-                  <p className="text-xs text-slate-600">
-                    Hire certified Rwandan tourism graduates for city tours, gorilla trekking briefings, and custom itineraries.
-                  </p>
-                  <button
-                    onClick={() => setShowPaymentModal(true)}
-                    className="w-full py-2.5 bg-[#3B6E5B] text-white rounded-xl font-bold text-xs"
-                  >
-                    Book & Pay via MoMo Code {MOMO_PAYMENT_CODE} (RWF 35,000)
-                  </button>
-                </div>
+                <button
+                  onClick={() => setShowPaymentModal(true)}
+                  className="w-full py-2.5 bg-[#3B6E5B] text-white rounded-xl font-bold text-xs"
+                >
+                  Book & Pay via MoMo Code {MOMO_PAYMENT_CODE} (RWF 35,000)
+                </button>
               </div>
             )}
           </>
         )}
 
-        {/* TAB 2: CUSTOMIZABLE PROFILE EDITOR FOR EVERY PAID USER */}
         {activeTab === 'profile' && currentProf && (
           <div className="space-y-4">
-            {/* Profile Photo & Basic Info Card */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
               <div className="flex flex-col items-center space-y-2">
                 {currentProf.photo ? (
@@ -1046,7 +994,7 @@ export default function GuideLinkRwandaApp() {
 
               <div className="space-y-3 text-xs">
                 <div>
-                  <label className="font-bold text-slate-700">Full Name / Display Name</label>
+                  <label className="font-bold text-slate-700">Full Name</label>
                   <input
                     type="text"
                     value={currentProf.name}
@@ -1056,295 +1004,70 @@ export default function GuideLinkRwandaApp() {
                 </div>
 
                 <div>
-                  <label className="font-bold text-slate-700">Professional Headline / Tagline</label>
+                  <label className="font-bold text-slate-700">Professional Headline</label>
                   <input
                     type="text"
                     value={currentProf.headline}
                     onChange={(e) => updateCurrentProfile({ headline: e.target.value })}
-                    placeholder="e.g. Advanced Diploma in Tours & Travel Management"
-                    className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-bold text-slate-700">City / Location</label>
-                  <input
-                    type="text"
-                    value={currentProf.location}
-                    onChange={(e) => updateCurrentProfile({ location: e.target.value })}
-                    placeholder="e.g. Kigali / Rusizi, Rwanda"
-                    className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-bold text-slate-700">About Me / Bio</label>
-                  <textarea
-                    rows="3"
-                    value={currentProf.bio}
-                    onChange={(e) => updateCurrentProfile({ bio: e.target.value })}
-                    placeholder="Describe your background, specialties, or what you offer..."
                     className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl"
                   />
                 </div>
               </div>
             </div>
 
-            {/* TOURISM GRADUATE SPECIFIC: DEGREES, CERTIFICATIONS & WORK EXPERIENCE */}
             {currentRole === 'graduate' && (
-              <>
-                {/* Degrees & Academic Qualifications */}
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3 shadow-sm text-xs">
-                  <h4 className="font-bold text-sm text-slate-900">🎓 Degrees & Tourism Qualifications</h4>
-                  <div className="flex space-x-2">
-                    <input
-                      type="text"
-                      placeholder="e.g. Advanced Diploma in Tours & Travel (RP Kitabi)"
-                      value={newDegreeInput}
-                      onChange={(e) => setNewDegreeInput(e.target.value)}
-                      className="flex-1 p-2.5 border border-slate-200 rounded-xl"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!newDegreeInput.trim()) return;
-                        updateCurrentProfile({
-                          degrees: [...(currentProf.degrees || []), newDegreeInput.trim()]
-                        });
-                        setNewDegreeInput('');
-                      }}
-                      className="px-3.5 py-2 bg-[#3B6E5B] text-white rounded-xl font-bold"
-                    >
-                      + Add
-                    </button>
-                  </div>
-
-                  <div className="space-y-2 pt-1">
-                    {(currentProf.degrees || []).length === 0 ? (
-                      <p className="text-slate-400 italic">No degrees or certificates added yet.</p>
-                    ) : (
-                      currentProf.degrees.map((deg, idx) => (
-                        <div key={idx} className="flex justify-between items-center bg-emerald-50 border border-emerald-100 p-2.5 rounded-xl">
-                          <span className="font-semibold text-[#234E40]">📜 {deg}</span>
-                          <button
-                            onClick={() =>
-                              updateCurrentProfile({
-                                degrees: currentProf.degrees.filter((_, i) => i !== idx)
-                              })
-                              const [isSaving, setIsSaving] = useState(false);
-
-  // Function to save profile changes to Supabase Cloud (Syncs to all devices & Owner HQ)
-  const handleSaveProfileToCloud = async () => {
-    setIsSaving(true);
-    const currentProf = getCurrentProfile();
-    const cleanContact = normalizeContact(currentProf.contact || currentProf.name);
-
-    try {
-      // If you are using Supabase, uncomment below:
-      /*
-      const { error } = await supabase
-        .from('user_profiles')
-        .upsert({ 
-          contact_key: cleanContact, 
-          profile_data: currentProf,
-          updated_at: new Date()
-        });
-
-      if (error) throw error;
-      */
-
-      // Simulated instant cloud confirmation for your FYP demo:
-      setTimeout(() => {
-        setIsSaving(false);
-        alert('Profile saved successfully! Synced across all your devices and updated in Owner HQ.');
-      }, 600);
-
-    } catch (err) {
-      setIsSaving(false);
-      alert('Error saving profile: ' + err.message);
-    }
-  };
-                            }
-                            className="text-red-500 font-bold px-1.5"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))
-                    )}
-                  </div>
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3 shadow-sm text-xs">
+                <h4 className="font-bold text-sm text-slate-900">🎓 Degrees & Qualifications</h4>
+                <div className="flex space-x-2">
+                  <input
+                    type="text"
+                    placeholder="e.g. Advanced Diploma (RP Kitabi)"
+                    value={newDegreeInput}
+                    onChange={(e) => setNewDegreeInput(e.target.value)}
+                    className="flex-1 p-2.5 border border-slate-200 rounded-xl"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!newDegreeInput.trim()) return;
+                      updateCurrentProfile({
+                        degrees: [...(currentProf.degrees || []), newDegreeInput.trim()]
+                      });
+                      setNewDegreeInput('');
+                    }}
+                    className="px-3.5 py-2 bg-[#3B6E5B] text-white rounded-xl font-bold"
+                  >
+                    + Add
+                  </button>
                 </div>
 
-                {/* Guiding & Hospitality Experience */}
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3 shadow-sm text-xs">
-                  <h4 className="font-bold text-sm text-slate-900">💼 Guiding & Work Experience</h4>
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      placeholder="Role / Position (e.g. Tour Guide / F&B Controller)"
-                      value={newExpTitle}
-                      onChange={(e) => setNewExpTitle(e.target.value)}
-                      className="w-full p-2.5 border border-slate-200 rounded-xl"
-                    />
-                    <div className="flex space-x-2">
-                      <input
-                        type="text"
-                        placeholder="Company / Hotel / Park (e.g. Nyungwe Top View)"
-                        value={newExpOrg}
-                        onChange={(e) => setNewExpOrg(e.target.value)}
-                        className="flex-1 p-2.5 border border-slate-200 rounded-xl"
-                      />
+                <div className="space-y-2 pt-1">
+                  {(currentProf.degrees || []).map((deg, idx) => (
+                    <div key={idx} className="flex justify-between items-center bg-emerald-50 p-2.5 rounded-xl">
+                      <span>📜 {deg}</span>
                       <button
-                        type="button"
-                        onClick={() => {
-                          if (!newExpTitle.trim()) return;
+                        onClick={() =>
                           updateCurrentProfile({
-                            experiences: [
-                              ...(currentProf.experiences || []),
-                              { role: newExpTitle.trim(), org: newExpOrg.trim() || 'Rwanda Tourism' }
-                            ]
-                          });
-                          setNewExpTitle('');
-                          setNewExpOrg('');
-                        }}
-                        className="px-3.5 py-2 bg-[#3B6E5B] text-white rounded-xl font-bold"
+                            degrees: currentProf.degrees.filter((_, i) => i !== idx)
+                          })
+                        }
+                        className="text-red-500 font-bold"
                       >
-                        + Add
+                        ✕
                       </button>
                     </div>
-                  </div>
-
-                  <div className="space-y-2 pt-1">
-                    {(currentProf.experiences || []).length === 0 ? (
-                      <p className="text-slate-400 italic">No work experience added yet.</p>
-                    ) : (
-                      currentProf.experiences.map((exp, idx) => (
-                        <div key={idx} className="flex justify-between items-center bg-slate-50 border border-slate-200 p-2.5 rounded-xl">
-                          <div>
-                            <p className="font-bold text-slate-800">{exp.role}</p>
-                            <p className="text-slate-500">{exp.org}</p>
-                          </div>
-                          <button
-                            onClick={() =>
-                              updateCurrentProfile({
-                                experiences: currentProf.experiences.filter((_, i) => i !== idx)
-                              })
-                            }
-                            className="text-red-500 font-bold px-1.5"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-
-                {/* Skills & Languages */}
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3 shadow-sm text-xs">
-                  <h4 className="font-bold text-sm text-slate-900">🌍 Languages & Technical Skills</h4>
-                  <div className="flex space-x-2">
-                    <input
-                      type="text"
-                      placeholder="e.g. French, Galileo GDS, Wildlife Tracking"
-                      value={newSkillInput}
-                      onChange={(e) => setNewSkillInput(e.target.value)}
-                      className="flex-1 p-2.5 border border-slate-200 rounded-xl"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!newSkillInput.trim()) return;
-                        updateCurrentProfile({
-                          skills: [...(currentProf.skills || []), newSkillInput.trim()]
-                        });
-                        setNewSkillInput('');
-                      }}
-                      className="px-3.5 py-2 bg-[#3B6E5B] text-white rounded-xl font-bold"
-                    >
-                      + Add
-                    </button>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {(currentProf.skills || []).map((sk, idx) => (
-                      <span
-                        key={idx}
-                        className="bg-emerald-50 text-[#234E40] border border-emerald-200 px-2.5 py-1 rounded-full font-semibold flex items-center space-x-1"
-                      >
-                        <span>{sk}</span>
-                        <button
-                          onClick={() =>
-                            updateCurrentProfile({
-                              skills: currentProf.skills.filter((_, i) => i !== idx)
-                            })
-                          }
-                          className="text-red-500 ml-1 font-bold"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* TRAVEL AGENCY SPECIFIC FIELDS */}
-            {currentRole === 'agency' && (
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3 shadow-sm text-xs">
-                <h4 className="font-bold text-sm text-slate-900">🏢 Agency Registration & Credentials</h4>
-                <div>
-                  <label className="font-bold text-slate-700">RDB License / Tour Operator ID</label>
-                  <input
-                    type="text"
-                    value={currentProf.agencyLicense || ''}
-                    onChange={(e) => updateCurrentProfile({ agencyLicense: e.target.value })}
-                    placeholder="Enter RDB Registration Number"
-                    className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* TRAVELER SPECIFIC FIELDS */}
-            {currentRole === 'traveler' && (
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3 shadow-sm text-xs">
-                <h4 className="font-bold text-sm text-slate-900">🧳 Travel Interests & Preferences</h4>
-                <div>
-                  <label className="font-bold text-slate-700">Destinations & Tour Interests</label>
-                  <input
-                    <div className="pt-4 pb-6">
-  <button
-    type="button"
-    onClick={handleSaveProfileToCloud}
-    disabled={isSaving}
-    className="w-full py-3.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold text-sm shadow-md transition flex items-center justify-center space-x-2"
-  >
-    <span>{isSaving ? '⏳ Saving to Cloud...' : '💾 Save & Sync Profile'}</span>
-  </button>
-  <p className="text-[11px] text-center text-slate-400 mt-2">
-    Changes sync instantly to all your devices and the platform owner.
-  </p>
-</div>
-                    type="text"
-                    value={currentProf.travelerPreferences || ''}
-                    onChange={(e) => updateCurrentProfile({ travelerPreferences: e.target.value })}
-                    placeholder="e.g. Gorilla Trekking, Nyungwe Canopy, Kigali Cultural Tours"
-                    className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl"
-                  />
+                  ))}
                 </div>
               </div>
             )}
 
             <div className="text-center text-xs text-emerald-700 font-bold py-2">
-              ✓ Profile saved automatically
+              ✓ Profile updated instantly
             </div>
           </div>
         )}
       </div>
 
-      {/* Bottom Navigation Bar for All Paid Users */}
       <div className="bg-white border-t border-slate-200 py-2.5 px-10 flex justify-around items-center text-xs font-bold text-slate-500 absolute bottom-0 w-full max-w-md z-20">
         <button
           onClick={() => setActiveTab('jobs')}
@@ -1361,27 +1084,6 @@ export default function GuideLinkRwandaApp() {
           <span>My Profile & CV</span>
         </button>
       </div>
-
-      {/* Payment Modal */}
-      {showPaymentModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-xl">
-            <h3 className="font-bold text-base text-slate-900">Rwandan Payment Gateway</h3>
-            <p className="text-xs text-slate-600">
-              Send payment to MoMo Code: <strong className="text-[#234E40] text-sm">{MOMO_PAYMENT_CODE}</strong>
-            </p>
-            <button
-              onClick={() => {
-                setShowPaymentModal(false);
-                alert(`Payment authorized to MoMo Code ${MOMO_PAYMENT_CODE}!`);
-              }}
-              className="w-full py-2.5 bg-[#3B6E5B] text-white rounded-xl font-bold text-xs"
-            >
-              Confirm Payment
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
