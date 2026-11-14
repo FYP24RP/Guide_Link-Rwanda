@@ -13,7 +13,7 @@ export default function GuideLinkRwandaApp() {
 
   const handleSave = (e) => {
     e.preventDefault();
-    setSavedMessage('Owner profile and iconic permissions successfully updated!');
+    setSavedMessage('Owner profile successfully updated!');
     setTimeout(() => setSavedMessage(''), 4000);
   };
 
