@@ -15,7 +15,7 @@ export default function GuideLinkRwandaApp() {
   const [showOwnerPinModal, setShowOwnerPinModal] = useState(false);
   const [ownerPinInput, setOwnerPinInput] = useState('');
 
-  // STEP 1: VIP / Exempt Users (Owner + 3 confirmed users who skip the 500 RWF charge)
+  // STEP 1: VIP / Exempt Users (Owner + 3 confirmed users skip 500 RWF fee)
   const [exemptAccounts, setExemptAccounts] = useState(() => {
     const saved = localStorage.getItem('gl_exempt_users');
     return saved
@@ -47,7 +47,13 @@ export default function GuideLinkRwandaApp() {
     momoRef: ''
   });
 
-  // Save changes to localStorage
+  // STEP 2: Platform Commission & Fee Settings (Controlled by Owner)
+  const [platformSettings, setPlatformSettings] = useState(() => {
+    const saved = localStorage.getItem('gl_platform_settings');
+    return saved ? JSON.parse(saved) : { commissionRatePercent: 10 }; // Default 10% commission on completed deals
+  });
+
+  // Save to localStorage
   useEffect(() => {
     localStorage.setItem('gl_exempt_users', JSON.stringify(exemptAccounts));
   }, [exemptAccounts]);
@@ -56,7 +62,11 @@ export default function GuideLinkRwandaApp() {
     localStorage.setItem('gl_registered_users', JSON.stringify(registeredUsers));
   }, [registeredUsers]);
 
-  // Default Profile & Tasks State
+  useEffect(() => {
+    localStorage.setItem('gl_platform_settings', JSON.stringify(platformSettings));
+  }, [platformSettings]);
+
+  // Graduate Profile & Tasks State
   const [graduateProfile, setGraduateProfile] = useState({
     name: 'RUTUNGURA Bonheur',
     title: 'Tourism Graduate & Consultant',
@@ -66,50 +76,60 @@ export default function GuideLinkRwandaApp() {
     skills: ['GDS Galileo & Sabre', 'City Tours', 'Wildlife Guiding', 'Trip Planning']
   });
 
-  const [tasks, setTasks] = useState([
-    {
-      id: 1,
-      title: 'Half-day Kigali city tour & cultural heritage',
-      agency: 'Cheetah Safaris / Partner Agency',
-      pay: 'RWF 35,000',
-      date: 'Sat 21 Nov, 09:00 to 13:00',
-      timeLabel: 'Sat 21 Nov, 4 hours',
-      meetingPoint: 'Kigali City Centre',
-      groupSize: '6 travelers',
-      languages: ['English', 'French', 'Kinyarwanda'],
-      category: 'Guiding',
-      status: 'offer_sent',
-      paymentStatus: 'pending'
-    },
-    {
-      id: 2,
-      title: 'Airport transfer & Volcanic region briefing',
-      agency: 'Rwanda Eco-Tours',
-      pay: 'RWF 20,000',
-      date: 'Mon 23 Nov, 14:00 to 16:00',
-      timeLabel: 'Mon 23 Nov, 2 hours',
-      meetingPoint: 'Kigali International Airport',
-      groupSize: '2 travelers',
-      languages: ['English'],
-      category: 'Guiding',
-      status: 'open',
-      paymentStatus: 'pending'
-    },
-    {
-      id: 3,
-      title: 'Custom 5-day Nyungwe & Volcanoes itinerary consultation',
-      agency: 'Kitabi Travel Desk',
-      pay: 'RWF 45,000',
-      date: 'Remote, due Wed 25 Nov',
-      timeLabel: 'Remote, due Wed 25 Nov',
-      meetingPoint: 'Online / Remote',
-      groupSize: '1 client',
-      languages: ['English', 'Kinyarwanda'],
-      category: 'Consulting',
-      status: 'open',
-      paymentStatus: 'pending'
-    }
-  ]);
+  const [tasks, setTasks] = useState(() => {
+    const saved = localStorage.getItem('gl_tasks_data');
+    return saved ? JSON.parse(saved) : [
+      {
+        id: 1,
+        title: 'Half-day Kigali city tour & cultural heritage',
+        agency: 'Cheetah Safaris / Partner Agency',
+        rawPay: 35000,
+        pay: 'RWF 35,000',
+        date: 'Sat 21 Nov, 09:00 to 13:00',
+        timeLabel: 'Sat 21 Nov, 4 hours',
+        meetingPoint: 'Kigali City Centre',
+        groupSize: '6 travelers',
+        languages: ['English', 'French', 'Kinyarwanda'],
+        category: 'Guiding',
+        status: 'confirmed',
+        paymentStatus: 'pending'
+      },
+      {
+        id: 2,
+        title: 'Airport transfer & Volcanic region briefing',
+        agency: 'Rwanda Eco-Tours',
+        rawPay: 20000,
+        pay: 'RWF 20,000',
+        date: 'Mon 23 Nov, 14:00 to 16:00',
+        timeLabel: 'Mon 23 Nov, 2 hours',
+        meetingPoint: 'Kigali International Airport',
+        groupSize: '2 travelers',
+        languages: ['English'],
+        category: 'Guiding',
+        status: 'open',
+        paymentStatus: 'pending'
+      },
+      {
+        id: 3,
+        title: 'Custom 5-day Nyungwe & Volcanoes itinerary consultation',
+        agency: 'Kitabi Travel Desk',
+        rawPay: 45000,
+        pay: 'RWF 45,000',
+        date: 'Remote, due Wed 25 Nov',
+        timeLabel: 'Remote, due Wed 25 Nov',
+        meetingPoint: 'Online / Remote',
+        groupSize: '1 client',
+        languages: ['English', 'Kinyarwanda'],
+        category: 'Consulting',
+        status: 'open',
+        paymentStatus: 'pending'
+      }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('gl_tasks_data', JSON.stringify(tasks));
+  }, [tasks]);
 
   const resetToWelcome = () => {
     setCurrentRole('welcome');
@@ -118,10 +138,8 @@ export default function GuideLinkRwandaApp() {
     setRegStep('details');
   };
 
-  // Normalize phone/contact for matching
   const normalizeContact = (str) => str.replace(/\s+/g, '').toLowerCase();
 
-  // Check if user is Owner or one of the 3 confirmed VIP users
   const checkExemptUser = (contactInput) => {
     const cleanInput = normalizeContact(contactInput);
     return exemptAccounts.find(
@@ -129,7 +147,6 @@ export default function GuideLinkRwandaApp() {
     );
   };
 
-  // Handle Step 1 of Registration (Check Exemption vs 500 RWF Gate)
   const handleProceedRegistration = (e) => {
     e.preventDefault();
     if (!regForm.name.trim() || !regForm.contact.trim()) {
@@ -137,7 +154,6 @@ export default function GuideLinkRwandaApp() {
       return;
     }
 
-    // 1. Check if Owner or one of the 3 VIP Exempt Users
     const exemptMatch = checkExemptUser(regForm.contact);
     if (exemptMatch) {
       if (exemptMatch.id === 'owner') {
@@ -152,7 +168,6 @@ export default function GuideLinkRwandaApp() {
       return;
     }
 
-    // 2. Check if already registered & approved by Owner
     const existingUser = registeredUsers.find(
       (u) => normalizeContact(u.contact) === normalizeContact(regForm.contact)
     );
@@ -169,11 +184,9 @@ export default function GuideLinkRwandaApp() {
       }
     }
 
-    // 3. Otherwise, require mandatory 500 RWF payment before finishing sign-up
     setRegStep('pay_500');
   };
 
-  // Complete 500 RWF Registration Payment
   const handleComplete500Payment = () => {
     const newRegistrant = {
       id: Date.now(),
@@ -183,7 +196,7 @@ export default function GuideLinkRwandaApp() {
       feePaid: 500,
       paymentMethod: regForm.paymentMethod.toUpperCase(),
       momoRef: regForm.momoRef || `TXN-${Math.floor(100000 + Math.random() * 900000)}`,
-      status: 'pending_approval', // Owner confirms in Step 2
+      status: 'pending_approval',
       createdAt: new Date().toLocaleDateString()
     };
 
@@ -191,7 +204,6 @@ export default function GuideLinkRwandaApp() {
     setRegStep('pending_approval');
   };
 
-  // Owner Actions
   const handleOwnerLogin = () => {
     if (ownerPinInput === '2026') {
       setShowOwnerPinModal(false);
@@ -218,12 +230,29 @@ export default function GuideLinkRwandaApp() {
     setTasks(tasks.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t)));
   };
 
+  // STEP 2: Mark task as completed and automatically compute Owner commission
+  const handleCompleteTask = (taskId) => {
+    setTasks(tasks.map((t) => {
+      if (t.id === taskId) {
+        const commission = Math.round((t.rawPay * platformSettings.commissionRatePercent) / 100);
+        return {
+          ...t,
+          status: 'done',
+          paymentStatus: 'paid',
+          ownerCommission: commission,
+          netGuidePayout: t.rawPay - commission
+        };
+      }
+      return t;
+    }));
+    setShowReviewModal(true);
+  };
+
   // ==================== 1. WELCOME SCREEN ====================
   if (currentRole === 'welcome') {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl overflow-hidden border border-slate-200">
         <div>
-          {/* Top Banner */}
           <div className="bg-[#E2ECE9] p-6 text-center relative overflow-hidden">
             <div className="absolute top-4 right-6 w-14 h-14 bg-amber-400 rounded-full shadow-md"></div>
             <div className="h-24 flex items-end justify-center space-x-1">
@@ -243,7 +272,6 @@ export default function GuideLinkRwandaApp() {
               Developed & Copyright © 2026 RUTUNGURA Bonheur
             </p>
 
-            {/* Primary Sign In / Registration CTA with 500 RWF Notice */}
             <div className="mt-6 bg-emerald-50 border border-emerald-200 rounded-2xl p-4 space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-xs font-bold text-[#234E40] uppercase">Member Sign In / Sign Up</span>
@@ -252,7 +280,7 @@ export default function GuideLinkRwandaApp() {
                 </span>
               </div>
               <p className="text-xs text-slate-600">
-                New users pay a one-time <strong>500 RWF</strong> registration fee via MoMo/Airtel before completing sign-in (Owner & 3 confirmed VIP users exempt).
+                New users pay <strong>500 RWF</strong> registration fee. Owner & 3 VIP users exempt.
               </p>
               <button
                 onClick={() => {
@@ -265,7 +293,6 @@ export default function GuideLinkRwandaApp() {
               </button>
             </div>
 
-            {/* Quick Demo / Role Preview */}
             <div className="mt-6 space-y-2.5">
               <div className="flex justify-between items-center">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Quick Role Access</p>
@@ -304,30 +331,15 @@ export default function GuideLinkRwandaApp() {
                 </div>
                 <span className="text-slate-400">→</span>
               </button>
-
-              <button
-                onClick={() => {
-                  setCurrentRole('traveler');
-                  setActiveTab('jobs');
-                }}
-                className="w-full text-left p-3.5 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-[#3B6E5B] transition flex justify-between items-center"
-              >
-                <div>
-                  <h3 className="font-bold text-slate-900 text-sm">Traveler</h3>
-                  <p className="text-xs text-slate-500">Book a trained local guide & pay securely</p>
-                </div>
-                <span className="text-slate-400">→</span>
-              </button>
             </div>
           </div>
         </div>
 
-        {/* Owner PIN Modal */}
         {showOwnerPinModal && (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl p-6 w-full max-w-xs space-y-4 shadow-xl">
               <h3 className="font-bold text-base text-slate-900">Owner HQ Verification</h3>
-              <p className="text-xs text-slate-500">Enter Owner PIN to manage VIP users, approvals, and fees (Default: 2026).</p>
+              <p className="text-xs text-slate-500">Enter Owner PIN to manage fees and commissions (Default: 2026).</p>
               <input
                 type="password"
                 placeholder="Enter PIN"
@@ -377,7 +389,7 @@ export default function GuideLinkRwandaApp() {
                 <span className="text-xs font-bold text-[#3B6E5B] uppercase">Step 1 of 2</span>
                 <h3 className="text-lg font-bold text-slate-900">Account Details</h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Standard registration requires <strong>500 RWF</strong>. Owner & 3 confirmed VIP users bypass payment automatically.
+                  Standard registration requires <strong>500 RWF</strong>. Owner & 3 VIP users bypass payment automatically.
                 </p>
               </div>
 
@@ -435,42 +447,25 @@ export default function GuideLinkRwandaApp() {
                 </span>
                 <h3 className="text-lg font-bold text-slate-900 mt-1">Pay 500 RWF Registration Fee</h3>
                 <p className="text-xs text-slate-600 mt-1">
-                  Complete your <strong>500 RWF</strong> payment to finalize sign-up for <strong>{regForm.name}</strong> ({regForm.contact}).
+                  Complete your <strong>500 RWF</strong> payment to finalize sign-up for <strong>{regForm.name}</strong>.
                 </p>
               </div>
 
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-700 block">Choose Mobile Money Provider</label>
-                <label className={`flex items-center justify-between p-3 border rounded-xl cursor-pointer ${regForm.paymentMethod === 'mtn' ? 'border-[#3B6E5B] bg-emerald-50' : 'border-slate-200'}`}>
+                <label className="flex items-center justify-between p-3 border rounded-xl cursor-pointer border-[#3B6E5B] bg-emerald-50">
                   <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      checked={regForm.paymentMethod === 'mtn'}
-                      onChange={() => setRegForm({ ...regForm, paymentMethod: 'mtn' })}
-                    />
-                    <span className="text-xs font-bold text-slate-800">MTN Mobile Money (500 RWF)</span>
+                    <input type="radio" checked readOnly />
+                    <span className="text-xs font-bold text-slate-800">MTN Mobile Money / Airtel Money (500 RWF)</span>
                   </div>
-                  <span className="text-[10px] bg-amber-200 text-amber-900 font-bold px-2 py-0.5 rounded">MoMo</span>
-                </label>
-
-                <label className={`flex items-center justify-between p-3 border rounded-xl cursor-pointer ${regForm.paymentMethod === 'airtel' ? 'border-[#3B6E5B] bg-emerald-50' : 'border-slate-200'}`}>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      checked={regForm.paymentMethod === 'airtel'}
-                      onChange={() => setRegForm({ ...regForm, paymentMethod: 'airtel' })}
-                    />
-                    <span className="text-xs font-bold text-slate-800">Airtel Money (500 RWF)</span>
-                  </div>
-                  <span className="text-[10px] bg-red-100 text-red-800 font-bold px-2 py-0.5 rounded">Airtel</span>
                 </label>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700">Transaction Reference / MoMo Number</label>
+                <label className="text-xs font-bold text-slate-700">MoMo Transaction Reference</label>
                 <input
                   type="text"
-                  placeholder="Enter MoMo Transaction ID or Phone"
+                  placeholder="Enter Transaction ID"
                   value={regForm.momoRef}
                   onChange={(e) => setRegForm({ ...regForm, momoRef: e.target.value })}
                   className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-xs"
@@ -499,11 +494,8 @@ export default function GuideLinkRwandaApp() {
               </div>
               <h3 className="text-lg font-bold text-slate-900">500 RWF Payment Submitted!</h3>
               <p className="text-xs text-slate-600">
-                Your registration payment of <strong>500 RWF</strong> has been recorded and sent to the Owner (<strong>RUTUNGURA Bonheur</strong>) for final account confirmation.
+                Awaiting Owner (<strong>RUTUNGURA Bonheur</strong>) confirmation.
               </p>
-              <div className="bg-slate-50 p-3 rounded-xl text-xs text-slate-500">
-                Status: <span className="font-bold text-amber-700">Awaiting Owner Confirmation</span>
-              </div>
               <button
                 onClick={resetToWelcome}
                 className="w-full py-2.5 bg-[#3B6E5B] text-white rounded-xl text-xs font-bold"
@@ -517,16 +509,20 @@ export default function GuideLinkRwandaApp() {
     );
   }
 
-  // ==================== 3. OWNER HQ DASHBOARD (APPROVALS & 3 VIP SLOTS) ====================
+  // ==================== 3. OWNER HQ (STEP 2: COMMISSION & REVENUE TRACKER) ====================
   if (currentRole === 'owner') {
     const totalRegFees = registeredUsers.reduce((sum, u) => sum + (u.feePaid || 0), 0);
+    const totalDealCommissions = tasks
+      .filter((t) => t.paymentStatus === 'paid')
+      .reduce((sum, t) => sum + (t.ownerCommission || 0), 0);
+    const grandTotalRevenue = totalRegFees + totalDealCommissions;
 
     return (
       <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl border border-slate-200">
         <div className="bg-[#234E40] text-white px-6 py-4 flex justify-between items-center sticky top-0 z-30">
           <div>
             <h2 className="font-bold text-base">Owner HQ • RUTUNGURA Bonheur</h2>
-            <p className="text-[11px] text-emerald-200">VIP Exemptions & 500 RWF Approvals</p>
+            <p className="text-[11px] text-emerald-200">Sign-Up Fees & Deal Commissions</p>
           </div>
           <button
             onClick={resetToWelcome}
@@ -537,93 +533,89 @@ export default function GuideLinkRwandaApp() {
         </div>
 
         <div className="p-4 space-y-5 flex-1 overflow-y-auto">
-          {/* Revenue Summary */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 text-center">
-              <span className="text-xl font-extrabold text-[#234E40]">RWF {totalRegFees.toLocaleString()}</span>
-              <span className="text-[11px] text-slate-400 block mt-1">500 RWF Sign-Up Fees</span>
+          {/* Grand Total Revenue Summary */}
+          <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-5 rounded-2xl shadow-sm text-center space-y-1">
+            <span className="text-xs uppercase text-emerald-200 font-bold tracking-wider">Total Platform Earnings</span>
+            <div className="text-3xl font-extrabold">RWF {grandTotalRevenue.toLocaleString()}</div>
+            <p className="text-[11px] text-emerald-100">
+              Includes RWF {totalRegFees.toLocaleString()} from sign-ups + RWF {totalDealCommissions.toLocaleString()} from completed deal commissions.
+            </p>
+          </div>
+
+          {/* STEP 2: Configure Owner Commission Rate */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3">
+            <div>
+              <h3 className="font-bold text-sm text-slate-900">Platform Commission Settings</h3>
+              <p className="text-xs text-slate-500">Set the percentage charged by the platform when a booking task is completed.</p>
             </div>
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 text-center">
-              <span className="text-xl font-extrabold text-[#3B6E5B]">{registeredUsers.length}</span>
-              <span className="text-[11px] text-slate-400 block mt-1">Paid Registrants</span>
+            <div className="flex items-center space-x-3">
+              <input
+                type="number"
+                min="0"
+                max="50"
+                value={platformSettings.commissionRatePercent}
+                onChange={(e) =>
+                  setPlatformSettings({
+                    ...platformSettings,
+                    commissionRatePercent: Number(e.target.value)
+                  })
+                }
+                className="w-20 p-2 border border-slate-300 rounded-xl text-sm font-bold text-center"
+              />
+              <span className="text-xs font-bold text-slate-700">% Commission per completed deal</span>
             </div>
+          </div>
+
+          {/* Completed Deals & Owner Commission Log */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3">
+            <h3 className="font-bold text-sm text-slate-900">Completed Deals & Commission Log</h3>
+            {tasks.filter((t) => t.paymentStatus === 'paid').length === 0 ? (
+              <p className="text-xs text-slate-400 text-center py-4">No completed deals settled yet. Mark a task as completed in Graduate role to test!</p>
+            ) : (
+              tasks
+                .filter((t) => t.paymentStatus === 'paid')
+                .map((t) => (
+                  <div key={t.id} className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs space-y-1">
+                    <div className="flex justify-between font-bold text-slate-900">
+                      <span>{t.title}</span>
+                      <span className="text-[#234E40]">Fee: RWF {t.ownerCommission?.toLocaleString()}</span>
+                    </div>
+                    <p className="text-slate-600">Total Deal Value: RWF {t.rawPay.toLocaleString()} • Guide Payout: RWF {t.netGuidePayout?.toLocaleString()}</p>
+                  </div>
+                ))
+            )}
           </div>
 
           {/* Manage Owner + 3 Exempt VIP Users */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3">
-            <div>
-              <h3 className="font-bold text-sm text-slate-900">Exempt Users (0 RWF Fee)</h3>
-              <p className="text-xs text-slate-500">You (Owner) + 3 VIP users you confirm can sign in without paying 500 RWF.</p>
-            </div>
-
-            <div className="space-y-3">
+            <h3 className="font-bold text-sm text-slate-900">Exempt VIP Users (0 RWF Fee)</h3>
+            <div className="space-y-2">
               {exemptAccounts.map((acc) => (
-                <div key={acc.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold text-[#234E40] uppercase">
-                      {acc.id === 'owner' ? '👑 Owner Account' : `⭐ Exempt Slot (${acc.id.toUpperCase()})`}
-                    </span>
-                    <label className="flex items-center space-x-1 font-semibold text-slate-700">
-                      <input
-                        type="checkbox"
-                        checked={acc.confirmed}
-                        disabled={acc.id === 'owner'}
-                        onChange={(e) => updateVipSlot(acc.id, 'confirmed', e.target.checked)}
-                      />
-                      <span>Confirmed</span>
-                    </label>
+                <div key={acc.id} className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-xs">
+                  <div>
+                    <p className="font-bold text-slate-800">{acc.name} ({acc.role})</p>
+                    <p className="text-slate-500">{acc.contact}</p>
                   </div>
-                  <input
-                    type="text"
-                    value={acc.name}
-                    onChange={(e) => updateVipSlot(acc.id, 'name', e.target.value)}
-                    placeholder="Full Name"
-                    className="w-full p-2 border border-slate-200 rounded-lg bg-white text-xs"
-                  />
-                  <div className="flex space-x-2">
-                    <input
-                      type="text"
-                      value={acc.contact}
-                      onChange={(e) => updateVipSlot(acc.id, 'contact', e.target.value)}
-                      placeholder="Phone / Email"
-                      className="flex-1 p-2 border border-slate-200 rounded-lg bg-white text-xs"
-                    />
-                    <select
-                      value={acc.role}
-                      onChange={(e) => updateVipSlot(acc.id, 'role', e.target.value)}
-                      disabled={acc.id === 'owner'}
-                      className="p-2 border border-slate-200 rounded-lg bg-white text-xs"
-                    >
-                      <option value="owner">Owner</option>
-                      <option value="graduate">Graduate</option>
-                      <option value="agency">Agency</option>
-                      <option value="traveler">Traveler</option>
-                    </select>
-                  </div>
+                  <span className="px-2 py-0.5 bg-emerald-100 text-[#234E40] rounded font-bold text-[10px]">Exempt</span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Paid 500 RWF Registrations Awaiting Confirmation */}
+          {/* Paid 500 RWF Registrations */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3">
-            <h3 className="font-bold text-sm text-slate-900">500 RWF Paid Registrations</h3>
+            <h3 className="font-bold text-sm text-slate-900">500 RWF Paid Sign-Ups</h3>
             {registeredUsers.length === 0 ? (
               <p className="text-xs text-slate-400 text-center py-4">No paid registrations yet.</p>
             ) : (
               registeredUsers.map((user) => (
-                <div key={user.id} className="p-3 bg-emerald-50/50 border border-emerald-200 rounded-xl flex justify-between items-center text-xs">
+                <div key={user.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-xs">
                   <div>
                     <p className="font-bold text-slate-900">{user.name}</p>
-                    <p className="text-slate-600">{user.contact} • Role: {user.role}</p>
-                    <p className="text-[11px] text-[#234E40] font-semibold">
-                      Paid: {user.feePaid} RWF ({user.paymentMethod} • Ref: {user.momoRef})
-                    </p>
+                    <p className="text-slate-600">{user.contact} • Paid RWF 500</p>
                   </div>
                   {user.status === 'approved' ? (
-                    <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-lg font-bold">
-                      ✓ Confirmed
-                    </span>
+                    <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-lg font-bold">✓ Approved</span>
                   ) : (
                     <button
                       onClick={() => approveRegistrant(user.id)}
@@ -644,7 +636,6 @@ export default function GuideLinkRwandaApp() {
   // ==================== 4. GRADUATE / AGENCY / TRAVELER VIEWS ====================
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl overflow-hidden border border-slate-200 relative">
-      {/* Top Header */}
       <div className="bg-white px-6 py-4 border-b border-slate-200 flex justify-between items-center sticky top-0 z-30">
         <div>
           <h2 className="font-bold text-slate-900">
@@ -662,7 +653,6 @@ export default function GuideLinkRwandaApp() {
         </button>
       </div>
 
-      {/* Main Content */}
       <div className="flex-1 overflow-y-auto pb-20">
         {currentRole === 'graduate' && (
           <div>
@@ -675,45 +665,31 @@ export default function GuideLinkRwandaApp() {
                   </span>
                 </div>
 
-                <div className="flex space-x-2 overflow-x-auto pb-1 text-xs font-semibold">
-                  {['All', 'Guiding', 'Consulting'].map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => setSelectedFilter(cat)}
-                      className={`px-4 py-1.5 rounded-full whitespace-nowrap transition ${selectedFilter === cat ? 'bg-[#3B6E5B] text-white' : 'bg-white text-slate-600 border border-slate-200'}`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </div>
-
                 <div className="space-y-3">
-                  {tasks
-                    .filter((t) => selectedFilter === 'All' || t.category === selectedFilter)
-                    .map((task) => (
-                      <div
-                        key={task.id}
-                        onClick={() => {
-                          setSelectedTask(task);
-                          setActiveTab('bookings');
-                        }}
-                        className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:border-[#3B6E5B] transition cursor-pointer"
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h4 className="font-bold text-slate-900 text-base">{task.title}</h4>
-                            <p className="text-xs text-slate-500 mt-0.5">{task.agency}</p>
-                          </div>
-                          <span className="font-bold text-[#234E40] text-sm">{task.pay}</span>
+                  {tasks.map((task) => (
+                    <div
+                      key={task.id}
+                      onClick={() => {
+                        setSelectedTask(task);
+                        setActiveTab('bookings');
+                      }}
+                      className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:border-[#3B6E5B] transition cursor-pointer"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-bold text-slate-900 text-base">{task.title}</h4>
+                          <p className="text-xs text-slate-500 mt-0.5">{task.agency}</p>
                         </div>
-                        <div className="mt-3 flex flex-wrap gap-2 items-center text-xs text-slate-600">
-                          <span className="bg-slate-100 px-2.5 py-1 rounded-lg">📅 {task.timeLabel}</span>
-                          <span className="bg-amber-100 text-amber-800 font-semibold px-2.5 py-1 rounded-lg capitalize">
-                            {task.status.replace('_', ' ')}
-                          </span>
-                        </div>
+                        <span className="font-bold text-[#234E40] text-sm">{task.pay}</span>
                       </div>
-                    ))}
+                      <div className="mt-3 flex flex-wrap gap-2 items-center text-xs text-slate-600">
+                        <span className="bg-slate-100 px-2.5 py-1 rounded-lg">📅 {task.timeLabel}</span>
+                        <span className="bg-amber-100 text-amber-800 font-semibold px-2.5 py-1 rounded-lg capitalize">
+                          {task.status.replace('_', ' ')}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -731,6 +707,15 @@ export default function GuideLinkRwandaApp() {
                       <span className="text-base font-bold text-[#234E40]">{selectedTask.pay}</span>
                     </div>
 
+                    <div className="bg-slate-50 p-3 rounded-xs text-xs space-y-1 text-slate-600">
+                      <p>Platform Commission Policy: <strong>{platformSettings.commissionRatePercent}%</strong> owner fee deducted on completion.</p>
+                      {selectedTask.paymentStatus === 'paid' && (
+                        <p className="text-emerald-700 font-semibold pt-1">
+                          ✓ Settled: Owner Fee RWF {selectedTask.ownerCommission?.toLocaleString()} | Guide Payout RWF {selectedTask.netGuidePayout?.toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+
                     {selectedTask.status === 'open' && (
                       <button
                         onClick={() => {
@@ -743,27 +728,14 @@ export default function GuideLinkRwandaApp() {
                       </button>
                     )}
 
-                    {selectedTask.status === 'offer_sent' && (
-                      <button
-                        onClick={() => {
-                          updateBookingStatus(selectedTask.id, 'confirmed');
-                          alert('Offer accepted!');
-                        }}
-                        className="w-full py-3 bg-[#3B6E5B] text-white rounded-xl font-bold text-sm"
-                      >
-                        Accept Offer
-                      </button>
-                    )}
-
                     {selectedTask.status === 'confirmed' && (
                       <button
                         onClick={() => {
-                          updateBookingStatus(selectedTask.id, 'done');
-                          setShowReviewModal(true);
+                          handleCompleteTask(selectedTask.id);
                         }}
                         className="w-full py-3 bg-[#234E40] text-white rounded-xl font-bold text-sm"
                       >
-                        Mark Task Completed
+                        Mark Task Completed & Settle Commission
                       </button>
                     )}
 
@@ -793,13 +765,6 @@ export default function GuideLinkRwandaApp() {
                 <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3">
                   <h3 className="font-bold text-lg text-slate-900">{activeUser ? activeUser.name : graduateProfile.name}</h3>
                   <p className="text-xs text-slate-500">{graduateProfile.title}</p>
-                  <div className="flex flex-wrap gap-1.5 pt-2">
-                    {graduateProfile.skills.map((s) => (
-                      <span key={s} className="bg-emerald-50 text-[#234E40] px-3 py-1 rounded-full text-xs font-semibold">
-                        {s}
-                      </span>
-                    ))}
-                  </div>
                 </div>
               </div>
             )}
@@ -808,22 +773,14 @@ export default function GuideLinkRwandaApp() {
 
         {currentRole === 'agency' && (
           <div className="p-4 space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="font-bold text-lg text-slate-900">Agency Dashboard</h3>
-              <button
-                onClick={() => setShowPostModal(true)}
-                className="bg-[#3B6E5B] text-white text-xs font-bold px-3 py-2 rounded-xl"
-              >
-                + Post Task
-              </button>
-            </div>
+            <h3 className="font-bold text-lg text-slate-900">Agency Dashboard</h3>
             {tasks.map((t) => (
-              <div key={t.id} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-1">
+              <div key={t.id} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-1 text-xs">
                 <div className="flex justify-between font-bold text-sm">
                   <span>{t.title}</span>
                   <span className="text-[#234E40]">{t.pay}</span>
                 </div>
-                <p className="text-xs text-slate-500">{t.date}</p>
+                <p className="text-slate-500">{t.date}</p>
               </div>
             ))}
           </div>
@@ -834,7 +791,6 @@ export default function GuideLinkRwandaApp() {
             <h3 className="font-bold text-lg text-slate-900">Book a Verified Guide</h3>
             <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3">
               <h4 className="font-bold text-slate-900">{graduateProfile.name}</h4>
-              <p className="text-xs text-slate-600">Cultural heritage tours, wildlife excursions, and trip consulting.</p>
               <button
                 onClick={() => setShowPaymentModal(true)}
                 className="w-full py-2.5 bg-[#3B6E5B] text-white rounded-xl font-bold text-xs"
@@ -846,21 +802,10 @@ export default function GuideLinkRwandaApp() {
         )}
       </div>
 
-      {/* Traveler Booking Payment Modal */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-xl">
             <h3 className="font-bold text-base text-slate-900">Rwandan Payment Gateway</h3>
-            <div className="space-y-2 text-xs">
-              <label className="flex items-center space-x-2 p-2.5 border rounded-xl">
-                <input type="radio" checked={selectedPaymentMode === 'mtn'} onChange={() => setSelectedPaymentMode('mtn')} />
-                <span className="font-bold">MTN Mobile Money (MoMo)</span>
-              </label>
-              <label className="flex items-center space-x-2 p-2.5 border rounded-xl">
-                <input type="radio" checked={selectedPaymentMode === 'airtel'} onChange={() => setSelectedPaymentMode('airtel')} />
-                <span className="font-bold">Airtel Money</span>
-              </label>
-            </div>
             <button
               onClick={() => {
                 setShowPaymentModal(false);
@@ -874,7 +819,6 @@ export default function GuideLinkRwandaApp() {
         </div>
       )}
 
-      {/* Bottom Nav for Graduate */}
       {currentRole === 'graduate' && (
         <div className="bg-white border-t border-slate-200 py-2.5 px-8 flex justify-between items-center text-xs font-semibold text-slate-500 absolute bottom-0 w-full max-w-md z-20">
           <button onClick={() => setActiveTab('jobs')} className={activeTab === 'jobs' ? 'text-[#3B6E5B]' : ''}>📋 Jobs</button>
