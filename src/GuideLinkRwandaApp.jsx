@@ -7,8 +7,7 @@ export default function GuideLinkRwandaApp() {
     title: 'C.E.O, Founder & Platform Administrator • GuideLink Rwanda',
     phone: '+250780558555',
     bio: 'Tourism Management Specialist & Creator of GuideLink Rwanda.',
-    momoCode: '612771',
-    isUnlocked: true
+    momoCode: '612771'
   });
   const [savedMessage, setSavedMessage] = useState('');
 
@@ -115,4 +114,26 @@ export default function GuideLinkRwandaApp() {
                 rows="4" 
                 value={ownerData.bio} 
                 onChange={(e) => setOwnerData({...ownerData, bio: e.target.value})}
-                style={{ padding: '12px', borderRadius: '8
+                style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '15px', fontFamily: 'inherit' }}
+              />
+              <button 
+                type="submit" 
+                style={{ backgroundColor: '#2d6a4f', color: '#fff', border: 'none', padding: '14px', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer' }}
+              >
+                💾 Save Owner Profile
+              </button>
+            </form>
+          </div>
+        )}
+
+        {activeTab !== 'profile' && (
+          <div style={{ textAlign: 'center', padding: '40px 0', color: '#4f772d' }}>
+            <h3>Module: {activeTab.toUpperCase()}</h3>
+            <p>Exclusive owner access active.</p>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
