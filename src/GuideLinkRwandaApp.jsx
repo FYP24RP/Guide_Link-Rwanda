@@ -9,6 +9,8 @@ export default function GuideLinkRwandaApp() {
   const [ownerPinInput, setOwnerPinInput] = useState('');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
+  const MOMO_PAYMENT_CODE = '612771';
+
   const [exemptAccounts, setExemptAccounts] = useState(() => {
     const saved = localStorage.getItem('gl_exempt_users');
     return saved
@@ -137,6 +139,11 @@ export default function GuideLinkRwandaApp() {
   };
 
   const handleComplete500Payment = () => {
+    if (!regForm.momoRef.trim()) {
+      alert('Please enter your MoMo Transaction Reference / Phone used to pay.');
+      return;
+    }
+
     const newRegistrant = {
       id: Date.now(),
       name: regForm.name.trim(),
@@ -144,7 +151,8 @@ export default function GuideLinkRwandaApp() {
       role: regForm.role,
       feePaid: 500,
       paymentMethod: regForm.paymentMethod.toUpperCase(),
-      momoRef: regForm.momoRef || `TXN-${Math.floor(100000 + Math.random() * 900000)}`,
+      momoCodeUsed: MOMO_PAYMENT_CODE,
+      momoRef: regForm.momoRef,
       status: 'pending_approval',
       createdAt: new Date().toLocaleDateString()
     };
@@ -180,10 +188,6 @@ export default function GuideLinkRwandaApp() {
     setExemptAccounts(
       exemptAccounts.map((acc) => (acc.id === slotId ? { ...acc, [field]: value } : acc))
     );
-  };
-
-  const updateBookingStatus = (taskId, newStatus) => {
-    setTasks(tasks.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t)));
   };
 
   const handleCompleteTask = (taskId) => {
@@ -232,11 +236,11 @@ export default function GuideLinkRwandaApp() {
               <div className="flex justify-between items-center">
                 <span className="text-xs font-bold text-[#234E40] uppercase tracking-wider">Member Portal</span>
                 <span className="text-[11px] font-bold bg-emerald-100 text-[#234E40] px-2.5 py-0.5 rounded-full">
-                  500 RWF Reg. Fee
+                  MoMo Code: {MOMO_PAYMENT_CODE}
                 </span>
               </div>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Register or sign in to access your workspace. New accounts require a one-time <strong>500 RWF</strong> payment and Owner confirmation.
+                Register or sign in. New accounts pay <strong>500 RWF</strong> registration via MoMo Code <strong>{MOMO_PAYMENT_CODE}</strong>. Owner confirms payment to grant profile access.
               </p>
               <button
                 onClick={() => {
@@ -329,7 +333,7 @@ export default function GuideLinkRwandaApp() {
                 <span className="text-xs font-bold text-[#3B6E5B] uppercase">Step 1 of 2</span>
                 <h3 className="text-lg font-bold text-slate-900">Account Verification</h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Already approved or VIP? Enter your contact to enter. New accounts pay <strong>500 RWF</strong>.
+                  Already approved by owner or VIP? Enter your contact to enter. New accounts pay <strong>500 RWF</strong>.
                 </p>
               </div>
 
@@ -381,31 +385,22 @@ export default function GuideLinkRwandaApp() {
 
           {regStep === 'pay_500' && (
             <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
-              <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-xl">
+              <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-xl space-y-1">
                 <span className="text-[10px] font-bold uppercase text-amber-800 bg-amber-200 px-2 py-0.5 rounded">
                   Payment Required
                 </span>
-                <h3 className="text-lg font-bold text-slate-900 mt-1">Pay 500 RWF Registration Fee</h3>
-                <p className="text-xs text-slate-600 mt-1">
-                  Complete your <strong>500 RWF</strong> payment for <strong>{regForm.name}</strong>.
+                <h3 className="text-lg font-bold text-slate-900">Pay 500 RWF via MoMo Code</h3>
+                <p className="text-xs text-slate-700">
+                  Send <strong>500 RWF</strong> to MoMo Code: <strong className="text-[#234E40] text-sm">{MOMO_PAYMENT_CODE}</strong> (GuideLink Rwanda).
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-700 block">Choose Mobile Money Provider</label>
-                <label className="flex items-center justify-between p-3 border border-[#3B6E5B] bg-emerald-50 rounded-xl cursor-pointer">
-                  <div className="flex items-center space-x-2">
-                    <input type="radio" checked readOnly />
-                    <span className="text-xs font-bold text-slate-800">MTN / Airtel Mobile Money (500 RWF)</span>
-                  </div>
-                </label>
-              </div>
-
               <div>
-                <label className="text-xs font-bold text-slate-700">MoMo Transaction Reference</label>
+                <label className="text-xs font-bold text-slate-700">MoMo Transaction ID / Reference</label>
                 <input
                   type="text"
-                  placeholder="Enter Transaction ID"
+                  required
+                  placeholder="Enter SMS Ref ID or Sender Number"
                   value={regForm.momoRef}
                   onChange={(e) => setRegForm({ ...regForm, momoRef: e.target.value })}
                   className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-xs"
@@ -416,7 +411,7 @@ export default function GuideLinkRwandaApp() {
                 onClick={handleComplete500Payment}
                 className="w-full py-3 bg-[#234E40] text-white rounded-xl font-bold text-sm shadow"
               >
-                Confirm 500 RWF Payment & Finish Sign Up
+                Submit Payment & Notify Owner
               </button>
               <button
                 onClick={() => setRegStep('details')}
@@ -429,12 +424,12 @@ export default function GuideLinkRwandaApp() {
 
           {regStep === 'pending_approval' && (
             <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center space-y-4 shadow-sm">
-              <div className="w-12 h-12 bg-emerald-100 text-[#234E40] rounded-full flex items-center justify-center mx-auto text-xl font-bold">
+              <div className="w-12 h-12 bg-amber-100 text-amber-800 rounded-full flex items-center justify-center mx-auto text-xl font-bold">
                 ⏳
               </div>
-              <h3 className="text-lg font-bold text-slate-900">Awaiting Owner Confirmation</h3>
+              <h3 className="text-lg font-bold text-slate-900">Payment Pending Owner Approval</h3>
               <p className="text-xs text-slate-600">
-                Your <strong>500 RWF</strong> payment is recorded. Once <strong>RUTUNGURA Bonheur</strong> confirms your registration in Owner HQ, you can sign in.
+                Your payment to MoMo Code <strong>{MOMO_PAYMENT_CODE}</strong> has been logged. Owner <strong>RUTUNGURA Bonheur</strong> has received your notification and will confirm your access shortly.
               </p>
               <button
                 onClick={resetToWelcome}
@@ -466,7 +461,7 @@ export default function GuideLinkRwandaApp() {
             </div>
             <div>
               <h2 className="font-bold text-sm">RUTUNGURA Bonheur</h2>
-              <p className="text-[11px] text-emerald-200">Owner Master Control HQ</p>
+              <p className="text-[11px] text-emerald-200">MoMo Code: {MOMO_PAYMENT_CODE}</p>
             </div>
           </div>
           <button
@@ -528,7 +523,7 @@ export default function GuideLinkRwandaApp() {
           {ownerTab === 'pending' && (
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <h3 className="font-bold text-sm text-slate-900">⏳ Pending & Confirmed Sign-Ups</h3>
+                <h3 className="font-bold text-sm text-slate-900">⏳ Payment Notifications & Sign-Ups</h3>
                 <span className="text-xs font-bold bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full">
                   {pendingCount} Pending
                 </span>
@@ -537,7 +532,7 @@ export default function GuideLinkRwandaApp() {
               {registeredUsers.length === 0 ? (
                 <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center space-y-2">
                   <span className="text-2xl">📭</span>
-                  <p className="text-xs text-slate-500">No 500 RWF sign-ups submitted yet.</p>
+                  <p className="text-xs text-slate-500">No sign-up payments submitted yet.</p>
                 </div>
               ) : (
                 registeredUsers.map((user) => (
@@ -551,10 +546,13 @@ export default function GuideLinkRwandaApp() {
                         +{user.feePaid} RWF
                       </span>
                     </div>
+                    <div className="text-[11px] text-slate-600 bg-slate-50 p-2 rounded-lg">
+                      Paid to MoMo Code: <strong>{user.momoCodeUsed}</strong> • Ref: <strong>{user.momoRef}</strong>
+                    </div>
                     <div className="flex justify-between items-center pt-1">
                       {user.status === 'approved' ? (
                         <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-lg font-bold">
-                          ✓ Confirmed & Active
+                          ✓ Payment Confirmed & Access Granted
                         </span>
                       ) : (
                         <div className="flex space-x-2 w-full">
@@ -562,7 +560,7 @@ export default function GuideLinkRwandaApp() {
                             onClick={() => approveRegistrant(user.id)}
                             className="flex-1 py-2 bg-[#3B6E5B] text-white rounded-xl font-bold"
                           >
-                            ✓ Confirm & Activate
+                            ✓ Confirm Payment & Grant Access
                           </button>
                           <button
                             onClick={() => rejectRegistrant(user.id)}
@@ -585,7 +583,7 @@ export default function GuideLinkRwandaApp() {
                 <span className="text-xs uppercase text-emerald-200 font-bold tracking-wider">Total Owner Revenue</span>
                 <div className="text-3xl font-extrabold">RWF {grandTotalRevenue.toLocaleString()}</div>
                 <p className="text-[11px] text-emerald-100">
-                  Sign-Ups: RWF {totalRegFees.toLocaleString()} • Commissions: RWF {totalDealCommissions.toLocaleString()}
+                  MoMo Code: {MOMO_PAYMENT_CODE} • Sign-Ups: RWF {totalRegFees.toLocaleString()} • Commissions: RWF {totalDealCommissions.toLocaleString()}
                 </p>
               </div>
 
@@ -720,13 +718,13 @@ export default function GuideLinkRwandaApp() {
                   <span>{task.title}</span>
                   <span className="text-[#234E40]">{task.pay}</span>
                 </div>
-                <p className="text-xs text-slate-500">{task.agency}</p>
+                <p className="text-xs text-slate-500">{task.agency} • MoMo Code: {MOMO_PAYMENT_CODE}</p>
                 {task.status === 'confirmed' && (
                   <button
                     onClick={() => handleCompleteTask(task.id)}
                     className="w-full py-2 bg-[#234E40] text-white rounded-xl text-xs font-bold mt-2"
                   >
-                    Mark Completed & Settle Commission
+                    Mark Completed & Settle Commission ({MOMO_PAYMENT_CODE})
                   </button>
                 )}
               </div>
@@ -737,7 +735,7 @@ export default function GuideLinkRwandaApp() {
         {currentRole === 'agency' && (
           <div className="space-y-3">
             <h3 className="font-bold text-lg text-slate-900">Agency Dashboard</h3>
-            <p className="text-xs text-slate-500">Manage posted guiding assignments.</p>
+            <p className="text-xs text-slate-500">All deal commissions settle to MoMo Code: <strong>{MOMO_PAYMENT_CODE}</strong></p>
           </div>
         )}
 
@@ -748,7 +746,7 @@ export default function GuideLinkRwandaApp() {
               onClick={() => setShowPaymentModal(true)}
               className="w-full py-2.5 bg-[#3B6E5B] text-white rounded-xl font-bold text-xs"
             >
-              Book & Pay (RWF 35,000)
+              Book & Pay via MoMo Code {MOMO_PAYMENT_CODE} (RWF 35,000)
             </button>
           </div>
         )}
@@ -758,10 +756,13 @@ export default function GuideLinkRwandaApp() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-xl">
             <h3 className="font-bold text-base text-slate-900">Rwandan Payment Gateway</h3>
+            <p className="text-xs text-slate-600">
+              Send payment to MoMo Code: <strong className="text-[#234E40] text-sm">{MOMO_PAYMENT_CODE}</strong>
+            </p>
             <button
               onClick={() => {
                 setShowPaymentModal(false);
-                alert('Payment authorized!');
+                alert(`Payment authorized to MoMo Code ${MOMO_PAYMENT_CODE}!`);
               }}
               className="w-full py-2.5 bg-[#3B6E5B] text-white rounded-xl font-bold text-xs"
             >
