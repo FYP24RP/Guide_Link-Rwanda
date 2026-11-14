@@ -116,4 +116,3 @@ export default function GuideLinkRwandaApp() {
                 value={ownerData.bio} 
                 onChange={(e) => setOwnerData({...ownerData, bio: e.target.value})}
                 style={{ padding: '12px', borderRadius: '8
-                  
