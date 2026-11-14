@@ -11,14 +11,14 @@ export default function GuideLinkRwandaApp() {
     isUnlocked: true
   });
   
-  // VIP Access Management state (3 distinct access tiers)
+  // VIP Access Management state (Restricted to Tourism Graduates, Travel Agency, and Travelers)
   const [vipUsers, setVipUsers] = useState([
-    { id: 1, name: 'Jean Bosco', tier: 'Tier 1 - Gold Access', status: 'Active' },
-    { id: 2, name: 'Alice Uwase', tier: 'Tier 2 - Silver Access', status: 'Active' },
-    { id: 3, name: 'David Mugisha', tier: 'Tier 3 - Platinum Access', status: 'Pending' }
+    { id: 1, name: 'Jean Bosco', role: 'Tourism Graduates', status: 'Active' },
+    { id: 2, name: 'Kigali Safaris Ltd', role: 'Travel Agency', status: 'Active' },
+    { id: 3, name: 'Alice Uwase', role: 'Travelers', status: 'Pending' }
   ]);
   
-  const [selectedTier, setSelectedTier] = useState('Tier 1 - Gold Access');
+  const [selectedRole, setSelectedRole] = useState('Tourism Graduates');
   const [newVipName, setNewVipName] = useState('');
   const [savedMessage, setSavedMessage] = useState('');
 
@@ -28,12 +28,12 @@ export default function GuideLinkRwandaApp() {
     const newEntry = {
       id: vipUsers.length + 1,
       name: newVipName,
-      tier: selectedTier,
+      role: selectedRole,
       status: 'Active'
     };
     setVipUsers([...vipUsers, newEntry]);
     setNewVipName('');
-    setSavedMessage('VIP user successfully granted access!');
+    setSavedMessage('User successfully granted role access!');
     setTimeout(() => setSavedMessage(''), 3000);
   };
 
@@ -96,14 +96,14 @@ export default function GuideLinkRwandaApp() {
       {/* Main Container */}
       <div style={{ maxWidth: '600px', margin: '0 auto', background: '#fff', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
         
-        {/* VIP MODULE WITH 3 ACCESS TIERS */}
+        {/* VIP MODULE WITH THE 3 SPECIFIC ROLES */}
         {activeTab === 'vip' && (
           <div>
             <h3 style={{ color: '#1b4332', marginTop: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              ⭐ VIP Access Management (3 Tiers Control)
+              ⭐ VIP Access Control (3 Designated Roles)
             </h3>
             <p style={{ fontSize: '14px', color: '#555' }}>
-              Assign and manage permissions across the 3 VIP access levels for GuideLink Rwanda users.
+              Grant and manage platform access exclusively for Tourism Graduates, Travel Agencies, and Travelers.
             </p>
 
             {savedMessage && (
@@ -113,38 +113,38 @@ export default function GuideLinkRwandaApp() {
             )}
 
             <form onSubmit={handleAddVip} style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px', padding: '15px', backgroundColor: '#f9fbf9', borderRadius: '10px', border: '1px solid #d8f3dc' }}>
-              <h4 style={{ margin: '0 0 5px 0', color: '#2d6a4f', fontSize: '14px' }}>Grant Access to New User</h4>
+              <h4 style={{ margin: '0 0 5px 0', color: '#2d6a4f', fontSize: '14px' }}>Grant Role Access</h4>
               <input 
                 type="text" 
-                placeholder="User Full Name" 
+                placeholder="User / Agency Name" 
                 value={newVipName}
                 onChange={(e) => setNewVipName(e.target.value)}
                 style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}
               />
               <select 
-                value={selectedTier} 
-                onChange={(e) => setSelectedTier(e.target.value)}
+                value={selectedRole} 
+                onChange={(e) => setSelectedRole(e.target.value)}
                 style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc', backgroundColor: '#fff' }}
               >
-                <option value="Tier 1 - Gold Access">Tier 1 - Gold Access</option>
-                <option value="Tier 2 - Silver Access">Tier 2 - Silver Access</option>
-                <option value="Tier 3 - Platinum Access">Tier 3 - Platinum Access</option>
+                <option value="Tourism Graduates">Tourism Graduates</option>
+                <option value="Travel Agency">Travel Agency</option>
+                <option value="Travelers">Travelers</option>
               </select>
               <button 
                 type="submit" 
                 style={{ backgroundColor: '#2d6a4f', color: '#fff', border: 'none', padding: '10px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}
               >
-                + Grant VIP Access
+                + Grant Role Access
               </button>
             </form>
 
-            <h4 style={{ color: '#1b4332', marginBottom: '10px' }}>Current VIP Tier Assignments</h4>
+            <h4 style={{ color: '#1b4332', marginBottom: '10px' }}>Current Role Assignments</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {vipUsers.map((user) => (
                 <div key={user.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', backgroundColor: '#f4f9f5', borderRadius: '8px', border: '1px solid #e2ece3' }}>
                   <div>
                     <strong style={{ display: 'block', color: '#1b4332' }}>{user.name}</strong>
-                    <span style={{ fontSize: '12px', color: '#52b788', fontWeight: '500' }}>{user.tier}</span>
+                    <span style={{ fontSize: '12px', color: '#52b788', fontWeight: '500' }}>{user.role}</span>
                   </div>
                   <span style={{ fontSize: '12px', padding: '4px 8px', backgroundColor: '#d8f3dc', color: '#1b4332', borderRadius: '4px', fontWeight: 'bold' }}>
                     {user.status}
