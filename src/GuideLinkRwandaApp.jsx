@@ -1,138 +1,657 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function GuideLinkRwandaApp() {
-  const [activeTab, setActiveTab] = useState('profile');
-  const [ownerData, setOwnerData] = useState({
-    name: 'RUTUNGURA Bonheur',
-    title: 'C.E.O, Founder & Platform Administrator • GuideLink Rwanda',
-    phone: '+250780558555',
-    bio: 'Tourism Management Specialist & Creator of GuideLink Rwanda.',
-    momoCode: '612771'
-  });
-  const [savedMessage, setSavedMessage] = useState('');
+  const [currentRole, setCurrentRole] = useState('welcome');
+  const [ownerTab, setOwnerTab] = useState('pending');
+  const [activeTab, setActiveTab] = useState('jobs');
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [showOwnerPinModal, setShowOwnerPinModal] = useState(false);
+  const [ownerPinInput, setOwnerPinInput] = useState('');
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = (e) => {
-    e.preventDefault();
-    setSavedMessage('Owner profile successfully updated!');
-    setTimeout(() => setSavedMessage(''), 4000);
+  const MOMO_PAYMENT_CODE = '612771';
+
+  const [ownerProfile, setOwnerProfile] = useState(() => {
+    const saved = localStorage.getItem('gl_owner_profile');
+    return saved
+      ? JSON.parse(saved)
+      : {
+          name: 'RUTUNGURA Bonheur',
+          title: 'Founder & Platform Administrator • GuideLink Rwanda',
+          contact: '+250780000000',
+          bio: 'Tourism Management Specialist & Creator of GuideLink Rwanda.',
+          photo: ''
+        };
+  });
+
+  const [exemptAccounts, setExemptAccounts] = useState(() => {
+    const saved = localStorage.getItem('gl_exempt_users');
+    return saved
+      ? JSON.parse(saved)
+      : [
+          { id: 'owner', name: 'RUTUNGURA Bonheur (Owner)', contact: '+250780000000', role: 'owner', confirmed: true },
+          { id: 'vip1', name: 'VIP Partner 1', contact: '+250781111111', role: 'graduate', confirmed: true },
+          { id: 'vip2', name: 'VIP Partner 2', contact: '+250782222222', role: 'agency', confirmed: true },
+          { id: 'vip3', name: 'VIP Partner 3', contact: '+250783333333', role: 'graduate', confirmed: true }
+        ];
+  });
+
+  const [registeredUsers, setRegisteredUsers] = useState(() => {
+    const saved = localStorage.getItem('gl_registered_users');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [userProfiles, setUserProfiles] = useState(() => {
+    const saved = localStorage.getItem('gl_user_profiles');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  const [activeUser, setActiveUser] = useState(null);
+  const [regStep, setRegStep] = useState('details');
+  const [regForm, setRegForm] = useState({
+    name: '',
+    contact: '',
+    role: 'graduate',
+    paymentMethod: 'mtn',
+    momoRef: ''
+  });
+
+  const [newDegreeInput, setNewDegreeInput] = useState('');
+
+  const [platformSettings, setPlatformSettings] = useState(() => {
+    const saved = localStorage.getItem('gl_platform_settings');
+    return saved ? JSON.parse(saved) : { commissionRatePercent: 10 };
+  });
+
+  useEffect(() => {
+    localStorage.setItem('gl_owner_profile', JSON.stringify(ownerProfile));
+  }, [ownerProfile]);
+
+  useEffect(() => {
+    localStorage.setItem('gl_exempt_users', JSON.stringify(exemptAccounts));
+  }, [exemptAccounts]);
+
+  useEffect(() => {
+    localStorage.setItem('gl_registered_users', JSON.stringify(registeredUsers));
+  }, [registeredUsers]);
+
+  useEffect(() => {
+    localStorage.setItem('gl_user_profiles', JSON.stringify(userProfiles));
+  }, [userProfiles]);
+
+  useEffect(() => {
+    localStorage.setItem('gl_platform_settings', JSON.stringify(platformSettings));
+  }, [platformSettings]);
+
+  const [tasks, setTasks] = useState(() => {
+    const saved = localStorage.getItem('gl_tasks_data');
+    return saved
+      ? JSON.parse(saved)
+      : [
+          {
+            id: 1,
+            title: 'Half-day Kigali city tour & cultural heritage',
+            agency: 'Cheetah Safaris / Partner Agency',
+            rawPay: 35000,
+            pay: 'RWF 35,000',
+            date: 'Sat 21 Nov, 09:00 to 13:00',
+            timeLabel: 'Sat 21 Nov, 4 hours',
+            status: 'confirmed',
+            paymentStatus: 'pending'
+          }
+        ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('gl_tasks_data', JSON.stringify(tasks));
+  }, [tasks]);
+
+  const normalizeContact = (str) => (str || '').replace(/\s+/g, '').toLowerCase();
+
+  const getCurrentProfile = () => {
+    if (!activeUser) return ownerProfile;
+    const key = normalizeContact(activeUser.contact || activeUser.name);
+    if (userProfiles[key]) {
+      return userProfiles[key];
+    }
+    return {
+      name: activeUser.name,
+      contact: activeUser.contact || '',
+      role: activeUser.role,
+      photo: '',
+      headline:
+        activeUser.role === 'graduate'
+          ? 'Certified Tourism Graduate & Guide'
+          : activeUser.role === 'agency'
+          ? 'Licensed Tour Operator'
+          : 'Verified Traveler',
+      location: 'Kigali, Rwanda',
+      bio: '',
+      degrees: [],
+      skills: ['English', 'Kinyarwanda']
+    };
   };
 
-  return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f0f4f1', fontFamily: 'Inter, sans-serif', padding: '20px' }}>
-      {/* Top Header / Welcome Bar */}
-      <div style={{ maxWidth: '600px', margin: '0 auto 20px auto', background: '#1b4332', color: '#fff', padding: '15px 20px', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+  const updateCurrentProfile = (updates) => {
+    if (!activeUser) {
+      setOwnerProfile({ ...ownerProfile, ...updates });
+      return;
+    }
+    const key = normalizeContact(activeUser.contact || activeUser.name);
+    const existing = getCurrentProfile();
+    const updated = { ...existing, ...updates };
+    setUserProfiles({ ...userProfiles, [key]: updated });
+    if (updates.name) {
+      setActiveUser({ ...activeUser, name: updates.name });
+    }
+  };
+
+  const handleSaveWithButton = (profileData) => {
+    setIsSaving(true);
+    setTimeout(() => {
+      if (!activeUser) {
+        localStorage.setItem('gl_owner_profile', JSON.stringify(profileData));
+      } else {
+        const key = normalizeContact(activeUser.contact || activeUser.name);
+        setUserProfiles({ ...userProfiles, [key]: profileData });
+      }
+      setIsSaving(false);
+      alert('✓ Profile successfully saved and updated!');
+    }, 400);
+  };
+
+  const handleImageUpload = (e, onSuccess) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => onSuccess(reader.result);
+    reader.readAsDataURL(file);
+  };
+
+  const resetToWelcome = () => {
+    setCurrentRole('welcome');
+    setActiveTab('jobs');
+    setSelectedTask(null);
+    setRegStep('details');
+    setActiveUser(null);
+  };
+
+  const checkExemptUser = (contactInput) => {
+    const cleanInput = normalizeContact(contactInput);
+    return exemptAccounts.find(
+      (acc) => acc.confirmed && normalizeContact(acc.contact) === cleanInput
+    );
+  };
+
+  const handleProceedRegistration = (e) => {
+    e.preventDefault();
+    if (!regForm.name.trim() || !regForm.contact.trim()) {
+      alert('Please enter your Full Name and Phone Number / Email.');
+      return;
+    }
+
+    const exemptMatch = checkExemptUser(regForm.contact);
+    if (exemptMatch) {
+      if (exemptMatch.id === 'owner') {
+        setShowOwnerPinModal(true);
+        return;
+      }
+      setActiveUser({
+        name: exemptMatch.name,
+        contact: exemptMatch.contact,
+        role: exemptMatch.role,
+        isVip: true
+      });
+      setCurrentRole(exemptMatch.role);
+      setActiveTab('jobs');
+      return;
+    }
+
+    const existingUser = registeredUsers.find(
+      (u) => normalizeContact(u.contact) === normalizeContact(regForm.contact)
+    );
+    if (existingUser) {
+      if (existingUser.status === 'approved') {
+        setActiveUser(existingUser);
+        setCurrentRole(existingUser.role);
+        setActiveTab('jobs');
+        return;
+      } else {
+        setRegStep('pending_approval');
+        return;
+      }
+    }
+
+    setRegStep('pay_500');
+  };
+
+  const handleComplete500Payment = () => {
+    if (!regForm.momoRef.trim()) {
+      alert('Please enter your MoMo Transaction Reference / Phone used to pay.');
+      return;
+    }
+
+    const newRegistrant = {
+      id: Date.now(),
+      name: regForm.name.trim(),
+      contact: regForm.contact.trim(),
+      role: regForm.role,
+      feePaid: 500,
+      paymentMethod: regForm.paymentMethod.toUpperCase(),
+      momoCodeUsed: MOMO_PAYMENT_CODE,
+      momoRef: regForm.momoRef,
+      status: 'pending_approval',
+      createdAt: new Date().toLocaleDateString()
+    };
+
+    setRegisteredUsers([newRegistrant, ...registeredUsers]);
+    setRegStep('pending_approval');
+  };
+
+  const handleOwnerLogin = (e) => {
+    if (e) e.preventDefault();
+    if (ownerPinInput === 'FYP$2026') {
+      setShowOwnerPinModal(false);
+      setOwnerPinInput('');
+      setOwnerTab('pending');
+      setCurrentRole('owner');
+    } else {
+      alert('Access Denied: Invalid Owner Password.');
+      setOwnerPinInput('');
+    }
+  };
+
+  const approveRegistrant = (userId) => {
+    setRegisteredUsers(
+      registeredUsers.map((u) => (u.id === userId ? { ...u, status: 'approved' } : u))
+    );
+  };
+
+  const rejectRegistrant = (userId) => {
+    setRegisteredUsers(registeredUsers.filter((u) => u.id !== userId));
+  };
+
+  const updateVipSlot = (slotId, field, value) => {
+    setExemptAccounts(
+      exemptAccounts.map((acc) => (acc.id === slotId ? { ...acc, [field]: value } : acc))
+    );
+  };
+
+  if (currentRole === 'welcome') {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl overflow-hidden border border-slate-200">
         <div>
-          <h2 style={{ margin: 0, fontSize: '18px' }}>{ownerData.name}</h2>
-          <span style={{ fontSize: '13px', color: '#95d5b2' }}>MoMo Code: {ownerData.momoCode}</span>
-        </div>
-        <button 
-          onClick={() => alert('Session secured.')}
-          style={{ backgroundColor: '#2d6a4f', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
-        >
-          Log Out
-        </button>
-      </div>
+          <div className="bg-[#E2ECE9] p-6 text-center relative overflow-hidden">
+            <div className="absolute top-4 right-6 w-14 h-14 bg-amber-400 rounded-full shadow-md"></div>
+            <div className="h-28 flex items-end justify-center space-x-1">
+              <div className="w-full h-16 bg-[#5A8F7B] rounded-t-full opacity-60"></div>
+              <div className="absolute bottom-0 w-full h-12 bg-[#3B6E5B] rounded-t-full opacity-80"></div>
+              <div className="absolute bottom-0 w-3/4 h-8 bg-[#234E40] rounded-t-full"></div>
+            </div>
+          </div>
 
-      {/* Admin Navigation Tabs */}
-      <div style={{ maxWidth: '600px', margin: '0 auto 20px auto', display: 'flex', justifyContent: 'space-around', background: '#fff', padding: '10px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-        <button 
-          onClick={() => setActiveTab('signups')} 
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: activeTab === 'signups' ? 'bold' : 'normal', color: activeTab === 'signups' ? '#1b4332' : '#666' }}
-        >
-          ⏳ Sign-Ups
-        </button>
-        <button 
-          onClick={() => setActiveTab('revenue')} 
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: activeTab === 'revenue' ? 'bold' : 'normal', color: activeTab === 'revenue' ? '#1b4332' : '#666' }}
-        >
-          📊 Revenue
-        </button>
-        <button 
-          onClick={() => setActiveTab('vip')} 
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: activeTab === 'vip' ? 'bold' : 'normal', color: activeTab === 'vip' ? '#1b4332' : '#666' }}
-        >
-          ⭐ VIP
-        </button>
-        <button 
-          onClick={() => setActiveTab('roles')} 
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: activeTab === 'roles' ? 'bold' : 'normal', color: activeTab === 'roles' ? '#1b4332' : '#666' }}
-        >
-          🎛️ Roles
-        </button>
-        <button 
-          onClick={() => setActiveTab('profile')} 
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: activeTab === 'profile' ? 'bold' : 'normal', color: activeTab === 'profile' ? '#1b4332' : '#666' }}
-        >
-          👑 My Profile
-        </button>
-      </div>
+          <div className="p-6 space-y-6">
+            <div>
+              <h1 className="text-3xl font-bold text-slate-900 tracking-tight">GuideLink Rwanda</h1>
+              <p className="text-lg font-medium text-[#234E40] mt-1">Turn your tourism degree into paid work.</p>
+              <p className="text-xs text-slate-600 mt-2">
+                Freelance guiding and travel consulting, matched across Rwanda.
+              </p>
+              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-1.5">
+                Developed & Copyright © 2026 {ownerProfile.name}
+              </p>
+            </div>
 
-      {/* Main Content Area */}
-      <div style={{ maxWidth: '600px', margin: '0 auto', background: '#fff', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
-        
-        {activeTab === 'profile' && (
-          <div>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#1b4332', marginTop: 0 }}>
-              👑 Owner Profile & Photo
-            </h3>
-
-            <div style={{ textAlign: 'center', margin: '20px 0' }}>
-              <div style={{ width: '90px', height: '90px', borderRadius: '50%', backgroundColor: '#1b4332', margin: '0 auto 10px auto', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '28px', border: '3px solid #52b788' }}>
-                RB
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold text-[#234E40] uppercase tracking-wider">Member Portal</span>
+                <span className="text-[11px] font-bold bg-emerald-100 text-[#234E40] px-2.5 py-0.5 rounded-full">
+                  MoMo Code: {MOMO_PAYMENT_CODE}
+                </span>
               </div>
-              <button style={{ backgroundColor: '#e9f5ed', color: '#2d6a4f', border: '1px solid #b7e4c7', padding: '6px 14px', borderRadius: '20px', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
-                📷 Upload Owner Photo
+              <button
+                onClick={() => {
+                  setRegStep('details');
+                  setCurrentRole('register');
+                }}
+                className="w-full py-3.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold text-sm shadow transition flex items-center justify-center space-x-2"
+              >
+                <span>📝</span>
+                <span>Sign Up / Member Sign In →</span>
               </button>
             </div>
 
-            {savedMessage && (
-              <div style={{ padding: '10px', backgroundColor: '#d8f3dc', color: '#081c15', borderRadius: '8px', marginBottom: '15px', textAlign: 'center', fontSize: '14px' }}>
-                {savedMessage}
-              </div>
-            )}
-
-            <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <input 
-                type="text" 
-                value={ownerData.name} 
-                onChange={(e) => setOwnerData({...ownerData, name: e.target.value})}
-                style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '15px' }}
-              />
-              <input 
-                type="text" 
-                value={ownerData.title} 
-                onChange={(e) => setOwnerData({...ownerData, title: e.target.value})}
-                style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '15px' }}
-              />
-              <input 
-                type="text" 
-                value={ownerData.phone} 
-                onChange={(e) => setOwnerData({...ownerData, phone: e.target.value})}
-                style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '15px' }}
-              />
-              <textarea 
-                rows="4" 
-                value={ownerData.bio} 
-                onChange={(e) => setOwnerData({...ownerData, bio: e.target.value})}
-                style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '15px', fontFamily: 'inherit' }}
-              />
-              <button 
-                type="submit" 
-                style={{ backgroundColor: '#2d6a4f', color: '#fff', border: 'none', padding: '14px', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer' }}
+            <div className="pt-2">
+              <button
+                onClick={() => {
+                  setOwnerPinInput('');
+                  setShowOwnerPinModal(true);
+                }}
+                className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs shadow-sm transition flex items-center justify-center space-x-2"
               >
-                💾 Save Owner Profile
+                <span>🔐</span>
+                <span>Owner Login ({ownerProfile.name})</span>
               </button>
+            </div>
+          </div>
+        </div>
+
+        {showOwnerPinModal && (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+            <form onSubmit={handleOwnerLogin} className="bg-white rounded-2xl p-6 w-full max-w-xs space-y-4 shadow-xl">
+              <div className="text-center space-y-1">
+                <div className="w-10 h-10 bg-slate-900 text-white rounded-full flex items-center justify-center mx-auto text-base">
+                  🔐
+                </div>
+                <h3 className="font-bold text-base text-slate-900">Owner Authentication</h3>
+              </div>
+              <input
+                type="password"
+                required
+                autoFocus
+                placeholder="••••••••"
+                value={ownerPinInput}
+                onChange={(e) => setOwnerPinInput(e.target.value)}
+                className="w-full p-3 border border-slate-300 rounded-xl text-sm text-center font-bold tracking-wider"
+              />
+              <div className="flex space-x-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowOwnerPinModal(false);
+                    setOwnerPinInput('');
+                  }}
+                  className="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-[#234E40] text-white rounded-xl text-xs font-bold"
+                >
+                  Unlock
+                </button>
+              </div>
             </form>
           </div>
         )}
+      </div>
+    );
+  }
 
-        {activeTab !== 'profile' && (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: '#4f772d' }}>
-            <h3>Module: {activeTab.toUpperCase()}</h3>
-            <p>Exclusive owner access active.</p>
+  if (currentRole === 'register') {
+    return (
+      <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl border border-slate-200">
+        <div className="bg-white px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+          <h2 className="font-bold text-slate-900">Member Sign Up</h2>
+          <button
+            onClick={resetToWelcome}
+            className="text-xs bg-slate-100 px-3 py-1.5 rounded-full font-semibold text-slate-600"
+          >
+            ← Home
+          </button>
+        </div>
+
+        <div className="p-6 flex-1 overflow-y-auto">
+          {regStep === 'details' && (
+            <form onSubmit={handleProceedRegistration} className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Account Verification</h3>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700">Full Name</label>
+                <input
+                  type="text"
+                  required
+                  value={regForm.name}
+                  onChange={(e) => setRegForm({ ...regForm, name: e.target.value })}
+                  className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700">Phone Number (MoMo) or Email</label>
+                <input
+                  type="text"
+                  required
+                  value={regForm.contact}
+                  onChange={(e) => setRegForm({ ...regForm, contact: e.target.value })}
+                  className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700">Role</label>
+                <select
+                  value={regForm.role}
+                  onChange={(e) => setRegForm({ ...regForm, role: e.target.value })}
+                  className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-sm bg-white"
+                >
+                  <option value="graduate">Tourism Graduate</option>
+                  <option value="agency">Travel Agency</option>
+                  <option value="traveler">Traveler</option>
+                </select>
+              </div>
+              <button
+                type="submit"
+                className="w-full py-3 bg-[#3B6E5B] text-white rounded-xl font-bold text-sm shadow"
+              >
+                Continue →
+              </button>
+            </form>
+          )}
+
+          {regStep === 'pay_500' && (
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
+              <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-xl space-y-1">
+                <h3 className="text-lg font-bold text-slate-900">Pay 500 RWF via MoMo Code</h3>
+                <p className="text-xs text-slate-700">
+                  Send <strong>500 RWF</strong> to MoMo Code: <strong className="text-[#234E40] text-sm">{MOMO_PAYMENT_CODE}</strong>
+                </p>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700">MoMo Transaction ID / Reference</label>
+                <input
+                  type="text"
+                  required
+                  value={regForm.momoRef}
+                  onChange={(e) => setRegForm({ ...regForm, momoRef: e.target.value })}
+                  className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-xs"
+                />
+              </div>
+              <button
+                onClick={handleComplete500Payment}
+                className="w-full py-3 bg-[#234E40] text-white rounded-xl font-bold text-sm shadow"
+              >
+                Submit Payment & Notify Owner
+              </button>
+            </div>
+          )}
+
+          {regStep === 'pending_approval' && (
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center space-y-4 shadow-sm">
+              <h3 className="text-lg font-bold text-slate-900">Payment Pending Owner Approval</h3>
+              <p className="text-xs text-slate-600">
+                Your payment to MoMo Code <strong>{MOMO_PAYMENT_CODE}</strong> has been logged and sent to <strong>{ownerProfile.name}</strong>.
+              </p>
+              <button
+                onClick={resetToWelcome}
+                className="w-full py-2.5 bg-[#3B6E5B] text-white rounded-xl font-bold text-xs"
+              >
+                Return to Home Screen
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (currentRole === 'owner') {
+    const totalRegFees = registeredUsers.reduce((sum, u) => sum + (u.feePaid || 0), 0);
+    const pendingCount = registeredUsers.filter((u) => u.status === 'pending_approval').length;
+
+    return (
+      <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl border border-slate-200 relative">
+        <div className="bg-[#234E40] text-white px-5 py-4 flex justify-between items-center sticky top-0 z-30">
+          <div className="flex items-center space-x-3">
+            {ownerProfile.photo ? (
+              <img src={ownerProfile.photo} alt="Owner" className="w-10 h-10 rounded-full object-cover border-2 border-amber-400" />
+            ) : (
+              <div className="w-10 h-10 bg-amber-400 text-slate-900 rounded-full flex items-center justify-center font-extrabold text-sm">👑</div>
+            )}
+            <div>
+              <h2 className="font-bold text-sm">{ownerProfile.name}</h2>
+              <p className="text-[11px] text-emerald-200">MoMo Code: {MOMO_PAYMENT_CODE}</p>
+            </div>
+          </div>
+          <button onClick={resetToWelcome} className="text-xs bg-emerald-900 px-3 py-1.5 rounded-full font-semibold">Log Out</button>
+        </div>
+
+        {/* 5 OWNER NAVIGATION TABS WITH ICONS */}
+        <div className="bg-white border-b border-slate-200 px-2 py-2.5 grid grid-cols-5 gap-1 text-center sticky top-[72px] z-20 shadow-sm">
+          <button onClick={() => setOwnerTab('pending')} className={`p-1.5 rounded-xl flex flex-col items-center relative ${ownerTab === 'pending' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
+            <span className="text-base">⏳</span><span className="text-[9px]">Sign-Ups</span>
+            {pendingCount > 0 && <span className="absolute top-1 right-2 bg-red-600 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center">{pendingCount}</span>}
+          </button>
+          <button onClick={() => setOwnerTab('overview')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'overview' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-base">📊</span><span className="text-[9px]">Revenue</span></button>
+          <button onClick={() => setOwnerTab('vip')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'vip' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-base">⭐</span><span className="text-[9px]">VIP</span></button>
+          <button onClick={() => setOwnerTab('deals')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'deals' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-base">🎛️</span><span className="text-[9px]">Roles</span></button>
+          <button onClick={() => setOwnerTab('owner_profile')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'owner_profile' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-base">👤</span><span className="text-[9px]">My Profile</span></button>
+        </div>
+
+        <div className="p-4 space-y-4 flex-1 overflow-y-auto pb-10">
+          {ownerTab === 'pending' && (
+            <div className="space-y-3">
+              <h3 className="font-bold text-sm text-slate-900">⏳ Payment Notifications & Sign-Ups</h3>
+              {registeredUsers.map((user) => (
+                <div key={user.id} className="bg-white p-4 rounded-2xl border space-y-2 text-xs">
+                  <p className="font-bold text-sm">{user.name} ({user.role})</p>
+                  <p className="text-slate-500">{user.contact} • Ref: {user.momoRef}</p>
+                  {user.status === 'approved' ? (
+                    <span className="text-emerald-700 font-bold">✓ Approved</span>
+                  ) : (
+                    <button onClick={() => approveRegistrant(user.id)} className="w-full py-2 bg-[#3B6E5B] text-white rounded-xl font-bold">
+                      ✓ Confirm Payment & Grant Access
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {ownerTab === 'owner_profile' && (
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4">
+              <h3 className="font-bold text-base text-slate-900">👑 Owner Profile & Photo</h3>
+              <div className="flex flex-col items-center space-y-2">
+                {ownerProfile.photo ? (
+                  <img src={ownerProfile.photo} alt="Owner" className="w-24 h-24 rounded-full object-cover border-4 border-[#3B6E5B]" />
+                ) : (
+                  <div className="w-24 h-24 rounded-full bg-slate-200 flex items-center justify-center text-3xl">👑</div>
+                )}
+                <label className="cursor-pointer bg-emerald-50 text-[#234E40] border px-3 py-1.5 rounded-xl text-xs font-bold">
+                  📷 Upload Owner Photo
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, (imgData) => setOwnerProfile({ ...ownerProfile, photo: imgData }))} />
+                </label>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <input type="text" value={ownerProfile.name} onChange={(e) => setOwnerProfile({ ...ownerProfile, name: e.target.value })} className="w-full p-2.5 border rounded-xl" />
+                <input type="text" value={ownerProfile.title} onChange={(e) => setOwnerProfile({ ...ownerProfile, title: e.target.value })} className="w-full p-2.5 border rounded-xl" />
+                <input type="text" value={ownerProfile.contact} onChange={(e) => setOwnerProfile({ ...ownerProfile, contact: e.target.value })} className="w-full p-2.5 border rounded-xl" />
+                <textarea rows="3" value={ownerProfile.bio} onChange={(e) => setOwnerProfile({ ...ownerProfile, bio: e.target.value })} className="w-full p-2.5 border rounded-xl" />
+                
+                {/* EXPLICIT SAVE BUTTON FOR OWNER */}
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => handleSaveWithButton(ownerProfile)}
+                  className="w-full py-3.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold text-sm shadow transition"
+                >
+                  {isSaving ? '⏳ Saving...' : '💾 Save Owner Profile'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  const currentProf = getCurrentProfile();
+
+  return (
+    <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl overflow-hidden border border-slate-200 relative">
+      <div className="bg-white px-5 py-3.5 border-b flex justify-between items-center sticky top-0 z-30">
+        <div className="flex items-center space-x-3">
+          {currentProf?.photo ? (
+            <img src={currentProf.photo} alt="Profile" className="w-10 h-10 rounded-full object-cover border-2 border-[#3B6E5B]" />
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-[#3B6E5B] text-white flex items-center justify-center font-bold">
+              {(currentProf?.name || 'U').charAt(0)}
+            </div>
+          )}
+          <div>
+            <h2 className="font-bold text-sm">{currentProf?.name}</h2>
+            <p className="text-[11px] text-slate-500 capitalize">Role: {currentRole}</p>
+          </div>
+        </div>
+        <button onClick={resetToWelcome} className="text-xs bg-slate-100 px-3 py-1.5 rounded-full font-semibold">Sign Out</button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto pb-24 p-4 space-y-4">
+        {activeTab === 'jobs' && (
+          <div className="space-y-3">
+            <h3 className="font-bold text-base text-slate-900">Available Tasks</h3>
+            {tasks.map((task) => (
+              <div key={task.id} className="bg-white p-4 rounded-2xl border space-y-2">
+                <div className="flex justify-between font-bold text-sm">
+                  <span>{task.title}</span><span className="text-[#234E40]">{task.pay}</span>
+                </div>
+                <p className="text-xs text-slate-500">MoMo Code: {MOMO_PAYMENT_CODE}</p>
+              </div>
+            ))}
           </div>
         )}
 
+        {activeTab === 'profile' && currentProf && (
+          <div className="space-y-4">
+            <div className="bg-white p-5 rounded-2xl border space-y-4 shadow-sm">
+              <div className="flex flex-col items-center space-y-2">
+                {currentProf.photo ? (
+                  <img src={currentProf.photo} alt="Avatar" className="w-24 h-24 rounded-full object-cover border-4 border-[#3B6E5B]" />
+                ) : (
+                  <div className="w-24 h-24 rounded-full bg-emerald-100 text-[#234E40] flex items-center justify-center font-bold text-2xl">
+                    {currentProf.name.charAt(0)}
+                  </div>
+                )}
+                <label className="cursor-pointer bg-[#3B6E5B] text-white px-3.5 py-1.5 rounded-xl text-xs font-bold">
+                  📷 Upload Profile Photo
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, (imgData) => updateCurrentProfile({ photo: imgData }))} />
+                </label>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <input type="text" value={currentProf.name} onChange={(e) => updateCurrentProfile({ name: e.target.value })} className="w-full p-2.5 border rounded-xl" />
+                <input type="text" value={currentProf.headline} onChange={(e) => updateCurrentProfile({ headline: e.target.value })} className="w-full p-2.5 border rounded-xl" />
+                
+                {/* EXPLICIT SAVE BUTTON FOR USERS */}
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => handleSaveWithButton(currentProf)}
+                  className="w-full py-3.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold text-sm shadow transition"
+                >
+                  {isSaving ? '⏳ Saving...' : '💾 Save Profile'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white border-t py-2.5 px-10 flex justify-around items-center text-xs font-bold text-slate-500 absolute bottom-0 w-full max-w-md z-20">
+        <button onClick={() => setActiveTab('jobs')} className={`flex flex-col items-center ${activeTab === 'jobs' ? 'text-[#234E40]' : ''}`}>🏠 Workspace</button>
+        <button onClick={() => setActiveTab('profile')} className={`flex flex-col items-center ${activeTab === 'profile' ? 'text-[#234E40]' : ''}`}>👤 My Profile</button>
       </div>
     </div>
   );
