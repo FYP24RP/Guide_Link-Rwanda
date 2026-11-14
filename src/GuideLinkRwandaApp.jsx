@@ -1,10 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase Client with your project credentials
-const SUPABASE_URL = 'https://gwwkdhgpfaandekxjsjy.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd3d2tkaGdwZmFhbmRla3hqc2p5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwMjQ5MDQsImV4cCI6MjA4NjYwMDkwNH0.YOUR_ACTUAL_KEY_FALLBACK';
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export default function GuideLinkRwandaApp() {
   const [currentRole, setCurrentRole] = useState('welcome');
@@ -18,27 +12,41 @@ export default function GuideLinkRwandaApp() {
 
   const MOMO_PAYMENT_CODE = '612771';
 
-  const [ownerProfile, setOwnerProfile] = useState({
-    name: 'RUTUNGURA Bonheur',
-    title: 'Founder & Platform Administrator • GuideLink Rwanda',
-    contact: '+250780000000',
-    bio: 'Tourism Management Specialist & Creator of GuideLink Rwanda.',
-    photo: ''
+  const [ownerProfile, setOwnerProfile] = useState(() => {
+    const saved = localStorage.getItem('gl_owner_profile');
+    return saved
+      ? JSON.parse(saved)
+      : {
+          name: 'RUTUNGURA Bonheur',
+          title: 'Founder & Platform Administrator • GuideLink Rwanda',
+          contact: '+250780000000',
+          bio: 'Tourism Management Specialist & Creator of GuideLink Rwanda.',
+          photo: ''
+        };
   });
 
-  const [exemptAccounts, setExemptAccounts] = useState([
-    { id: 'owner', name: 'RUTUNGURA Bonheur (Owner)', contact: '+250780000000', role: 'owner', confirmed: true },
-    { id: 'vip1', name: 'VIP Partner 1', contact: '+250781111111', role: 'graduate', confirmed: true },
-    { id: 'vip2', name: 'VIP Partner 2', contact: '+250782222222', role: 'agency', confirmed: true },
-    { id: 'vip3', name: 'VIP Partner 3', contact: '+250783333333', role: 'graduate', confirmed: true }
-  ]);
+  const [exemptAccounts, setExemptAccounts] = useState(() => {
+    const saved = localStorage.getItem('gl_exempt_users');
+    return saved
+      ? JSON.parse(saved)
+      : [
+          { id: 'owner', name: 'RUTUNGURA Bonheur (Owner)', contact: '+250780000000', role: 'owner', confirmed: true },
+          { id: 'vip1', name: 'VIP Partner 1', contact: '+250781111111', role: 'graduate', confirmed: true },
+          { id: 'vip2', name: 'VIP Partner 2', contact: '+250782222222', role: 'agency', confirmed: true },
+          { id: 'vip3', name: 'VIP Partner 3', contact: '+250783333333', role: 'graduate', confirmed: true }
+        ];
+  });
 
   const [registeredUsers, setRegisteredUsers] = useState(() => {
     const saved = localStorage.getItem('gl_registered_users');
     return saved ? JSON.parse(saved) : [];
   });
 
-  const [userProfiles, setUserProfiles] = useState({});
+  const [userProfiles, setUserProfiles] = useState(() => {
+    const saved = localStorage.getItem('gl_user_profiles');
+    return saved ? JSON.parse(saved) : {};
+  });
+
   const [activeUser, setActiveUser] = useState(null);
   const [regStep, setRegStep] = useState('details');
   const [regForm, setRegForm] = useState({
@@ -50,78 +58,63 @@ export default function GuideLinkRwandaApp() {
   });
 
   const [newDegreeInput, setNewDegreeInput] = useState('');
-  const [newExpTitle, setNewExpTitle] = useState('');
-  const [newExpOrg, setNewExpOrg] = useState('');
-  const [newSkillInput, setNewSkillInput] = useState('');
 
-  const [platformSettings, setPlatformSettings] = useState({ commissionRatePercent: 10 });
+  const [platformSettings, setPlatformSettings] = useState(() => {
+    const saved = localStorage.getItem('gl_platform_settings');
+    return saved ? JSON.parse(saved) : { commissionRatePercent: 10 };
+  });
 
-  // Fetch profiles from Supabase cloud database on load
   useEffect(() => {
-    fetchCloudData();
-  }, []);
+    localStorage.setItem('gl_owner_profile', JSON.stringify(ownerProfile));
+  }, [ownerProfile]);
 
-  const fetchCloudData = async () => {
-    try {
-      const { data, error } = await supabase.from('user_profiles').select('*');
-      if (data && !error && data.length > 0) {
-        const loadedProfiles = {};
-        data.forEach(row => {
-          loadedProfiles[row.contact_key] = row.profile_data;
-          if (row.contact_key === 'owner_profile') {
-            setOwnerProfile(row.profile_data);
+  useEffect(() => {
+    localStorage.setItem('gl_exempt_users', JSON.stringify(exemptAccounts));
+  }, [exemptAccounts]);
+
+  useEffect(() => {
+    localStorage.setItem('gl_registered_users', JSON.stringify(registeredUsers));
+  }, [registeredUsers]);
+
+  useEffect(() => {
+    localStorage.setItem('gl_user_profiles', JSON.stringify(userProfiles));
+  }, [userProfiles]);
+
+  useEffect(() => {
+    localStorage.setItem('gl_platform_settings', JSON.stringify(platformSettings));
+  }, [platformSettings]);
+
+  const [tasks, setTasks] = useState(() => {
+    const saved = localStorage.getItem('gl_tasks_data');
+    return saved
+      ? JSON.parse(saved)
+      : [
+          {
+            id: 1,
+            title: 'Half-day Kigali city tour & cultural heritage',
+            agency: 'Cheetah Safaris / Partner Agency',
+            rawPay: 35000,
+            pay: 'RWF 35,000',
+            date: 'Sat 21 Nov, 09:00 to 13:00',
+            timeLabel: 'Sat 21 Nov, 4 hours',
+            status: 'confirmed',
+            paymentStatus: 'pending'
           }
-        });
-        setUserProfiles(loadedProfiles);
-      }
-    } catch (err) {
-      console.log('Using local state fallback');
-    }
-  };
+        ];
+  });
 
-  const handleSaveToCloud = async (profileData, identifier) => {
-    setIsSaving(true);
-    const cleanKey = (identifier || 'owner_profile').replace(/\s+/g, '').toLowerCase();
-
-    try {
-      const { error } = await supabase
-        .from('user_profiles')
-        .upsert(
-          { contact_key: cleanKey, profile_data: profileData, updated_at: new Date() },
-          { onConflict: 'contact_key' }
-        );
-
-      if (error) throw error;
-      alert('✓ Profile successfully saved to cloud and synced across all devices!');
-    } catch (err) {
-      // Fallback save to localStorage if offline
-      localStorage.setItem(`profile_${cleanKey}`, JSON.stringify(profileData));
-      alert('✓ Saved locally and synced!');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const [tasks, setTasks] = useState([
-    {
-      id: 1,
-      title: 'Half-day Kigali city tour & cultural heritage',
-      agency: 'Cheetah Safaris / Partner Agency',
-      rawPay: 35000,
-      pay: 'RWF 35,000',
-      date: 'Sat 21 Nov, 09:00 to 13:00',
-      timeLabel: 'Sat 21 Nov, 4 hours',
-      status: 'confirmed',
-      paymentStatus: 'pending'
-    }
-  ]);
+  useEffect(() => {
+    localStorage.setItem('gl_tasks_data', JSON.stringify(tasks));
+  }, [tasks]);
 
   const normalizeContact = (str) => (str || '').replace(/\s+/g, '').toLowerCase();
 
   const getCurrentProfile = () => {
     if (!activeUser) return ownerProfile;
     const key = normalizeContact(activeUser.contact || activeUser.name);
-    if (userProfiles[key]) return userProfiles[key];
+    if (userProfiles[key]) {
+      return userProfiles[key];
+    }
     return {
       name: activeUser.name,
       contact: activeUser.contact || '',
@@ -136,7 +129,6 @@ export default function GuideLinkRwandaApp() {
       location: 'Kigali, Rwanda',
       bio: '',
       degrees: [],
-      experiences: [],
       skills: ['English', 'Kinyarwanda']
     };
   };
@@ -153,6 +145,20 @@ export default function GuideLinkRwandaApp() {
     if (updates.name) {
       setActiveUser({ ...activeUser, name: updates.name });
     }
+  };
+
+  const handleSaveWithButton = (profileData) => {
+    setIsSaving(true);
+    setTimeout(() => {
+      if (!activeUser) {
+        localStorage.setItem('gl_owner_profile', JSON.stringify(profileData));
+      } else {
+        const key = normalizeContact(activeUser.contact || activeUser.name);
+        setUserProfiles({ ...userProfiles, [key]: profileData });
+      }
+      setIsSaving(false);
+      alert('✓ Profile successfully saved and updated!');
+    }, 400);
   };
 
   const handleImageUpload = (e, onSuccess) => {
@@ -554,14 +560,14 @@ export default function GuideLinkRwandaApp() {
                 <input type="text" value={ownerProfile.contact} onChange={(e) => setOwnerProfile({ ...ownerProfile, contact: e.target.value })} className="w-full p-2.5 border rounded-xl" />
                 <textarea rows="3" value={ownerProfile.bio} onChange={(e) => setOwnerProfile({ ...ownerProfile, bio: e.target.value })} className="w-full p-2.5 border rounded-xl" />
                 
-                {/* SAVE & SYNC BUTTON FOR OWNER */}
+                {/* EXPLICIT SAVE BUTTON FOR OWNER */}
                 <button
                   type="button"
                   disabled={isSaving}
-                  onClick={() => handleSaveToCloud(ownerProfile, 'owner_profile')}
+                  onClick={() => handleSaveWithButton(ownerProfile)}
                   className="w-full py-3.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold text-sm shadow transition"
                 >
-                  {isSaving ? '⏳ Saving & Syncing...' : '💾 Save & Sync Owner Profile'}
+                  {isSaving ? '⏳ Saving...' : '💾 Save Owner Profile'}
                 </button>
               </div>
             </div>
@@ -628,14 +634,14 @@ export default function GuideLinkRwandaApp() {
                 <input type="text" value={currentProf.name} onChange={(e) => updateCurrentProfile({ name: e.target.value })} className="w-full p-2.5 border rounded-xl" />
                 <input type="text" value={currentProf.headline} onChange={(e) => updateCurrentProfile({ headline: e.target.value })} className="w-full p-2.5 border rounded-xl" />
                 
-                {/* SAVE & SYNC BUTTON FOR USERS */}
+                {/* EXPLICIT SAVE BUTTON FOR USERS */}
                 <button
                   type="button"
                   disabled={isSaving}
-                  onClick={() => handleSaveToCloud(currentProf, activeUser?.contact || activeUser?.name)}
+                  onClick={() => handleSaveWithButton(currentProf)}
                   className="w-full py-3.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold text-sm shadow transition"
                 >
-                  {isSaving ? '⏳ Saving & Syncing...' : '💾 Save & Sync Profile to Cloud'}
+                  {isSaving ? '⏳ Saving...' : '💾 Save Profile'}
                 </button>
               </div>
             </div>
