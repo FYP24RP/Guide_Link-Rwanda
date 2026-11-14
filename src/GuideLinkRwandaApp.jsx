@@ -11,6 +11,21 @@ export default function GuideLinkRwandaApp() {
 
   const MOMO_PAYMENT_CODE = '612771';
 
+  // Owner Profile State (with Photo Upload & Editable Details)
+  const [ownerProfile, setOwnerProfile] = useState(() => {
+    const saved = localStorage.getItem('gl_owner_profile');
+    return saved
+      ? JSON.parse(saved)
+      : {
+          name: 'RUTUNGURA Bonheur',
+          title: 'Founder & Platform Administrator • GuideLink Rwanda',
+          contact: '+250780000000',
+          bio: 'Tourism Management Specialist & Creator of GuideLink Rwanda.',
+          photo: ''
+        };
+  });
+
+  // VIP / Exempt Users
   const [exemptAccounts, setExemptAccounts] = useState(() => {
     const saved = localStorage.getItem('gl_exempt_users');
     return saved
@@ -23,9 +38,16 @@ export default function GuideLinkRwandaApp() {
         ];
   });
 
+  // Paid & Registered Users List
   const [registeredUsers, setRegisteredUsers] = useState(() => {
     const saved = localStorage.getItem('gl_registered_users');
     return saved ? JSON.parse(saved) : [];
+  });
+
+  // Custom Rich Profiles keyed by normalized contact
+  const [userProfiles, setUserProfiles] = useState(() => {
+    const saved = localStorage.getItem('gl_user_profiles');
+    return saved ? JSON.parse(saved) : {};
   });
 
   const [activeUser, setActiveUser] = useState(null);
@@ -38,10 +60,20 @@ export default function GuideLinkRwandaApp() {
     momoRef: ''
   });
 
+  // Form states for adding new Degrees, Experience, or Skills in Profile Editor
+  const [newDegreeInput, setNewDegreeInput] = useState('');
+  const [newExpTitle, setNewExpTitle] = useState('');
+  const [newExpOrg, setNewExpOrg] = useState('');
+  const [newSkillInput, setNewSkillInput] = useState('');
+
   const [platformSettings, setPlatformSettings] = useState(() => {
     const saved = localStorage.getItem('gl_platform_settings');
     return saved ? JSON.parse(saved) : { commissionRatePercent: 10 };
   });
+
+  useEffect(() => {
+    localStorage.setItem('gl_owner_profile', JSON.stringify(ownerProfile));
+  }, [ownerProfile]);
 
   useEffect(() => {
     localStorage.setItem('gl_exempt_users', JSON.stringify(exemptAccounts));
@@ -52,37 +84,102 @@ export default function GuideLinkRwandaApp() {
   }, [registeredUsers]);
 
   useEffect(() => {
+    localStorage.setItem('gl_user_profiles', JSON.stringify(userProfiles));
+  }, [userProfiles]);
+
+  useEffect(() => {
     localStorage.setItem('gl_platform_settings', JSON.stringify(platformSettings));
   }, [platformSettings]);
 
-  const [graduateProfile] = useState({
-    name: 'RUTUNGURA Bonheur',
-    title: 'Tourism Graduate & Consultant',
-    rating: '4.9',
-    reviewsCount: 15,
-    skills: ['GDS Galileo & Sabre', 'City Tours', 'Wildlife Guiding']
-  });
-
   const [tasks, setTasks] = useState(() => {
     const saved = localStorage.getItem('gl_tasks_data');
-    return saved ? JSON.parse(saved) : [
-      {
-        id: 1,
-        title: 'Half-day Kigali city tour & cultural heritage',
-        agency: 'Cheetah Safaris / Partner Agency',
-        rawPay: 35000,
-        pay: 'RWF 35,000',
-        date: 'Sat 21 Nov, 09:00 to 13:00',
-        timeLabel: 'Sat 21 Nov, 4 hours',
-        status: 'confirmed',
-        paymentStatus: 'pending'
-      }
-    ];
+    return saved
+      ? JSON.parse(saved)
+      : [
+          {
+            id: 1,
+            title: 'Half-day Kigali city tour & cultural heritage',
+            agency: 'Cheetah Safaris / Partner Agency',
+            rawPay: 35000,
+            pay: 'RWF 35,000',
+            date: 'Sat 21 Nov, 09:00 to 13:00',
+            timeLabel: 'Sat 21 Nov, 4 hours',
+            status: 'confirmed',
+            paymentStatus: 'pending'
+          },
+          {
+            id: 2,
+            title: 'Airport transfer & Volcanic region briefing',
+            agency: 'Rwanda Eco-Tours',
+            rawPay: 20000,
+            pay: 'RWF 20,000',
+            date: 'Mon 23 Nov, 14:00 to 16:00',
+            timeLabel: 'Mon 23 Nov, 2 hours',
+            status: 'open',
+            paymentStatus: 'pending'
+          }
+        ];
   });
 
   useEffect(() => {
     localStorage.setItem('gl_tasks_data', JSON.stringify(tasks));
   }, [tasks]);
+
+  const normalizeContact = (str) => (str || '').replace(/\s+/g, '').toLowerCase();
+
+  // Helper to get or initialize a user's rich profile
+  const getCurrentProfile = () => {
+    if (!activeUser) return null;
+    const key = normalizeContact(activeUser.contact || activeUser.name);
+    if (userProfiles[key]) {
+      return userProfiles[key];
+    }
+    return {
+      name: activeUser.name,
+      contact: activeUser.contact || '',
+      role: activeUser.role,
+      photo: '',
+      headline:
+        activeUser.role === 'graduate'
+          ? 'Certified Tourism Graduate & Guide'
+          : activeUser.role === 'agency'
+          ? 'Licensed Tour & Travel Operator'
+          : 'Verified Traveler',
+      location: 'Kigali, Rwanda',
+      bio: '',
+      degrees: [],
+      experiences: [],
+      skills: ['English', 'Kinyarwanda'],
+      agencyLicense: '',
+      travelerPreferences: ''
+    };
+  };
+
+  const updateCurrentProfile = (updates) => {
+    if (!activeUser) return;
+    const key = normalizeContact(activeUser.contact || activeUser.name);
+    const existing = getCurrentProfile();
+    const updated = { ...existing, ...updates };
+    setUserProfiles({ ...userProfiles, [key]: updated });
+    if (updates.name) {
+      setActiveUser({ ...activeUser, name: updates.name });
+    }
+  };
+
+  // Convert uploaded image file to Base64 data URL so it saves cleanly
+  const handleImageUpload = (e, onSuccess) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Please choose an image smaller than 2MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      onSuccess(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const resetToWelcome = () => {
     setCurrentRole('welcome');
@@ -91,8 +188,6 @@ export default function GuideLinkRwandaApp() {
     setRegStep('details');
     setActiveUser(null);
   };
-
-  const normalizeContact = (str) => str.replace(/\s+/g, '').toLowerCase();
 
   const checkExemptUser = (contactInput) => {
     const cleanInput = normalizeContact(contactInput);
@@ -114,9 +209,14 @@ export default function GuideLinkRwandaApp() {
         setShowOwnerPinModal(true);
         return;
       }
-      setActiveUser({ name: exemptMatch.name, contact: exemptMatch.contact, role: exemptMatch.role, isVip: true });
+      setActiveUser({
+        name: exemptMatch.name,
+        contact: exemptMatch.contact,
+        role: exemptMatch.role,
+        isVip: true
+      });
       setCurrentRole(exemptMatch.role);
-      setActiveTab(exemptMatch.role === 'agency' ? 'dashboard' : 'jobs');
+      setActiveTab('jobs');
       return;
     }
 
@@ -127,7 +227,7 @@ export default function GuideLinkRwandaApp() {
       if (existingUser.status === 'approved') {
         setActiveUser(existingUser);
         setCurrentRole(existingUser.role);
-        setActiveTab(existingUser.role === 'agency' ? 'dashboard' : 'jobs');
+        setActiveTab('jobs');
         return;
       } else {
         setRegStep('pending_approval');
@@ -191,22 +291,25 @@ export default function GuideLinkRwandaApp() {
   };
 
   const handleCompleteTask = (taskId) => {
-    setTasks(tasks.map((t) => {
-      if (t.id === taskId) {
-        const commission = Math.round((t.rawPay * platformSettings.commissionRatePercent) / 100);
-        return {
-          ...t,
-          status: 'done',
-          paymentStatus: 'paid',
-          ownerCommission: commission,
-          netGuidePayout: t.rawPay - commission
-        };
-      }
-      return t;
-    }));
-    setShowReviewModal(true);
+    setTasks(
+      tasks.map((t) => {
+        if (t.id === taskId) {
+          const commission = Math.round((t.rawPay * platformSettings.commissionRatePercent) / 100);
+          return {
+            ...t,
+            status: 'done',
+            paymentStatus: 'paid',
+            ownerCommission: commission,
+            netGuidePayout: t.rawPay - commission
+          };
+        }
+        return t;
+      })
+    );
+    alert('Task completed and commission settled to MoMo Code 612771!');
   };
 
+  // ==================== 1. WELCOME SCREEN ====================
   if (currentRole === 'welcome') {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl overflow-hidden border border-slate-200">
@@ -228,7 +331,7 @@ export default function GuideLinkRwandaApp() {
                 Freelance guiding and travel consulting, matched with agencies and travelers across Rwanda.
               </p>
               <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-1.5">
-                Developed & Copyright © 2026 RUTUNGURA Bonheur
+                Developed & Copyright © 2026 {ownerProfile.name}
               </p>
             </div>
 
@@ -240,7 +343,7 @@ export default function GuideLinkRwandaApp() {
                 </span>
               </div>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Register or sign in. New accounts pay <strong>500 RWF</strong> registration via MoMo Code <strong>{MOMO_PAYMENT_CODE}</strong>. Owner confirms payment to grant profile access.
+                Register or sign in. New accounts pay <strong>500 RWF</strong> via MoMo Code <strong>{MOMO_PAYMENT_CODE}</strong>. Once confirmed, customize your full profile, upload your photo, degrees, and experience.
               </p>
               <button
                 onClick={() => {
@@ -263,7 +366,7 @@ export default function GuideLinkRwandaApp() {
                 className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs shadow-sm transition flex items-center justify-center space-x-2"
               >
                 <span>🔐</span>
-                <span>Owner Login (RUTUNGURA Bonheur)</span>
+                <span>Owner Login ({ownerProfile.name})</span>
               </button>
             </div>
           </div>
@@ -313,6 +416,7 @@ export default function GuideLinkRwandaApp() {
     );
   }
 
+  // ==================== 2. REGISTRATION & PAYMENT GATE ====================
   if (currentRole === 'register') {
     return (
       <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl border border-slate-200">
@@ -429,7 +533,7 @@ export default function GuideLinkRwandaApp() {
               </div>
               <h3 className="text-lg font-bold text-slate-900">Payment Pending Owner Approval</h3>
               <p className="text-xs text-slate-600">
-                Your payment to MoMo Code <strong>{MOMO_PAYMENT_CODE}</strong> has been logged. Owner <strong>RUTUNGURA Bonheur</strong> has received your notification and will confirm your access shortly.
+                Your payment to MoMo Code <strong>{MOMO_PAYMENT_CODE}</strong> has been logged. Once <strong>{ownerProfile.name}</strong> confirms your access, sign in to edit your profile and upload your credentials.
               </p>
               <button
                 onClick={resetToWelcome}
@@ -444,6 +548,7 @@ export default function GuideLinkRwandaApp() {
     );
   }
 
+  // ==================== 3. OWNER HQ DASHBOARD (WITH OWNER PROFILE & PHOTO UPLOAD) ====================
   if (currentRole === 'owner') {
     const totalRegFees = registeredUsers.reduce((sum, u) => sum + (u.feePaid || 0), 0);
     const totalDealCommissions = tasks
@@ -455,12 +560,20 @@ export default function GuideLinkRwandaApp() {
     return (
       <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl border border-slate-200 relative">
         <div className="bg-[#234E40] text-white px-5 py-4 flex justify-between items-center sticky top-0 z-30">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-9 h-9 bg-amber-400 text-slate-900 rounded-full flex items-center justify-center font-extrabold text-xs">
-              👑
-            </div>
+          <div className="flex items-center space-x-3">
+            {ownerProfile.photo ? (
+              <img
+                src={ownerProfile.photo}
+                alt="Owner"
+                className="w-10 h-10 rounded-full object-cover border-2 border-amber-400"
+              />
+            ) : (
+              <div className="w-10 h-10 bg-amber-400 text-slate-900 rounded-full flex items-center justify-center font-extrabold text-sm">
+                👑
+              </div>
+            )}
             <div>
-              <h2 className="font-bold text-sm">RUTUNGURA Bonheur</h2>
+              <h2 className="font-bold text-sm">{ownerProfile.name}</h2>
               <p className="text-[11px] text-emerald-200">MoMo Code: {MOMO_PAYMENT_CODE}</p>
             </div>
           </div>
@@ -472,17 +585,18 @@ export default function GuideLinkRwandaApp() {
           </button>
         </div>
 
-        <div className="bg-white border-b border-slate-200 px-3 py-2.5 grid grid-cols-4 gap-1 text-center sticky top-[68px] z-20 shadow-sm">
+        {/* Owner 5-Icon Navigation Bar */}
+        <div className="bg-white border-b border-slate-200 px-2 py-2.5 grid grid-cols-5 gap-1 text-center sticky top-[72px] z-20 shadow-sm">
           <button
             onClick={() => setOwnerTab('pending')}
-            className={`p-2 rounded-xl flex flex-col items-center justify-center relative transition ${
+            className={`p-1.5 rounded-xl flex flex-col items-center justify-center relative transition ${
               ownerTab === 'pending' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'
             }`}
           >
-            <span className="text-lg">⏳</span>
-            <span className="text-[10px] mt-0.5">Sign-Ups</span>
+            <span className="text-base">⏳</span>
+            <span className="text-[9px] mt-0.5">Sign-Ups</span>
             {pendingCount > 0 && (
-              <span className="absolute top-1 right-3 bg-red-600 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+              <span className="absolute top-1 right-2 bg-red-600 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                 {pendingCount}
               </span>
             )}
@@ -490,32 +604,42 @@ export default function GuideLinkRwandaApp() {
 
           <button
             onClick={() => setOwnerTab('overview')}
-            className={`p-2 rounded-xl flex flex-col items-center justify-center transition ${
+            className={`p-1.5 rounded-xl flex flex-col items-center justify-center transition ${
               ownerTab === 'overview' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'
             }`}
           >
-            <span className="text-lg">📊</span>
-            <span className="text-[10px] mt-0.5">Revenue</span>
+            <span className="text-base">📊</span>
+            <span className="text-[9px] mt-0.5">Revenue</span>
           </button>
 
           <button
             onClick={() => setOwnerTab('vip')}
-            className={`p-2 rounded-xl flex flex-col items-center justify-center transition ${
+            className={`p-1.5 rounded-xl flex flex-col items-center justify-center transition ${
               ownerTab === 'vip' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'
             }`}
           >
-            <span className="text-lg">⭐</span>
-            <span className="text-[10px] mt-0.5">3 VIP Slots</span>
+            <span className="text-base">⭐</span>
+            <span className="text-[9px] mt-0.5">VIP Slots</span>
           </button>
 
           <button
             onClick={() => setOwnerTab('deals')}
-            className={`p-2 rounded-xl flex flex-col items-center justify-center transition ${
+            className={`p-1.5 rounded-xl flex flex-col items-center justify-center transition ${
               ownerTab === 'deals' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'
             }`}
           >
-            <span className="text-lg">🎛️</span>
-            <span className="text-[10px] mt-0.5">Deals & Roles</span>
+            <span className="text-base">🎛️</span>
+            <span className="text-[9px] mt-0.5">Roles</span>
+          </button>
+
+          <button
+            onClick={() => setOwnerTab('owner_profile')}
+            className={`p-1.5 rounded-xl flex flex-col items-center justify-center transition ${
+              ownerTab === 'owner_profile' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'
+            }`}
+          >
+            <span className="text-base">👤</span>
+            <span className="text-[9px] mt-0.5">My Profile</span>
           </button>
         </div>
 
@@ -656,7 +780,7 @@ export default function GuideLinkRwandaApp() {
                 <div className="grid grid-cols-3 gap-2 pt-1 text-xs font-bold">
                   <button
                     onClick={() => {
-                      setActiveUser({ name: 'RUTUNGURA Bonheur (Owner)', role: 'graduate', isVip: true });
+                      setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'graduate', isVip: true });
                       setCurrentRole('graduate');
                       setActiveTab('jobs');
                     }}
@@ -666,9 +790,9 @@ export default function GuideLinkRwandaApp() {
                   </button>
                   <button
                     onClick={() => {
-                      setActiveUser({ name: 'RUTUNGURA Bonheur (Owner)', role: 'agency', isVip: true });
+                      setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'agency', isVip: true });
                       setCurrentRole('agency');
-                      setActiveTab('dashboard');
+                      setActiveTab('jobs');
                     }}
                     className="p-2.5 bg-emerald-50 text-[#234E40] border border-emerald-200 rounded-xl"
                   >
@@ -676,7 +800,7 @@ export default function GuideLinkRwandaApp() {
                   </button>
                   <button
                     onClick={() => {
-                      setActiveUser({ name: 'RUTUNGURA Bonheur (Owner)', role: 'traveler', isVip: true });
+                      setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'traveler', isVip: true });
                       setCurrentRole('traveler');
                       setActiveTab('jobs');
                     }}
@@ -688,17 +812,108 @@ export default function GuideLinkRwandaApp() {
               </div>
             </div>
           )}
+
+          {/* OWNER PROFILE & PHOTO EDITOR */}
+          {ownerTab === 'owner_profile' && (
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4">
+              <h3 className="font-bold text-base text-slate-900">👑 Owner Profile & Photo</h3>
+
+              <div className="flex flex-col items-center space-y-2">
+                {ownerProfile.photo ? (
+                  <img
+                    src={ownerProfile.photo}
+                    alt="Owner Profile"
+                    className="w-24 h-24 rounded-full object-cover border-4 border-[#3B6E5B] shadow"
+                  />
+                ) : (
+                  <div className="w-24 h-24 rounded-full bg-slate-200 flex items-center justify-center text-3xl">
+                    👑
+                  </div>
+                )}
+                <label className="cursor-pointer bg-emerald-50 text-[#234E40] border border-emerald-200 px-3 py-1.5 rounded-xl text-xs font-bold">
+                  📷 Upload Owner Photo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) =>
+                      handleImageUpload(e, (imgData) => setOwnerProfile({ ...ownerProfile, photo: imgData }))
+                    }
+                  />
+                </label>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div>
+                  <label className="font-bold text-slate-700">Owner Full Name</label>
+                  <input
+                    type="text"
+                    value={ownerProfile.name}
+                    onChange={(e) => setOwnerProfile({ ...ownerProfile, name: e.target.value })}
+                    className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700">Executive Title</label>
+                  <input
+                    type="text"
+                    value={ownerProfile.title}
+                    onChange={(e) => setOwnerProfile({ ...ownerProfile, title: e.target.value })}
+                    className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700">Official Phone / MoMo Contact</label>
+                  <input
+                    type="text"
+                    value={ownerProfile.contact}
+                    onChange={(e) => setOwnerProfile({ ...ownerProfile, contact: e.target.value })}
+                    className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700">Platform Bio / Note</label>
+                  <textarea
+                    rows="3"
+                    value={ownerProfile.bio}
+                    onChange={(e) => setOwnerProfile({ ...ownerProfile, bio: e.target.value })}
+                    className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl"
+                  />
+                </div>
+              </div>
+              <div className="text-center text-[11px] text-emerald-700 font-semibold">
+                ✓ All profile changes save automatically
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
   }
 
+  // ==================== 4. PAID USER WORKSPACES + FULL CUSTOM PROFILE EDITOR ====================
+  const currentProf = getCurrentProfile();
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl overflow-hidden border border-slate-200 relative">
-      <div className="bg-white px-6 py-4 border-b border-slate-200 flex justify-between items-center sticky top-0 z-30">
-        <div>
-          <h2 className="font-bold text-slate-900">{activeUser ? activeUser.name : graduateProfile.name}</h2>
-          <p className="text-xs text-slate-500 capitalize">Role: {currentRole}</p>
+      {/* Top User Bar with Profile Photo */}
+      <div className="bg-white px-5 py-3.5 border-b border-slate-200 flex justify-between items-center sticky top-0 z-30">
+        <div className="flex items-center space-x-3">
+          {currentProf?.photo ? (
+            <img
+              src={currentProf.photo}
+              alt="Profile"
+              className="w-10 h-10 rounded-full object-cover border-2 border-[#3B6E5B]"
+            />
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-[#3B6E5B] text-white flex items-center justify-center font-bold text-sm">
+              {(currentProf?.name || 'U').charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div>
+            <h2 className="font-bold text-sm text-slate-900">{currentProf?.name}</h2>
+            <p className="text-[11px] text-slate-500 capitalize">Role: {currentRole}</p>
+          </div>
         </div>
         <button
           onClick={resetToWelcome}
@@ -708,50 +923,400 @@ export default function GuideLinkRwandaApp() {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto pb-20 p-4 space-y-4">
-        {currentRole === 'graduate' && (
-          <div className="space-y-3">
-            <h3 className="font-bold text-lg text-slate-900">Open tasks</h3>
-            {tasks.map((task) => (
-              <div key={task.id} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2">
-                <div className="flex justify-between font-bold text-sm">
-                  <span>{task.title}</span>
-                  <span className="text-[#234E40]">{task.pay}</span>
-                </div>
-                <p className="text-xs text-slate-500">{task.agency} • MoMo Code: {MOMO_PAYMENT_CODE}</p>
-                {task.status === 'confirmed' && (
+      {/* Main Content Area */}
+      <div className="flex-1 overflow-y-auto pb-24 p-4 space-y-4">
+        {/* TAB 1: WORKSPACE / JOBS / BOOKINGS */}
+        {activeTab === 'jobs' && (
+          <>
+            {currentRole === 'graduate' && (
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <h3 className="font-bold text-base text-slate-900">Available Tasks</h3>
                   <button
-                    onClick={() => handleCompleteTask(task.id)}
-                    className="w-full py-2 bg-[#234E40] text-white rounded-xl text-xs font-bold mt-2"
+                    onClick={() => setActiveTab('profile')}
+                    className="text-xs font-bold text-[#234E40] underline"
                   >
-                    Mark Completed & Settle Commission ({MOMO_PAYMENT_CODE})
+                    Edit My CV & Photo →
                   </button>
-                )}
+                </div>
+
+                {tasks.map((task) => (
+                  <div key={task.id} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2 shadow-sm">
+                    <div className="flex justify-between font-bold text-sm">
+                      <span>{task.title}</span>
+                      <span className="text-[#234E40]">{task.pay}</span>
+                    </div>
+                    <p className="text-xs text-slate-500">{task.agency} • MoMo Code: {MOMO_PAYMENT_CODE}</p>
+                    {task.status === 'confirmed' && (
+                      <button
+                        onClick={() => handleCompleteTask(task.id)}
+                        className="w-full py-2 bg-[#234E40] text-white rounded-xl text-xs font-bold mt-2"
+                      >
+                        Mark Completed & Settle Commission ({MOMO_PAYMENT_CODE})
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            )}
+
+            {currentRole === 'agency' && (
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <h3 className="font-bold text-base text-slate-900">Agency Dashboard</h3>
+                  <button
+                    onClick={() => setActiveTab('profile')}
+                    className="text-xs font-bold text-[#234E40] underline"
+                  >
+                    Edit Agency Profile →
+                  </button>
+                </div>
+                <p className="text-xs text-slate-500">
+                  All deal commissions settle to MoMo Code: <strong>{MOMO_PAYMENT_CODE}</strong>
+                </p>
+                {tasks.map((t) => (
+                  <div key={t.id} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-1 text-xs">
+                    <div className="flex justify-between font-bold text-sm">
+                      <span>{t.title}</span>
+                      <span className="text-[#234E40]">{t.pay}</span>
+                    </div>
+                    <p className="text-slate-500">{t.date}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {currentRole === 'traveler' && (
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <h3 className="font-bold text-base text-slate-900">Book a Verified Guide</h3>
+                  <button
+                    onClick={() => setActiveTab('profile')}
+                    className="text-xs font-bold text-[#234E40] underline"
+                  >
+                    Edit My Profile →
+                  </button>
+                </div>
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3">
+                  <p className="text-xs text-slate-600">
+                    Hire certified Rwandan tourism graduates for city tours, gorilla trekking briefings, and custom itineraries.
+                  </p>
+                  <button
+                    onClick={() => setShowPaymentModal(true)}
+                    className="w-full py-2.5 bg-[#3B6E5B] text-white rounded-xl font-bold text-xs"
+                  >
+                    Book & Pay via MoMo Code {MOMO_PAYMENT_CODE} (RWF 35,000)
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
-        {currentRole === 'agency' && (
-          <div className="space-y-3">
-            <h3 className="font-bold text-lg text-slate-900">Agency Dashboard</h3>
-            <p className="text-xs text-slate-500">All deal commissions settle to MoMo Code: <strong>{MOMO_PAYMENT_CODE}</strong></p>
-          </div>
-        )}
+        {/* TAB 2: CUSTOMIZABLE PROFILE EDITOR FOR EVERY PAID USER */}
+        {activeTab === 'profile' && currentProf && (
+          <div className="space-y-4">
+            {/* Profile Photo & Basic Info Card */}
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
+              <div className="flex flex-col items-center space-y-2">
+                {currentProf.photo ? (
+                  <img
+                    src={currentProf.photo}
+                    alt="User Avatar"
+                    className="w-24 h-24 rounded-full object-cover border-4 border-[#3B6E5B] shadow"
+                  />
+                ) : (
+                  <div className="w-24 h-24 rounded-full bg-emerald-100 text-[#234E40] flex items-center justify-center font-extrabold text-2xl">
+                    {currentProf.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
 
-        {currentRole === 'traveler' && (
-          <div className="space-y-3">
-            <h3 className="font-bold text-lg text-slate-900">Book a Verified Guide</h3>
-            <button
-              onClick={() => setShowPaymentModal(true)}
-              className="w-full py-2.5 bg-[#3B6E5B] text-white rounded-xl font-bold text-xs"
-            >
-              Book & Pay via MoMo Code {MOMO_PAYMENT_CODE} (RWF 35,000)
-            </button>
+                <label className="cursor-pointer bg-[#3B6E5B] text-white px-3.5 py-1.5 rounded-xl text-xs font-bold shadow-sm">
+                  📷 Upload / Change Profile Photo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) =>
+                      handleImageUpload(e, (imgData) => updateCurrentProfile({ photo: imgData }))
+                    }
+                  />
+                </label>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div>
+                  <label className="font-bold text-slate-700">Full Name / Display Name</label>
+                  <input
+                    type="text"
+                    value={currentProf.name}
+                    onChange={(e) => updateCurrentProfile({ name: e.target.value })}
+                    className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700">Professional Headline / Tagline</label>
+                  <input
+                    type="text"
+                    value={currentProf.headline}
+                    onChange={(e) => updateCurrentProfile({ headline: e.target.value })}
+                    placeholder="e.g. Advanced Diploma in Tours & Travel Management"
+                    className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700">City / Location</label>
+                  <input
+                    type="text"
+                    value={currentProf.location}
+                    onChange={(e) => updateCurrentProfile({ location: e.target.value })}
+                    placeholder="e.g. Kigali / Rusizi, Rwanda"
+                    className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700">About Me / Bio</label>
+                  <textarea
+                    rows="3"
+                    value={currentProf.bio}
+                    onChange={(e) => updateCurrentProfile({ bio: e.target.value })}
+                    placeholder="Describe your background, specialties, or what you offer..."
+                    className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* TOURISM GRADUATE SPECIFIC: DEGREES, CERTIFICATIONS & WORK EXPERIENCE */}
+            {currentRole === 'graduate' && (
+              <>
+                {/* Degrees & Academic Qualifications */}
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3 shadow-sm text-xs">
+                  <h4 className="font-bold text-sm text-slate-900">🎓 Degrees & Tourism Qualifications</h4>
+                  <div className="flex space-x-2">
+                    <input
+                      type="text"
+                      placeholder="e.g. Advanced Diploma in Tours & Travel (RP Kitabi)"
+                      value={newDegreeInput}
+                      onChange={(e) => setNewDegreeInput(e.target.value)}
+                      className="flex-1 p-2.5 border border-slate-200 rounded-xl"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!newDegreeInput.trim()) return;
+                        updateCurrentProfile({
+                          degrees: [...(currentProf.degrees || []), newDegreeInput.trim()]
+                        });
+                        setNewDegreeInput('');
+                      }}
+                      className="px-3.5 py-2 bg-[#3B6E5B] text-white rounded-xl font-bold"
+                    >
+                      + Add
+                    </button>
+                  </div>
+
+                  <div className="space-y-2 pt-1">
+                    {(currentProf.degrees || []).length === 0 ? (
+                      <p className="text-slate-400 italic">No degrees or certificates added yet.</p>
+                    ) : (
+                      currentProf.degrees.map((deg, idx) => (
+                        <div key={idx} className="flex justify-between items-center bg-emerald-50 border border-emerald-100 p-2.5 rounded-xl">
+                          <span className="font-semibold text-[#234E40]">📜 {deg}</span>
+                          <button
+                            onClick={() =>
+                              updateCurrentProfile({
+                                degrees: currentProf.degrees.filter((_, i) => i !== idx)
+                              })
+                            }
+                            className="text-red-500 font-bold px-1.5"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Guiding & Hospitality Experience */}
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3 shadow-sm text-xs">
+                  <h4 className="font-bold text-sm text-slate-900">💼 Guiding & Work Experience</h4>
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      placeholder="Role / Position (e.g. Tour Guide / F&B Controller)"
+                      value={newExpTitle}
+                      onChange={(e) => setNewExpTitle(e.target.value)}
+                      className="w-full p-2.5 border border-slate-200 rounded-xl"
+                    />
+                    <div className="flex space-x-2">
+                      <input
+                        type="text"
+                        placeholder="Company / Hotel / Park (e.g. Nyungwe Top View)"
+                        value={newExpOrg}
+                        onChange={(e) => setNewExpOrg(e.target.value)}
+                        className="flex-1 p-2.5 border border-slate-200 rounded-xl"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!newExpTitle.trim()) return;
+                          updateCurrentProfile({
+                            experiences: [
+                              ...(currentProf.experiences || []),
+                              { role: newExpTitle.trim(), org: newExpOrg.trim() || 'Rwanda Tourism' }
+                            ]
+                          });
+                          setNewExpTitle('');
+                          setNewExpOrg('');
+                        }}
+                        className="px-3.5 py-2 bg-[#3B6E5B] text-white rounded-xl font-bold"
+                      >
+                        + Add
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 pt-1">
+                    {(currentProf.experiences || []).length === 0 ? (
+                      <p className="text-slate-400 italic">No work experience added yet.</p>
+                    ) : (
+                      currentProf.experiences.map((exp, idx) => (
+                        <div key={idx} className="flex justify-between items-center bg-slate-50 border border-slate-200 p-2.5 rounded-xl">
+                          <div>
+                            <p className="font-bold text-slate-800">{exp.role}</p>
+                            <p className="text-slate-500">{exp.org}</p>
+                          </div>
+                          <button
+                            onClick={() =>
+                              updateCurrentProfile({
+                                experiences: currentProf.experiences.filter((_, i) => i !== idx)
+                              })
+                            }
+                            className="text-red-500 font-bold px-1.5"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Skills & Languages */}
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3 shadow-sm text-xs">
+                  <h4 className="font-bold text-sm text-slate-900">🌍 Languages & Technical Skills</h4>
+                  <div className="flex space-x-2">
+                    <input
+                      type="text"
+                      placeholder="e.g. French, Galileo GDS, Wildlife Tracking"
+                      value={newSkillInput}
+                      onChange={(e) => setNewSkillInput(e.target.value)}
+                      className="flex-1 p-2.5 border border-slate-200 rounded-xl"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!newSkillInput.trim()) return;
+                        updateCurrentProfile({
+                          skills: [...(currentProf.skills || []), newSkillInput.trim()]
+                        });
+                        setNewSkillInput('');
+                      }}
+                      className="px-3.5 py-2 bg-[#3B6E5B] text-white rounded-xl font-bold"
+                    >
+                      + Add
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {(currentProf.skills || []).map((sk, idx) => (
+                      <span
+                        key={idx}
+                        className="bg-emerald-50 text-[#234E40] border border-emerald-200 px-2.5 py-1 rounded-full font-semibold flex items-center space-x-1"
+                      >
+                        <span>{sk}</span>
+                        <button
+                          onClick={() =>
+                            updateCurrentProfile({
+                              skills: currentProf.skills.filter((_, i) => i !== idx)
+                            })
+                          }
+                          className="text-red-500 ml-1 font-bold"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* TRAVEL AGENCY SPECIFIC FIELDS */}
+            {currentRole === 'agency' && (
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3 shadow-sm text-xs">
+                <h4 className="font-bold text-sm text-slate-900">🏢 Agency Registration & Credentials</h4>
+                <div>
+                  <label className="font-bold text-slate-700">RDB License / Tour Operator ID</label>
+                  <input
+                    type="text"
+                    value={currentProf.agencyLicense || ''}
+                    onChange={(e) => updateCurrentProfile({ agencyLicense: e.target.value })}
+                    placeholder="Enter RDB Registration Number"
+                    className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* TRAVELER SPECIFIC FIELDS */}
+            {currentRole === 'traveler' && (
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3 shadow-sm text-xs">
+                <h4 className="font-bold text-sm text-slate-900">🧳 Travel Interests & Preferences</h4>
+                <div>
+                  <label className="font-bold text-slate-700">Destinations & Tour Interests</label>
+                  <input
+                    type="text"
+                    value={currentProf.travelerPreferences || ''}
+                    onChange={(e) => updateCurrentProfile({ travelerPreferences: e.target.value })}
+                    placeholder="e.g. Gorilla Trekking, Nyungwe Canopy, Kigali Cultural Tours"
+                    className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="text-center text-xs text-emerald-700 font-bold py-2">
+              ✓ Profile saved automatically
+            </div>
           </div>
         )}
       </div>
 
+      {/* Bottom Navigation Bar for All Paid Users */}
+      <div className="bg-white border-t border-slate-200 py-2.5 px-10 flex justify-around items-center text-xs font-bold text-slate-500 absolute bottom-0 w-full max-w-md z-20">
+        <button
+          onClick={() => setActiveTab('jobs')}
+          className={`flex flex-col items-center ${activeTab === 'jobs' ? 'text-[#234E40]' : ''}`}
+        >
+          <span className="text-base">🏠</span>
+          <span>Workspace</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('profile')}
+          className={`flex flex-col items-center ${activeTab === 'profile' ? 'text-[#234E40]' : ''}`}
+        >
+          <span className="text-base">👤</span>
+          <span>My Profile & CV</span>
+        </button>
+      </div>
+
+      {/* Payment Modal */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-xl">
