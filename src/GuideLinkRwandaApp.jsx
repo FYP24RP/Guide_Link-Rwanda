@@ -1,22 +1,14 @@
 import React, { useState, useEffect } from 'react';
 
 export default function GuideLinkRwandaApp() {
-  // Navigation & Modal States
-  const [currentRole, setCurrentRole] = useState('welcome'); // 'welcome' | 'register' | 'graduate' | 'agency' | 'traveler' | 'owner'
-  const [ownerTab, setOwnerTab] = useState('pending'); // 'overview' | 'pending' | 'vip' | 'deals'
+  const [currentRole, setCurrentRole] = useState('welcome');
+  const [ownerTab, setOwnerTab] = useState('pending');
   const [activeTab, setActiveTab] = useState('jobs');
-  const [selectedFilter, setSelectedFilter] = useState('All');
   const [selectedTask, setSelectedTask] = useState(null);
-  const [showReviewModal, setShowReviewModal] = useState(false);
-  const [showPostModal, setShowPostModal] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [selectedPaymentMode, setSelectedPaymentMode] = useState('mtn');
-
-  // Owner Security Password Modal
   const [showOwnerPinModal, setShowOwnerPinModal] = useState(false);
   const [ownerPinInput, setOwnerPinInput] = useState('');
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
-  // VIP / Exempt Users (Owner + 3 confirmed users skip 500 RWF fee)
   const [exemptAccounts, setExemptAccounts] = useState(() => {
     const saved = localStorage.getItem('gl_exempt_users');
     return saved
@@ -29,17 +21,13 @@ export default function GuideLinkRwandaApp() {
         ];
   });
 
-  // Registered Users List (Tracks 500 RWF sign-ups & Owner Approvals)
   const [registeredUsers, setRegisteredUsers] = useState(() => {
     const saved = localStorage.getItem('gl_registered_users');
     return saved ? JSON.parse(saved) : [];
   });
 
-  // Active Logged-in User
   const [activeUser, setActiveUser] = useState(null);
-
-  // Registration Form State
-  const [regStep, setRegStep] = useState('details'); // 'details' | 'pay_500' | 'pending_approval'
+  const [regStep, setRegStep] = useState('details');
   const [regForm, setRegForm] = useState({
     name: '',
     contact: '',
@@ -48,7 +36,6 @@ export default function GuideLinkRwandaApp() {
     momoRef: ''
   });
 
-  // Platform Commission Settings
   const [platformSettings, setPlatformSettings] = useState(() => {
     const saved = localStorage.getItem('gl_platform_settings');
     return saved ? JSON.parse(saved) : { commissionRatePercent: 10 };
@@ -66,13 +53,12 @@ export default function GuideLinkRwandaApp() {
     localStorage.setItem('gl_platform_settings', JSON.stringify(platformSettings));
   }, [platformSettings]);
 
-  const [graduateProfile, setGraduateProfile] = useState({
+  const [graduateProfile] = useState({
     name: 'RUTUNGURA Bonheur',
     title: 'Tourism Graduate & Consultant',
     rating: '4.9',
     reviewsCount: 15,
-    languages: ['English', 'French', 'Kinyarwanda'],
-    skills: ['GDS Galileo & Sabre', 'City Tours', 'Wildlife Guiding', 'Trip Planning']
+    skills: ['GDS Galileo & Sabre', 'City Tours', 'Wildlife Guiding']
   });
 
   const [tasks, setTasks] = useState(() => {
@@ -86,41 +72,7 @@ export default function GuideLinkRwandaApp() {
         pay: 'RWF 35,000',
         date: 'Sat 21 Nov, 09:00 to 13:00',
         timeLabel: 'Sat 21 Nov, 4 hours',
-        meetingPoint: 'Kigali City Centre',
-        groupSize: '6 travelers',
-        languages: ['English', 'French', 'Kinyarwanda'],
-        category: 'Guiding',
         status: 'confirmed',
-        paymentStatus: 'pending'
-      },
-      {
-        id: 2,
-        title: 'Airport transfer & Volcanic region briefing',
-        agency: 'Rwanda Eco-Tours',
-        rawPay: 20000,
-        pay: 'RWF 20,000',
-        date: 'Mon 23 Nov, 14:00 to 16:00',
-        timeLabel: 'Mon 23 Nov, 2 hours',
-        meetingPoint: 'Kigali International Airport',
-        groupSize: '2 travelers',
-        languages: ['English'],
-        category: 'Guiding',
-        status: 'open',
-        paymentStatus: 'pending'
-      },
-      {
-        id: 3,
-        title: 'Custom 5-day Nyungwe & Volcanoes itinerary consultation',
-        agency: 'Kitabi Travel Desk',
-        rawPay: 45000,
-        pay: 'RWF 45,000',
-        date: 'Remote, due Wed 25 Nov',
-        timeLabel: 'Remote, due Wed 25 Nov',
-        meetingPoint: 'Online / Remote',
-        groupSize: '1 client',
-        languages: ['English', 'Kinyarwanda'],
-        category: 'Consulting',
-        status: 'open',
         paymentStatus: 'pending'
       }
     ];
@@ -154,7 +106,6 @@ export default function GuideLinkRwandaApp() {
       return;
     }
 
-    // 1. Check Owner or 3 VIP Exempt Users
     const exemptMatch = checkExemptUser(regForm.contact);
     if (exemptMatch) {
       if (exemptMatch.id === 'owner') {
@@ -162,20 +113,17 @@ export default function GuideLinkRwandaApp() {
         return;
       }
       setActiveUser({ name: exemptMatch.name, contact: exemptMatch.contact, role: exemptMatch.role, isVip: true });
-      setGraduateProfile((prev) => ({ ...prev, name: exemptMatch.name }));
       setCurrentRole(exemptMatch.role);
       setActiveTab(exemptMatch.role === 'agency' ? 'dashboard' : 'jobs');
       return;
     }
 
-    // 2. Check existing registered user status
     const existingUser = registeredUsers.find(
       (u) => normalizeContact(u.contact) === normalizeContact(regForm.contact)
     );
     if (existingUser) {
       if (existingUser.status === 'approved') {
         setActiveUser(existingUser);
-        setGraduateProfile((prev) => ({ ...prev, name: existingUser.name }));
         setCurrentRole(existingUser.role);
         setActiveTab(existingUser.role === 'agency' ? 'dashboard' : 'jobs');
         return;
@@ -185,7 +133,6 @@ export default function GuideLinkRwandaApp() {
       }
     }
 
-    // 3. New user must pay 500 RWF before completing registration
     setRegStep('pay_500');
   };
 
@@ -206,7 +153,6 @@ export default function GuideLinkRwandaApp() {
     setRegStep('pending_approval');
   };
 
-  // Private Owner Password Check (No hint shown)
   const handleOwnerLogin = (e) => {
     if (e) e.preventDefault();
     if (ownerPinInput === 'FYP$2026') {
@@ -257,7 +203,6 @@ export default function GuideLinkRwandaApp() {
     setShowReviewModal(true);
   };
 
-  // ==================== 1. GATED WELCOME SCREEN (ONLY SIGN UP & OWNER LOGIN) ====================
   if (currentRole === 'welcome') {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl overflow-hidden border border-slate-200">
@@ -283,8 +228,548 @@ export default function GuideLinkRwandaApp() {
               </p>
             </div>
 
-            {/* Only Entry Point for Users: Sign Up / Sign In (500 RWF Fee) */}
             <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-xs font-bold text-[#234E40] uppercase tracking-wider">Member Portal</span>
-                <span className="text-[11px] font-bold bg-emerald-100 text-[#234E40] px
+                <span className="text-[11px] font-bold bg-emerald-100 text-[#234E40] px-2.5 py-0.5 rounded-full">
+                  500 RWF Reg. Fee
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Register or sign in to access your workspace. New accounts require a one-time <strong>500 RWF</strong> payment and Owner confirmation.
+              </p>
+              <button
+                onClick={() => {
+                  setRegStep('details');
+                  setCurrentRole('register');
+                }}
+                className="w-full py-3.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold text-sm shadow transition flex items-center justify-center space-x-2"
+              >
+                <span>📝</span>
+                <span>Sign Up / Member Sign In →</span>
+              </button>
+            </div>
+
+            <div className="pt-2">
+              <button
+                onClick={() => {
+                  setOwnerPinInput('');
+                  setShowOwnerPinModal(true);
+                }}
+                className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs shadow-sm transition flex items-center justify-center space-x-2"
+              >
+                <span>🔐</span>
+                <span>Owner Login (RUTUNGURA Bonheur)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {showOwnerPinModal && (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+            <form onSubmit={handleOwnerLogin} className="bg-white rounded-2xl p-6 w-full max-w-xs space-y-4 shadow-xl">
+              <div className="text-center space-y-1">
+                <div className="w-10 h-10 bg-slate-900 text-white rounded-full flex items-center justify-center mx-auto text-base">
+                  🔐
+                </div>
+                <h3 className="font-bold text-base text-slate-900">Owner Authentication</h3>
+                <p className="text-xs text-slate-500">Enter your private Owner password to unlock HQ controls.</p>
+              </div>
+              <input
+                type="password"
+                required
+                autoFocus
+                placeholder="••••••••"
+                value={ownerPinInput}
+                onChange={(e) => setOwnerPinInput(e.target.value)}
+                className="w-full p-3 border border-slate-300 rounded-xl text-sm text-center font-bold tracking-wider"
+              />
+              <div className="flex space-x-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowOwnerPinModal(false);
+                    setOwnerPinInput('');
+                  }}
+                  className="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-[#234E40] text-white rounded-xl text-xs font-bold"
+                >
+                  Unlock
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (currentRole === 'register') {
+    return (
+      <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl border border-slate-200">
+        <div className="bg-white px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+          <h2 className="font-bold text-slate-900">Member Sign Up / Sign In</h2>
+          <button
+            onClick={resetToWelcome}
+            className="text-xs bg-slate-100 px-3 py-1.5 rounded-full font-semibold text-slate-600"
+          >
+            ← Home
+          </button>
+        </div>
+
+        <div className="p-6 flex-1 overflow-y-auto">
+          {regStep === 'details' && (
+            <form onSubmit={handleProceedRegistration} className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
+              <div>
+                <span className="text-xs font-bold text-[#3B6E5B] uppercase">Step 1 of 2</span>
+                <h3 className="text-lg font-bold text-slate-900">Account Verification</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Already approved or VIP? Enter your contact to enter. New accounts pay <strong>500 RWF</strong>.
+                </p>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700">Full Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Jean Claude Mugisha"
+                  value={regForm.name}
+                  onChange={(e) => setRegForm({ ...regForm, name: e.target.value })}
+                  className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700">Phone Number (MoMo) or Email</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. +250788123456"
+                  value={regForm.contact}
+                  onChange={(e) => setRegForm({ ...regForm, contact: e.target.value })}
+                  className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700">Select Account Role</label>
+                <select
+                  value={regForm.role}
+                  onChange={(e) => setRegForm({ ...regForm, role: e.target.value })}
+                  className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-sm bg-white"
+                >
+                  <option value="graduate">Tourism Graduate (Guide / Consultant)</option>
+                  <option value="agency">Travel Agency</option>
+                  <option value="traveler">Traveler</option>
+                </select>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 bg-[#3B6E5B] text-white rounded-xl font-bold text-sm shadow"
+              >
+                Continue →
+              </button>
+            </form>
+          )}
+
+          {regStep === 'pay_500' && (
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
+              <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-xl">
+                <span className="text-[10px] font-bold uppercase text-amber-800 bg-amber-200 px-2 py-0.5 rounded">
+                  Payment Required
+                </span>
+                <h3 className="text-lg font-bold text-slate-900 mt-1">Pay 500 RWF Registration Fee</h3>
+                <p className="text-xs text-slate-600 mt-1">
+                  Complete your <strong>500 RWF</strong> payment for <strong>{regForm.name}</strong>.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-700 block">Choose Mobile Money Provider</label>
+                <label className="flex items-center justify-between p-3 border border-[#3B6E5B] bg-emerald-50 rounded-xl cursor-pointer">
+                  <div className="flex items-center space-x-2">
+                    <input type="radio" checked readOnly />
+                    <span className="text-xs font-bold text-slate-800">MTN / Airtel Mobile Money (500 RWF)</span>
+                  </div>
+                </label>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700">MoMo Transaction Reference</label>
+                <input
+                  type="text"
+                  placeholder="Enter Transaction ID"
+                  value={regForm.momoRef}
+                  onChange={(e) => setRegForm({ ...regForm, momoRef: e.target.value })}
+                  className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-xs"
+                />
+              </div>
+
+              <button
+                onClick={handleComplete500Payment}
+                className="w-full py-3 bg-[#234E40] text-white rounded-xl font-bold text-sm shadow"
+              >
+                Confirm 500 RWF Payment & Finish Sign Up
+              </button>
+              <button
+                onClick={() => setRegStep('details')}
+                className="w-full py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold"
+              >
+                ← Edit Details
+              </button>
+            </div>
+          )}
+
+          {regStep === 'pending_approval' && (
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center space-y-4 shadow-sm">
+              <div className="w-12 h-12 bg-emerald-100 text-[#234E40] rounded-full flex items-center justify-center mx-auto text-xl font-bold">
+                ⏳
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">Awaiting Owner Confirmation</h3>
+              <p className="text-xs text-slate-600">
+                Your <strong>500 RWF</strong> payment is recorded. Once <strong>RUTUNGURA Bonheur</strong> confirms your registration in Owner HQ, you can sign in.
+              </p>
+              <button
+                onClick={resetToWelcome}
+                className="w-full py-2.5 bg-[#3B6E5B] text-white rounded-xl font-bold text-xs"
+              >
+                Return to Home Screen
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (currentRole === 'owner') {
+    const totalRegFees = registeredUsers.reduce((sum, u) => sum + (u.feePaid || 0), 0);
+    const totalDealCommissions = tasks
+      .filter((t) => t.paymentStatus === 'paid')
+      .reduce((sum, t) => sum + (t.ownerCommission || 0), 0);
+    const grandTotalRevenue = totalRegFees + totalDealCommissions;
+    const pendingCount = registeredUsers.filter((u) => u.status === 'pending_approval').length;
+
+    return (
+      <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl border border-slate-200 relative">
+        <div className="bg-[#234E40] text-white px-5 py-4 flex justify-between items-center sticky top-0 z-30">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-9 h-9 bg-amber-400 text-slate-900 rounded-full flex items-center justify-center font-extrabold text-xs">
+              👑
+            </div>
+            <div>
+              <h2 className="font-bold text-sm">RUTUNGURA Bonheur</h2>
+              <p className="text-[11px] text-emerald-200">Owner Master Control HQ</p>
+            </div>
+          </div>
+          <button
+            onClick={resetToWelcome}
+            className="text-xs bg-emerald-900 hover:bg-emerald-800 px-3 py-1.5 rounded-full font-semibold"
+          >
+            Log Out
+          </button>
+        </div>
+
+        <div className="bg-white border-b border-slate-200 px-3 py-2.5 grid grid-cols-4 gap-1 text-center sticky top-[68px] z-20 shadow-sm">
+          <button
+            onClick={() => setOwnerTab('pending')}
+            className={`p-2 rounded-xl flex flex-col items-center justify-center relative transition ${
+              ownerTab === 'pending' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'
+            }`}
+          >
+            <span className="text-lg">⏳</span>
+            <span className="text-[10px] mt-0.5">Sign-Ups</span>
+            {pendingCount > 0 && (
+              <span className="absolute top-1 right-3 bg-red-600 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                {pendingCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setOwnerTab('overview')}
+            className={`p-2 rounded-xl flex flex-col items-center justify-center transition ${
+              ownerTab === 'overview' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'
+            }`}
+          >
+            <span className="text-lg">📊</span>
+            <span className="text-[10px] mt-0.5">Revenue</span>
+          </button>
+
+          <button
+            onClick={() => setOwnerTab('vip')}
+            className={`p-2 rounded-xl flex flex-col items-center justify-center transition ${
+              ownerTab === 'vip' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'
+            }`}
+          >
+            <span className="text-lg">⭐</span>
+            <span className="text-[10px] mt-0.5">3 VIP Slots</span>
+          </button>
+
+          <button
+            onClick={() => setOwnerTab('deals')}
+            className={`p-2 rounded-xl flex flex-col items-center justify-center transition ${
+              ownerTab === 'deals' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'
+            }`}
+          >
+            <span className="text-lg">🎛️</span>
+            <span className="text-[10px] mt-0.5">Deals & Roles</span>
+          </button>
+        </div>
+
+        <div className="p-4 space-y-4 flex-1 overflow-y-auto pb-10">
+          {ownerTab === 'pending' && (
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <h3 className="font-bold text-sm text-slate-900">⏳ Pending & Confirmed Sign-Ups</h3>
+                <span className="text-xs font-bold bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full">
+                  {pendingCount} Pending
+                </span>
+              </div>
+
+              {registeredUsers.length === 0 ? (
+                <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center space-y-2">
+                  <span className="text-2xl">📭</span>
+                  <p className="text-xs text-slate-500">No 500 RWF sign-ups submitted yet.</p>
+                </div>
+              ) : (
+                registeredUsers.map((user) => (
+                  <div key={user.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2.5 text-xs">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-bold text-sm text-slate-900">{user.name}</p>
+                        <p className="text-slate-500">{user.contact} • Role: <strong className="capitalize">{user.role}</strong></p>
+                      </div>
+                      <span className="font-bold text-[#234E40] bg-emerald-50 px-2 py-1 rounded-lg">
+                        +{user.feePaid} RWF
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center pt-1">
+                      {user.status === 'approved' ? (
+                        <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-lg font-bold">
+                          ✓ Confirmed & Active
+                        </span>
+                      ) : (
+                        <div className="flex space-x-2 w-full">
+                          <button
+                            onClick={() => approveRegistrant(user.id)}
+                            className="flex-1 py-2 bg-[#3B6E5B] text-white rounded-xl font-bold"
+                          >
+                            ✓ Confirm & Activate
+                          </button>
+                          <button
+                            onClick={() => rejectRegistrant(user.id)}
+                            className="px-3 py-2 bg-red-50 text-red-600 rounded-xl font-bold"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {ownerTab === 'overview' && (
+            <div className="space-y-4">
+              <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-5 rounded-2xl shadow-sm text-center space-y-1">
+                <span className="text-xs uppercase text-emerald-200 font-bold tracking-wider">Total Owner Revenue</span>
+                <div className="text-3xl font-extrabold">RWF {grandTotalRevenue.toLocaleString()}</div>
+                <p className="text-[11px] text-emerald-100">
+                  Sign-Ups: RWF {totalRegFees.toLocaleString()} • Commissions: RWF {totalDealCommissions.toLocaleString()}
+                </p>
+              </div>
+
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3">
+                <h3 className="font-bold text-sm text-slate-900">⚙️ Deal Commission Percentage</h3>
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="number"
+                    min="0"
+                    max="50"
+                    value={platformSettings.commissionRatePercent}
+                    onChange={(e) =>
+                      setPlatformSettings({
+                        ...platformSettings,
+                        commissionRatePercent: Number(e.target.value)
+                      })
+                    }
+                    className="w-20 p-2 border border-slate-300 rounded-xl text-sm font-bold text-center"
+                  />
+                  <span className="text-xs font-bold text-slate-700">% Owner Commission per Deal</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {ownerTab === 'vip' && (
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3">
+              <h3 className="font-bold text-sm text-slate-900">⭐ 3 Confirmed Exempt Users (0 RWF)</h3>
+              <div className="space-y-3">
+                {exemptAccounts.map((acc) => (
+                  <div key={acc.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-[#234E40] uppercase">
+                        {acc.id === 'owner' ? '👑 Owner Account' : `⭐ VIP Slot (${acc.id.toUpperCase()})`}
+                      </span>
+                      <label className="flex items-center space-x-1 font-semibold text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={acc.confirmed}
+                          disabled={acc.id === 'owner'}
+                          onChange={(e) => updateVipSlot(acc.id, 'confirmed', e.target.checked)}
+                        />
+                        <span>Confirmed</span>
+                      </label>
+                    </div>
+                    <input
+                      type="text"
+                      value={acc.name}
+                      onChange={(e) => updateVipSlot(acc.id, 'name', e.target.value)}
+                      placeholder="Full Name"
+                      className="w-full p-2 border border-slate-200 rounded-lg bg-white text-xs"
+                    />
+                    <input
+                      type="text"
+                      value={acc.contact}
+                      onChange={(e) => updateVipSlot(acc.id, 'contact', e.target.value)}
+                      placeholder="Phone / Email"
+                      className="w-full p-2 border border-slate-200 rounded-lg bg-white text-xs"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {ownerTab === 'deals' && (
+            <div className="space-y-4">
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2.5">
+                <h3 className="font-bold text-sm text-slate-900">🎛️ Direct Role Access (Owner Privilege)</h3>
+                <div className="grid grid-cols-3 gap-2 pt-1 text-xs font-bold">
+                  <button
+                    onClick={() => {
+                      setActiveUser({ name: 'RUTUNGURA Bonheur (Owner)', role: 'graduate', isVip: true });
+                      setCurrentRole('graduate');
+                      setActiveTab('jobs');
+                    }}
+                    className="p-2.5 bg-emerald-50 text-[#234E40] border border-emerald-200 rounded-xl"
+                  >
+                    🎓 Graduate
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveUser({ name: 'RUTUNGURA Bonheur (Owner)', role: 'agency', isVip: true });
+                      setCurrentRole('agency');
+                      setActiveTab('dashboard');
+                    }}
+                    className="p-2.5 bg-emerald-50 text-[#234E40] border border-emerald-200 rounded-xl"
+                  >
+                    🏢 Agency
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveUser({ name: 'RUTUNGURA Bonheur (Owner)', role: 'traveler', isVip: true });
+                      setCurrentRole('traveler');
+                      setActiveTab('jobs');
+                    }}
+                    className="p-2.5 bg-emerald-50 text-[#234E40] border border-emerald-200 rounded-xl"
+                  >
+                    🧳 Traveler
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl overflow-hidden border border-slate-200 relative">
+      <div className="bg-white px-6 py-4 border-b border-slate-200 flex justify-between items-center sticky top-0 z-30">
+        <div>
+          <h2 className="font-bold text-slate-900">{activeUser ? activeUser.name : graduateProfile.name}</h2>
+          <p className="text-xs text-slate-500 capitalize">Role: {currentRole}</p>
+        </div>
+        <button
+          onClick={resetToWelcome}
+          className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-1.5 rounded-full transition"
+        >
+          Sign Out
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto pb-20 p-4 space-y-4">
+        {currentRole === 'graduate' && (
+          <div className="space-y-3">
+            <h3 className="font-bold text-lg text-slate-900">Open tasks</h3>
+            {tasks.map((task) => (
+              <div key={task.id} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2">
+                <div className="flex justify-between font-bold text-sm">
+                  <span>{task.title}</span>
+                  <span className="text-[#234E40]">{task.pay}</span>
+                </div>
+                <p className="text-xs text-slate-500">{task.agency}</p>
+                {task.status === 'confirmed' && (
+                  <button
+                    onClick={() => handleCompleteTask(task.id)}
+                    className="w-full py-2 bg-[#234E40] text-white rounded-xl text-xs font-bold mt-2"
+                  >
+                    Mark Completed & Settle Commission
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {currentRole === 'agency' && (
+          <div className="space-y-3">
+            <h3 className="font-bold text-lg text-slate-900">Agency Dashboard</h3>
+            <p className="text-xs text-slate-500">Manage posted guiding assignments.</p>
+          </div>
+        )}
+
+        {currentRole === 'traveler' && (
+          <div className="space-y-3">
+            <h3 className="font-bold text-lg text-slate-900">Book a Verified Guide</h3>
+            <button
+              onClick={() => setShowPaymentModal(true)}
+              className="w-full py-2.5 bg-[#3B6E5B] text-white rounded-xl font-bold text-xs"
+            >
+              Book & Pay (RWF 35,000)
+            </button>
+          </div>
+        )}
+      </div>
+
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-xl">
+            <h3 className="font-bold text-base text-slate-900">Rwandan Payment Gateway</h3>
+            <button
+              onClick={() => {
+                setShowPaymentModal(false);
+                alert('Payment authorized!');
+              }}
+              className="w-full py-2.5 bg-[#3B6E5B] text-white rounded-xl font-bold text-xs"
+            >
+              Confirm Payment
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
