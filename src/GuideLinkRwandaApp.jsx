@@ -4,14 +4,13 @@ export default function GuideLinkRwandaApp() {
   const [currentRole, setCurrentRole] = useState('welcome');
   const [ownerTab, setOwnerTab] = useState('pending');
   const [activeTab, setActiveTab] = useState('jobs');
-  const [selectedTask, setSelectedTask] = useState(null);
   const [showOwnerPinModal, setShowOwnerPinModal] = useState(false);
   const [ownerPinInput, setOwnerPinInput] = useState('');
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const MOMO_PAYMENT_CODE = '612771';
 
+  // Persistent Owner Profile
   const [ownerProfile, setOwnerProfile] = useState(() => {
     const saved = localStorage.getItem('gl_owner_profile');
     return saved
@@ -25,15 +24,16 @@ export default function GuideLinkRwandaApp() {
         };
   });
 
+  // 3-Tier VIP System Configuration
   const [exemptAccounts, setExemptAccounts] = useState(() => {
     const saved = localStorage.getItem('gl_exempt_users');
     return saved
       ? JSON.parse(saved)
       : [
-          { id: 'owner', name: 'RUTUNGURA Bonheur (Owner)', contact: '+250780000000', role: 'owner', confirmed: true },
-          { id: 'vip1', name: 'VIP Partner 1', contact: '+250781111111', role: 'graduate', confirmed: true },
-          { id: 'vip2', name: 'VIP Partner 2', contact: '+250782222222', role: 'agency', confirmed: true },
-          { id: 'vip3', name: 'VIP Partner 3', contact: '+250783333333', role: 'graduate', confirmed: true }
+          { id: 'owner', name: 'RUTUNGURA Bonheur (Owner)', contact: '+250780000000', role: 'owner', tier: 'Administrator HQ', confirmed: true },
+          { id: 'vip1', name: 'VIP Partner Tier 1 (Platinum)', contact: '+250781111111', role: 'graduate', tier: 'Tier 1 - Platinum Partner', confirmed: true },
+          { id: 'vip2', name: 'VIP Partner Tier 2 (Gold)', contact: '+250782222222', role: 'agency', tier: 'Tier 2 - Gold Partner', confirmed: true },
+          { id: 'vip3', name: 'VIP Partner Tier 3 (Silver)', contact: '+250783333333', role: 'traveler', tier: 'Tier 3 - Silver Partner', confirmed: true }
         ];
   });
 
@@ -56,8 +56,6 @@ export default function GuideLinkRwandaApp() {
     paymentMethod: 'mtn',
     momoRef: ''
   });
-
-  const [newDegreeInput, setNewDegreeInput] = useState('');
 
   const [platformSettings, setPlatformSettings] = useState(() => {
     const saved = localStorage.getItem('gl_platform_settings');
@@ -96,25 +94,17 @@ export default function GuideLinkRwandaApp() {
             rawPay: 35000,
             pay: 'RWF 35,000',
             date: 'Sat 21 Nov, 09:00 to 13:00',
-            timeLabel: 'Sat 21 Nov, 4 hours',
-            status: 'confirmed',
-            paymentStatus: 'pending'
+            status: 'confirmed'
           }
         ];
   });
-
-  useEffect(() => {
-    localStorage.setItem('gl_tasks_data', JSON.stringify(tasks));
-  }, [tasks]);
 
   const normalizeContact = (str) => (str || '').replace(/\s+/g, '').toLowerCase();
 
   const getCurrentProfile = () => {
     if (!activeUser) return ownerProfile;
     const key = normalizeContact(activeUser.contact || activeUser.name);
-    if (userProfiles[key]) {
-      return userProfiles[key];
-    }
+    if (userProfiles[key]) return userProfiles[key];
     return {
       name: activeUser.name,
       contact: activeUser.contact || '',
@@ -172,7 +162,6 @@ export default function GuideLinkRwandaApp() {
   const resetToWelcome = () => {
     setCurrentRole('welcome');
     setActiveTab('jobs');
-    setSelectedTask(null);
     setRegStep('details');
     setActiveUser(null);
   };
@@ -187,7 +176,7 @@ export default function GuideLinkRwandaApp() {
   const handleProceedRegistration = (e) => {
     e.preventDefault();
     if (!regForm.name.trim() || !regForm.contact.trim()) {
-      alert('Please enter your Full Name and Phone Number / Email.');
+      alert('Please enter your Full Name and Contact.');
       return;
     }
 
@@ -201,6 +190,7 @@ export default function GuideLinkRwandaApp() {
         name: exemptMatch.name,
         contact: exemptMatch.contact,
         role: exemptMatch.role,
+        tier: exemptMatch.tier,
         isVip: true
       });
       setCurrentRole(exemptMatch.role);
@@ -211,16 +201,11 @@ export default function GuideLinkRwandaApp() {
     const existingUser = registeredUsers.find(
       (u) => normalizeContact(u.contact) === normalizeContact(regForm.contact)
     );
-    if (existingUser) {
-      if (existingUser.status === 'approved') {
-        setActiveUser(existingUser);
-        setCurrentRole(existingUser.role);
-        setActiveTab('jobs');
-        return;
-      } else {
-        setRegStep('pending_approval');
-        return;
-      }
+    if (existingUser && existingUser.status === 'approved') {
+      setActiveUser(existingUser);
+      setCurrentRole(existingUser.role);
+      setActiveTab('jobs');
+      return;
     }
 
     setRegStep('pay_500');
@@ -228,7 +213,7 @@ export default function GuideLinkRwandaApp() {
 
   const handleComplete500Payment = () => {
     if (!regForm.momoRef.trim()) {
-      alert('Please enter your MoMo Transaction Reference / Phone used to pay.');
+      alert('Please enter your MoMo Transaction Reference.');
       return;
     }
 
@@ -238,7 +223,6 @@ export default function GuideLinkRwandaApp() {
       contact: regForm.contact.trim(),
       role: regForm.role,
       feePaid: 500,
-      paymentMethod: regForm.paymentMethod.toUpperCase(),
       momoCodeUsed: MOMO_PAYMENT_CODE,
       momoRef: regForm.momoRef,
       status: 'pending_approval',
@@ -257,7 +241,7 @@ export default function GuideLinkRwandaApp() {
       setOwnerTab('pending');
       setCurrentRole('owner');
     } else {
-      alert('Access Denied: Invalid Owner Password.');
+      alert('Access Denied: Invalid Owner Password (`FYP$2026`).');
       setOwnerPinInput('');
     }
   };
@@ -268,11 +252,7 @@ export default function GuideLinkRwandaApp() {
     );
   };
 
-  const rejectRegistrant = (userId) => {
-    setRegisteredUsers(registeredUsers.filter((u) => u.id !== userId));
-  };
-
-  const updateVipSlot = (slotId, field, value) => {
+  const updateVipTierSlot = (slotId, field, value) => {
     setExemptAccounts(
       exemptAccounts.map((acc) => (acc.id === slotId ? { ...acc, [field]: value } : acc))
     );
@@ -345,6 +325,7 @@ export default function GuideLinkRwandaApp() {
                   🔐
                 </div>
                 <h3 className="font-bold text-base text-slate-900">Owner Authentication</h3>
+                <p className="text-xs text-slate-500">Enter password (`FYP$2026`) to unlock HQ.</p>
               </div>
               <input
                 type="password"
@@ -398,6 +379,9 @@ export default function GuideLinkRwandaApp() {
             <form onSubmit={handleProceedRegistration} className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
               <div>
                 <h3 className="text-lg font-bold text-slate-900">Account Verification</h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Owner & VIP Tiers sign up / sign in for free. Standard accounts pay 500 RWF.
+                </p>
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-700">Full Name</label>
@@ -471,7 +455,7 @@ export default function GuideLinkRwandaApp() {
             <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center space-y-4 shadow-sm">
               <h3 className="text-lg font-bold text-slate-900">Payment Pending Owner Approval</h3>
               <p className="text-xs text-slate-600">
-                Your payment to MoMo Code <strong>{MOMO_PAYMENT_CODE}</strong> has been logged and sent to <strong>{ownerProfile.name}</strong>.
+                Your payment to MoMo Code <strong>{MOMO_PAYMENT_CODE}</strong> has been logged.
               </p>
               <button
                 onClick={resetToWelcome}
@@ -507,14 +491,14 @@ export default function GuideLinkRwandaApp() {
           <button onClick={resetToWelcome} className="text-xs bg-emerald-900 px-3 py-1.5 rounded-full font-semibold">Log Out</button>
         </div>
 
-        {/* 5 OWNER NAVIGATION TABS WITH ICONS */}
+        {/* RESTORED ALL 5 OWNER ICONIC TABS */}
         <div className="bg-white border-b border-slate-200 px-2 py-2.5 grid grid-cols-5 gap-1 text-center sticky top-[72px] z-20 shadow-sm">
           <button onClick={() => setOwnerTab('pending')} className={`p-1.5 rounded-xl flex flex-col items-center relative ${ownerTab === 'pending' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
             <span className="text-base">⏳</span><span className="text-[9px]">Sign-Ups</span>
             {pendingCount > 0 && <span className="absolute top-1 right-2 bg-red-600 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center">{pendingCount}</span>}
           </button>
           <button onClick={() => setOwnerTab('overview')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'overview' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-base">📊</span><span className="text-[9px]">Revenue</span></button>
-          <button onClick={() => setOwnerTab('vip')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'vip' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-base">⭐</span><span className="text-[9px]">VIP</span></button>
+          <button onClick={() => setOwnerTab('vip')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'vip' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-base">⭐</span><span className="text-[9px]">3-Tier VIP</span></button>
           <button onClick={() => setOwnerTab('deals')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'deals' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-base">🎛️</span><span className="text-[9px]">Roles</span></button>
           <button onClick={() => setOwnerTab('owner_profile')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'owner_profile' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-base">👤</span><span className="text-[9px]">My Profile</span></button>
         </div>
@@ -523,24 +507,88 @@ export default function GuideLinkRwandaApp() {
           {ownerTab === 'pending' && (
             <div className="space-y-3">
               <h3 className="font-bold text-sm text-slate-900">⏳ Payment Notifications & Sign-Ups</h3>
-              {registeredUsers.map((user) => (
-                <div key={user.id} className="bg-white p-4 rounded-2xl border space-y-2 text-xs">
-                  <p className="font-bold text-sm">{user.name} ({user.role})</p>
-                  <p className="text-slate-500">{user.contact} • Ref: {user.momoRef}</p>
-                  {user.status === 'approved' ? (
-                    <span className="text-emerald-700 font-bold">✓ Approved</span>
-                  ) : (
-                    <button onClick={() => approveRegistrant(user.id)} className="w-full py-2 bg-[#3B6E5B] text-white rounded-xl font-bold">
-                      ✓ Confirm Payment & Grant Access
-                    </button>
-                  )}
-                </div>
-              ))}
+              {registeredUsers.length === 0 ? (
+                <div className="bg-white p-6 rounded-2xl border text-center text-xs text-slate-500">No pending payments.</div>
+              ) : (
+                registeredUsers.map((user) => (
+                  <div key={user.id} className="bg-white p-4 rounded-2xl border space-y-2 text-xs">
+                    <p className="font-bold text-sm">{user.name} ({user.role})</p>
+                    <p className="text-slate-500">{user.contact} • Ref: {user.momoRef}</p>
+                    {user.status === 'approved' ? (
+                      <span className="text-emerald-700 font-bold">✓ Approved</span>
+                    ) : (
+                      <button onClick={() => approveRegistrant(user.id)} className="w-full py-2 bg-[#3B6E5B] text-white rounded-xl font-bold">
+                        ✓ Confirm Payment & Grant Access
+                      </button>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {ownerTab === 'overview' && (
+            <div className="space-y-4">
+              <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-5 rounded-2xl text-center space-y-1">
+                <span className="text-xs uppercase text-emerald-200 font-bold">Total Platform Revenue</span>
+                <div className="text-3xl font-extrabold">RWF {totalRegFees.toLocaleString()}</div>
+                <p className="text-[11px] text-emerald-100">MoMo Code: {MOMO_PAYMENT_CODE}</p>
+              </div>
+            </div>
+          )}
+
+          {ownerTab === 'vip' && (
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3">
+              <h3 className="font-bold text-sm text-slate-900">⭐ 3-Tier VIP & Free Sign-Up Access</h3>
+              <p className="text-xs text-slate-500">Manage VIP tiers with free access privileges across the platform.</p>
+              <div className="space-y-3 pt-1">
+                {exemptAccounts.map((acc) => (
+                  <div key={acc.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-[#234E40]">{acc.tier}</span>
+                      <label className="flex items-center space-x-1 font-semibold text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={acc.confirmed}
+                          disabled={acc.id === 'owner'}
+                          onChange={(e) => updateVipTierSlot(acc.id, 'confirmed', e.target.checked)}
+                        />
+                        <span>Active Free Access</span>
+                      </label>
+                    </div>
+                    <input
+                      type="text"
+                      value={acc.name}
+                      onChange={(e) => updateVipTierSlot(acc.id, 'name', e.target.value)}
+                      placeholder="Partner Name"
+                      className="w-full p-2 border border-slate-200 rounded-lg bg-white text-xs"
+                    />
+                    <input
+                      type="text"
+                      value={acc.contact}
+                      onChange={(e) => updateVipTierSlot(acc.id, 'contact', e.target.value)}
+                      placeholder="Partner Phone / Contact"
+                      className="w-full p-2 border border-slate-200 rounded-lg bg-white text-xs"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {ownerTab === 'deals' && (
+            <div className="bg-white p-4 rounded-2xl border space-y-2.5 text-xs font-bold">
+              <h3 className="font-bold text-sm text-slate-900">🎛️ Role Preview Controls</h3>
+              <div className="grid grid-cols-3 gap-2 pt-1">
+                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'graduate' }); setCurrentRole('graduate'); setActiveTab('jobs'); }} className="p-2.5 bg-emerald-50 text-[#234E40] border rounded-xl">🎓 Graduate</button>
+                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'agency' }); setCurrentRole('agency'); setActiveTab('jobs'); }} className="p-2.5 bg-emerald-50 text-[#234E40] border rounded-xl">🏢 Agency</button>
+                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'traveler' }); setCurrentRole('traveler'); setActiveTab('jobs'); }} className="p-2.5 bg-emerald-50 text-[#234E40] border rounded-xl">🧳 Traveler</button>
+              </div>
             </div>
           )}
 
           {ownerTab === 'owner_profile' && (
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4">
+            <div className="bg-white p-5 rounded-2xl border space-y-4">
               <h3 className="font-bold text-base text-slate-900">👑 Owner Profile & Photo</h3>
               <div className="flex flex-col items-center space-y-2">
                 {ownerProfile.photo ? (
@@ -560,7 +608,6 @@ export default function GuideLinkRwandaApp() {
                 <input type="text" value={ownerProfile.contact} onChange={(e) => setOwnerProfile({ ...ownerProfile, contact: e.target.value })} className="w-full p-2.5 border rounded-xl" />
                 <textarea rows="3" value={ownerProfile.bio} onChange={(e) => setOwnerProfile({ ...ownerProfile, bio: e.target.value })} className="w-full p-2.5 border rounded-xl" />
                 
-                {/* EXPLICIT SAVE BUTTON FOR OWNER */}
                 <button
                   type="button"
                   disabled={isSaving}
@@ -592,7 +639,7 @@ export default function GuideLinkRwandaApp() {
           )}
           <div>
             <h2 className="font-bold text-sm">{currentProf?.name}</h2>
-            <p className="text-[11px] text-slate-500 capitalize">Role: {currentRole}</p>
+            <p className="text-[11px] text-slate-500 capitalize">Role: {currentRole} {activeUser?.tier ? `• ${activeUser.tier}` : ''}</p>
           </div>
         </div>
         <button onClick={resetToWelcome} className="text-xs bg-slate-100 px-3 py-1.5 rounded-full font-semibold">Sign Out</button>
@@ -634,7 +681,6 @@ export default function GuideLinkRwandaApp() {
                 <input type="text" value={currentProf.name} onChange={(e) => updateCurrentProfile({ name: e.target.value })} className="w-full p-2.5 border rounded-xl" />
                 <input type="text" value={currentProf.headline} onChange={(e) => updateCurrentProfile({ headline: e.target.value })} className="w-full p-2.5 border rounded-xl" />
                 
-                {/* EXPLICIT SAVE BUTTON FOR USERS */}
                 <button
                   type="button"
                   disabled={isSaving}
