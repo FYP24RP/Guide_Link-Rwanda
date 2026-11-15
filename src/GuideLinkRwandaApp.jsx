@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 
 // =========================================================================
-// REPLACE THESE TWO VALUES WITH YOUR FIREBASE PROJECT SETTINGS
+// FIREBASE CONFIGURATION (Pre-configured for your project)
 // =========================================================================
-const FIREBASE_PROJECT_ID = 'PASTE_YOUR_PROJECT_ID_HERE';
-const FIREBASE_API_KEY = 'PASTE_YOUR_API_KEY_HERE';
+const FIREBASE_PROJECT_ID = 'guidelink-rwanda';
+const FIREBASE_API_KEY = 'AIzaSyDbSIDCFXNgPKifhV126frr-bl0tytXEA';
 
 const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
 
-// Lightweight Firestore REST API Helper (Zero npm install required)
+// Lightweight Firestore REST API Helper (Zero npm install required for clean Vercel builds)
 const toFirestoreValue = (val) => {
   if (val === null || val === undefined) return { nullValue: null };
   if (typeof val === 'boolean') return { booleanValue: val };
@@ -62,7 +62,6 @@ const parseFirestoreDoc = (doc) => {
 };
 
 const firestoreGetCollection = async (collectionName) => {
-  if (FIREBASE_PROJECT_ID === 'PASTE_YOUR_PROJECT_ID_HERE') return [];
   try {
     const res = await fetch(`${FIRESTORE_BASE}/${collectionName}?key=${FIREBASE_API_KEY}`);
     if (!res.ok) return [];
@@ -74,7 +73,6 @@ const firestoreGetCollection = async (collectionName) => {
 };
 
 const firestoreSaveDoc = async (collectionName, docId, dataObj) => {
-  if (FIREBASE_PROJECT_ID === 'PASTE_YOUR_PROJECT_ID_HERE') return null;
   try {
     const fields = {};
     Object.keys(dataObj).forEach((k) => {
@@ -236,7 +234,7 @@ export default function GuideLinkRwandaApp() {
 
   useEffect(() => {
     loadFirebaseData();
-    const interval = setInterval(loadFirebaseData, 8000);
+    const interval = setInterval(loadFirebaseData, 6000);
     return () => clearInterval(interval);
   }, []);
 
