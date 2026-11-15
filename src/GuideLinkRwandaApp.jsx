@@ -9,7 +9,7 @@ export default function GuideLinkRwandaApp() {
   const [isSaving, setIsSaving] = useState(false);
 
   // Traveler Directory Filter & Quick Booking Modal
-  const [directoryFilter, setDirectoryFilter] = useState('all'); // 'all' | 'guides' | 'agencies'
+  const [directoryFilter, setDirectoryFilter] = useState('all'); // 'all' | 'graduate' | 'agency' | 'tour_company'
   const [bookingTarget, setBookingTarget] = useState(null);
   const [bookingDetails, setBookingDetails] = useState({ dates: '', guests: '2', notes: '' });
 
@@ -38,7 +38,7 @@ export default function GuideLinkRwandaApp() {
           { id: 'owner', name: 'RUTUNGURA Bonheur (Owner)', contact: '+250780000000', role: 'owner', tier: 'Administrator HQ', confirmed: true },
           { id: 'vip1', name: 'VIP Partner Tier 1 (Platinum)', contact: '+250781111111', role: 'graduate', tier: 'Tier 1 - Platinum Partner', confirmed: true },
           { id: 'vip2', name: 'VIP Partner Tier 2 (Gold)', contact: '+250782222222', role: 'agency', tier: 'Tier 2 - Gold Partner', confirmed: true },
-          { id: 'vip3', name: 'VIP Partner Tier 3 (Silver)', contact: '+250783333333', role: 'graduate', tier: 'Tier 3 - Silver Partner', confirmed: true }
+          { id: 'vip3', name: 'VIP Partner Tier 3 (Silver)', contact: '+250783333333', role: 'tour_company', tier: 'Tier 3 - Silver Partner', confirmed: true }
         ];
   });
 
@@ -65,7 +65,7 @@ export default function GuideLinkRwandaApp() {
   // Graduate CV Inputs
   const [newDegreeInput, setNewDegreeInput] = useState('');
 
-  // Agency Task Posting Form
+  // Agency / Tour Company Task Posting Form
   const [newTaskForm, setNewTaskForm] = useState({
     title: '',
     date: '',
@@ -73,8 +73,9 @@ export default function GuideLinkRwandaApp() {
     location: 'Kigali'
   });
 
-  // Traveler Trip Request Form
+  // Traveler Trip Request Form (Choice between Graduate, Travel Agency, or Tour Company)
   const [tripRequestForm, setTripRequestForm] = useState({
+    preferredCategory: 'graduate', // 'graduate' | 'agency' | 'tour_company'
     destination: 'Volcanoes National Park / Musanze',
     dates: '',
     guests: '2',
@@ -133,6 +134,14 @@ export default function GuideLinkRwandaApp() {
 
   const normalizeContact = (str) => (str || '').replace(/\s+/g, '').toLowerCase();
 
+  const getRoleDisplayLabel = (role) => {
+    if (role === 'graduate') return 'Tourism Graduate / Guide';
+    if (role === 'agency') return 'Travel Agency';
+    if (role === 'tour_company') return 'Tour Company';
+    if (role === 'traveler') return 'Traveler';
+    return role;
+  };
+
   const getCurrentProfile = () => {
     if (!activeUser) return ownerProfile;
     const key = normalizeContact(activeUser.contact || activeUser.name);
@@ -148,7 +157,9 @@ export default function GuideLinkRwandaApp() {
         activeUser.role === 'graduate'
           ? 'Certified Tourism Graduate & Guide'
           : activeUser.role === 'agency'
-          ? 'Licensed Tour Operator & Travel Agency'
+          ? 'Licensed Travel Agency'
+          : activeUser.role === 'tour_company'
+          ? 'Licensed Safari & Tour Company'
           : 'Explorer & Verified Traveler',
       location: 'Kigali, Rwanda',
       bio: '',
@@ -211,7 +222,7 @@ export default function GuideLinkRwandaApp() {
   const handleProceedRegistration = (e) => {
     e.preventDefault();
     if (!regForm.name.trim() || !regForm.contact.trim()) {
-      alert('Please enter your Full Name and Contact.');
+      alert('Please enter your Full Name / Company Name and Contact.');
       return;
     }
 
@@ -272,7 +283,7 @@ export default function GuideLinkRwandaApp() {
       return;
     }
 
-    // 4. Graduates & Agencies proceed to 500 RWF MoMo Code payment
+    // 4. Graduates, Travel Agencies & Tour Companies proceed to 500 RWF MoMo Code payment
     setRegStep('pay_500');
   };
 
@@ -330,7 +341,7 @@ export default function GuideLinkRwandaApp() {
         t.id === taskId ? { ...t, status: 'accepted', assignedTo: activeUser?.name || 'Graduate' } : t
       )
     );
-    alert('✓ Gig accepted! Check My Active Gigs to complete and settle via MoMo.');
+    alert('✓ Gig accepted! Complete the assignment to settle via MoMo.');
   };
 
   const handleCompleteTask = (taskId) => {
@@ -352,7 +363,25 @@ export default function GuideLinkRwandaApp() {
     alert(`✓ Task completed! ${platformSettings.commissionRatePercent}% commission routed to MoMo Code ${MOMO_PAYMENT_CODE}.`);
   };
 
-  // Agency Action: Post New Task
+  // Graduate / Agency / Tour Company Confirm Traveler Request
+  const handleConfirmTravelerRequest = (reqId) => {
+    const responderName = activeUser?.name || 'Verified Provider';
+    const responderRoleLabel = getRoleDisplayLabel(currentRole);
+    setTripRequests(
+      tripRequests.map((req) =>
+        req.id === reqId
+          ? {
+              ...req,
+              status: 'confirmed',
+              confirmedBy: `${responderName} (${responderRoleLabel})`
+            }
+          : req
+      )
+    );
+    alert(`✓ Traveler booking request confirmed by ${responderName}!`);
+  };
+
+  // Agency / Tour Company Action: Post New Task
   const handlePostNewTask = (e) => {
     e.preventDefault();
     const numericPay = Number(newTaskForm.rawPay);
@@ -363,7 +392,7 @@ export default function GuideLinkRwandaApp() {
     const created = {
       id: Date.now(),
       title: newTaskForm.title.trim(),
-      agency: activeUser?.name || 'Partner Agency',
+      agency: `${activeUser?.name || 'Partner'} (${getRoleDisplayLabel(currentRole)})`,
       location: newTaskForm.location || 'Kigali',
       rawPay: numericPay,
       pay: `RWF ${numericPay.toLocaleString()}`,
@@ -377,23 +406,32 @@ export default function GuideLinkRwandaApp() {
     alert('✓ Guiding assignment published to Graduate Board!');
   };
 
-  // Traveler Action: Post Custom Trip Request
+  // Traveler Action: Post Custom Trip Request Choosing Between Graduate, Agency, or Tour Company
   const handleCreateTripRequest = (e) => {
     e.preventDefault();
+    const categoryLabel = getRoleDisplayLabel(tripRequestForm.preferredCategory);
     const req = {
       id: Date.now(),
       travelerName: activeUser?.name || 'Traveler',
       travelerContact: activeUser?.contact || '',
-      targetProvider: 'Open to All Verified Guides & Agencies',
+      preferredCategory: tripRequestForm.preferredCategory,
+      targetProvider: `Any Available ${categoryLabel}`,
       destination: tripRequestForm.destination,
       dates: tripRequestForm.dates || 'Upcoming',
       guests: tripRequestForm.guests,
       notes: tripRequestForm.notes,
-      status: 'open'
+      status: 'pending_confirmation',
+      confirmedBy: null
     };
     setTripRequests([req, ...tripRequests]);
-    setTripRequestForm({ destination: 'Volcanoes National Park / Musanze', dates: '', guests: '2', notes: '' });
-    alert('✓ Trip request posted! Verified guides and agencies can now respond.');
+    setTripRequestForm({
+      preferredCategory: 'graduate',
+      destination: 'Volcanoes National Park / Musanze',
+      dates: '',
+      guests: '2',
+      notes: ''
+    });
+    alert(`✓ Request sent! Available ${categoryLabel}s can now confirm your booking.`);
   };
 
   // Traveler Direct Provider Booking Handler
@@ -404,113 +442,119 @@ export default function GuideLinkRwandaApp() {
       id: Date.now(),
       travelerName: activeUser?.name || 'Traveler',
       travelerContact: activeUser?.contact || '',
+      preferredCategory: bookingTarget.type,
       targetProvider: `${bookingTarget.name} (${bookingTarget.categoryLabel})`,
       destination: bookingTarget.location,
       dates: bookingDetails.dates || 'Requested Immediate Dates',
       guests: bookingDetails.guests,
       notes: bookingDetails.notes,
-      status: 'requested'
+      status: 'pending_confirmation',
+      confirmedBy: null
     };
     setTripRequests([newBooking, ...tripRequests]);
     setBookingTarget(null);
     setBookingDetails({ dates: '', guests: '2', notes: '' });
-    alert(`✓ Direct booking request sent to ${newBooking.targetProvider}!`);
+    alert(`✓ Direct booking request sent to ${newBooking.targetProvider}! Awaiting confirmation.`);
   };
 
-  // Build Live Directory of Available Guides, Consultants & Tour Agencies for Travelers
+  // Build Live Directory of Available Graduates, Travel Agencies & Tour Companies for Travelers
   const buildLiveProviderDirectory = () => {
     const defaultProviders = [
       {
         id: 'prov-g1',
-        type: 'guide',
-        categoryLabel: 'Tour Guide & Travel Consultant',
+        type: 'graduate',
+        categoryLabel: 'Tourism Graduate & Guide',
         name: 'Jean Bosco Habimana',
         headline: 'Certified Multilingual Safari & Cultural Guide (RP Kitabi)',
         location: 'Kigali & Volcanoes NP',
         languages: 'English, French, Kinyarwanda',
         rate: 'RWF 40,000 / day',
-        isAvailable: true,
-        badge: 'Verified Graduate'
+        isAvailable: true
       },
       {
         id: 'prov-g2',
-        type: 'guide',
-        categoryLabel: 'Destination & Travel Consultant',
+        type: 'graduate',
+        categoryLabel: 'Tourism Graduate & Consultant',
         name: 'Claudine Mukamana',
         headline: 'Itinerary Planner, Airline Ticketing & Nyungwe Specialist',
         location: 'Rusizi & Nyungwe Forest',
         languages: 'English, Swahili, Kinyarwanda',
         rate: 'RWF 35,000 / day',
-        isAvailable: true,
-        badge: 'Travel Consultant'
+        isAvailable: true
       },
       {
         id: 'prov-a1',
         type: 'agency',
-        categoryLabel: 'Tour Company & Safari Operator',
-        name: 'Cheetah Safaris Rwanda',
-        headline: 'Gorilla Trekking, Akagera Wildlife & Custom 4x4 Expeditions',
+        categoryLabel: 'Travel Agency',
+        name: 'Amahoro Heritage Travel Agency',
+        headline: 'Flight Ticketing, Hotel Reservations & Kigali City Excursions',
         location: 'Kigali City',
-        languages: 'Full Safari Fleet & Permits',
+        languages: 'IATA / RDB Licensed Agency',
         rate: 'Custom Packages',
-        isAvailable: true,
-        badge: 'Licensed Tour Operator'
+        isAvailable: true
       },
       {
-        id: 'prov-a2',
-        type: 'agency',
-        categoryLabel: 'Travel Agency & DMC',
-        name: 'Amahoro Heritage & Eco Tours',
-        headline: 'Community Cultural Experiences, Musanze & Lake Kivu Tours',
+        id: 'prov-tc1',
+        type: 'tour_company',
+        categoryLabel: 'Tour Company',
+        name: 'Cheetah Safaris Rwanda',
+        headline: '4x4 Safari Fleet, Gorilla Trekking & Akagera Wildlife Expeditions',
+        location: 'Kigali & Musanze',
+        languages: 'Full Safari Fleet & Permits',
+        rate: 'All-Inclusive Safaris',
+        isAvailable: true
+      },
+      {
+        id: 'prov-tc2',
+        type: 'tour_company',
+        categoryLabel: 'Tour Company',
+        name: 'Virunga Eco Expedition Tours',
+        headline: 'Mountain Gorilla Tracking, Golden Monkeys & Lake Kivu Tours',
         location: 'Musanze / Northern Province',
-        languages: 'RDB Licensed Operator',
-        rate: 'Group & Private Tours',
-        isAvailable: true,
-        badge: 'Tour Company'
+        languages: 'Private & Group Tour Operator',
+        rate: 'Custom Safari Rates',
+        isAvailable: true
       }
     ];
 
-    // Merge live registered/approved Graduates & Agencies + VIP Partners
     const dynamicProviders = [];
 
     // From VIP Slots
     exemptAccounts.forEach((acc) => {
-      if (acc.id !== 'owner' && acc.confirmed && (acc.role === 'graduate' || acc.role === 'agency')) {
+      if (acc.id !== 'owner' && acc.confirmed && ['graduate', 'agency', 'tour_company'].includes(acc.role)) {
         const key = normalizeContact(acc.contact);
         const prof = userProfiles[key] || {};
         dynamicProviders.push({
           id: `vip-${acc.id}`,
-          type: acc.role === 'graduate' ? 'guide' : 'agency',
-          categoryLabel: acc.role === 'graduate' ? 'VIP Guide & Consultant' : 'VIP Tour Company / Agency',
+          type: acc.role,
+          categoryLabel: `${getRoleDisplayLabel(acc.role)} (${acc.tier})`,
           name: prof.name || acc.name,
           headline: prof.headline || `${acc.tier} • Verified Partner`,
           location: prof.location || 'Kigali, Rwanda',
           languages: (prof.skills || ['English', 'Kinyarwanda']).join(', '),
-          rate: acc.role === 'graduate' ? 'RWF 45,000 / day' : 'Custom Safari Packages',
+          rate: acc.role === 'graduate' ? 'RWF 45,000 / day' : 'Custom Packages',
           isAvailable: prof.isAvailable !== false,
-          photo: prof.photo || '',
-          badge: acc.tier
+          photo: prof.photo || ''
         });
       }
     });
 
-    // From Approved Registered Graduates & Agencies
+    // From Approved Registered Users
     registeredUsers.forEach((u) => {
-      if (u.status === 'approved' && (u.role === 'graduate' || u.role === 'agency')) {
+      if (u.status === 'approved' && ['graduate', 'agency', 'tour_company'].includes(u.role)) {
         const key = normalizeContact(u.contact);
         const prof = userProfiles[key] || {};
         dynamicProviders.push({
           id: `reg-${u.id}`,
-          type: u.role === 'graduate' ? 'guide' : 'agency',
-          categoryLabel: u.role === 'graduate' ? 'Tourism Graduate & Guide' : 'Travel Agency / Tour Company',
+          type: u.role,
+          categoryLabel: getRoleDisplayLabel(u.role),
           name: prof.name || u.name,
-          headline: prof.headline || (u.role === 'graduate' ? 'Certified Guide & Travel Consultant' : 'Licensed Travel Agency'),
+          headline: prof.headline || `Verified ${getRoleDisplayLabel(u.role)}`,
           location: prof.location || 'Rwanda',
           languages: (prof.skills || ['English', 'Kinyarwanda']).join(', '),
           rate: u.role === 'graduate' ? 'RWF 35,000 / day' : 'Custom Itineraries',
           isAvailable: prof.isAvailable !== false,
-          photo: prof.photo || '',
-          badge: u.role === 'graduate' ? 'Verified Guide' : 'Verified Agency'
+          photo: prof.photo || ''
         });
       }
     });
@@ -537,7 +581,7 @@ export default function GuideLinkRwandaApp() {
               <h1 className="text-3xl font-bold text-slate-900 tracking-tight">GuideLink Rwanda</h1>
               <p className="text-lg font-medium text-[#234E40] mt-1">Turn your tourism degree into paid work.</p>
               <p className="text-xs text-slate-600 mt-2">
-                Freelance guiding and travel consulting, matched with agencies and travelers across Rwanda.
+                Connecting Tourism Graduates, Travel Agencies, Tour Companies, and Travelers across Rwanda.
               </p>
               <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-1.5">
                 Developed & Copyright © 2026 {ownerProfile.name}
@@ -552,7 +596,7 @@ export default function GuideLinkRwandaApp() {
                 </span>
               </div>
               <p className="text-xs text-slate-600 leading-relaxed">
-                <strong>Travelers</strong> sign up free to browse available guides, consultants, and tour companies. Graduates & Agencies register via MoMo Code <strong>{MOMO_PAYMENT_CODE}</strong>.
+                <strong>Travelers</strong> sign up free to choose between available Graduates, Travel Agencies, or Tour Companies. Partners register via MoMo Code <strong>{MOMO_PAYMENT_CODE}</strong>.
               </p>
               <button
                 onClick={() => {
@@ -645,15 +689,15 @@ export default function GuideLinkRwandaApp() {
               <div>
                 <h3 className="text-lg font-bold text-slate-900">Account Verification</h3>
                 <p className="text-xs text-slate-500 mt-1">
-                  <strong>Travelers</strong> & VIP Partners enter <strong>free immediately</strong>. Graduates & Agencies pay 500 RWF one-time verification.
+                  <strong>Travelers</strong> & VIP Partners enter <strong>free immediately</strong>. Tourism Graduates, Travel Agencies, and Tour Companies pay 500 RWF one-time verification.
                 </p>
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-700">Full Name</label>
+                <label className="text-xs font-bold text-slate-700">Full Name or Company Name</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Alice Uwase"
+                  placeholder="e.g. Alice Uwase / Virunga Safaris"
                   value={regForm.name}
                   onChange={(e) => setRegForm({ ...regForm, name: e.target.value })}
                   className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-sm"
@@ -677,9 +721,10 @@ export default function GuideLinkRwandaApp() {
                   onChange={(e) => setRegForm({ ...regForm, role: e.target.value })}
                   className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-sm bg-white"
                 >
-                  <option value="traveler">Traveler (FREE Instant Access)</option>
-                  <option value="graduate">Tourism Graduate (Guide / Consultant)</option>
-                  <option value="agency">Travel Agency (Tour Operator)</option>
+                  <option value="traveler">🧳 Traveler (FREE Instant Access)</option>
+                  <option value="graduate">🎓 Tourism Graduate (Guide / Consultant)</option>
+                  <option value="agency">🏢 Travel Agency</option>
+                  <option value="tour_company">🚐 Tour Company (Safari Operator)</option>
                 </select>
               </div>
               <button
@@ -785,7 +830,7 @@ export default function GuideLinkRwandaApp() {
                 registeredUsers.map((user) => (
                   <div key={user.id} className="bg-white p-4 rounded-2xl border space-y-2 text-xs">
                     <div className="flex justify-between">
-                      <p className="font-bold text-sm">{user.name} <span className="capitalize text-slate-500 font-normal">({user.role})</span></p>
+                      <p className="font-bold text-sm">{user.name} <span className="text-slate-500 font-normal">({getRoleDisplayLabel(user.role)})</span></p>
                       <span className="font-bold text-[#234E40]">{user.feePaid === 0 ? 'FREE' : `${user.feePaid} RWF`}</span>
                     </div>
                     <p className="text-slate-500">{user.contact} • Ref: {user.momoRef}</p>
@@ -863,11 +908,12 @@ export default function GuideLinkRwandaApp() {
 
           {ownerTab === 'deals' && (
             <div className="bg-white p-4 rounded-2xl border space-y-2.5 text-xs font-bold">
-              <h3 className="font-bold text-sm text-slate-900">🎛️ Preview User Dashboards</h3>
-              <div className="grid grid-cols-3 gap-2 pt-1">
-                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'graduate' }); setCurrentRole('graduate'); setActiveTab('jobs'); }} className="p-2.5 bg-emerald-50 text-[#234E40] border rounded-xl">🎓 Graduate</button>
-                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'agency' }); setCurrentRole('agency'); setActiveTab('jobs'); }} className="p-2.5 bg-emerald-50 text-[#234E40] border rounded-xl">🏢 Agency</button>
-                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'traveler' }); setCurrentRole('traveler'); setActiveTab('jobs'); }} className="p-2.5 bg-emerald-50 text-[#234E40] border rounded-xl">🧳 Traveler</button>
+              <h3 className="font-bold text-sm text-slate-900">🎛️ Preview All 4 User Dashboards</h3>
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'graduate' }); setCurrentRole('graduate'); setActiveTab('jobs'); }} className="p-3 bg-emerald-50 text-[#234E40] border rounded-xl">🎓 Graduate</button>
+                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'agency' }); setCurrentRole('agency'); setActiveTab('jobs'); }} className="p-3 bg-emerald-50 text-[#234E40] border rounded-xl">🏢 Travel Agency</button>
+                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'tour_company' }); setCurrentRole('tour_company'); setActiveTab('jobs'); }} className="p-3 bg-emerald-50 text-[#234E40] border rounded-xl">🚐 Tour Company</button>
+                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'traveler' }); setCurrentRole('traveler'); setActiveTab('jobs'); }} className="p-3 bg-emerald-50 text-[#234E40] border rounded-xl">🧳 Traveler</button>
               </div>
             </div>
           )}
@@ -913,10 +959,14 @@ export default function GuideLinkRwandaApp() {
   const currentProf = getCurrentProfile();
   const providerDirectory = buildLiveProviderDirectory();
   const filteredProviders = providerDirectory.filter((item) => {
-    if (directoryFilter === 'guides') return item.type === 'guide';
-    if (directoryFilter === 'agencies') return item.type === 'agency';
-    return true;
+    if (directoryFilter === 'all') return true;
+    return item.type === directoryFilter;
   });
+
+  // Incoming Traveler Requests for the active Graduate / Agency / Tour Company
+  const matchingTravelerRequests = tripRequests.filter(
+    (req) => !req.preferredCategory || req.preferredCategory === currentRole
+  );
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl overflow-hidden border border-slate-200 relative">
@@ -932,8 +982,14 @@ export default function GuideLinkRwandaApp() {
           )}
           <div>
             <h2 className="font-bold text-sm">{currentProf?.name}</h2>
-            <p className="text-[11px] text-slate-500 capitalize">
-              {currentRole === 'graduate' ? '🎓 Tourism Graduate' : currentRole === 'agency' ? '🏢 Travel Agency' : '🧳 Traveler (Free Access)'}
+            <p className="text-[11px] text-slate-500">
+              {currentRole === 'graduate'
+                ? '🎓 Tourism Graduate'
+                : currentRole === 'agency'
+                ? '🏢 Travel Agency'
+                : currentRole === 'tour_company'
+                ? '🚐 Tour Company'
+                : '🧳 Traveler (Free Access)'}
             </p>
           </div>
         </div>
@@ -943,14 +999,14 @@ export default function GuideLinkRwandaApp() {
       {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto pb-24 p-4 space-y-4">
         
-        {/* LIVE AVAILABILITY STATUS BAR FOR GUIDES & AGENCIES */}
-        {(currentRole === 'graduate' || currentRole === 'agency') && currentProf && (
+        {/* LIVE AVAILABILITY STATUS BAR FOR GRADUATES, AGENCIES & TOUR COMPANIES */}
+        {['graduate', 'agency', 'tour_company'].includes(currentRole) && currentProf && (
           <div className="bg-white p-3.5 rounded-2xl border border-slate-200 flex justify-between items-center shadow-sm">
             <div>
               <p className="text-xs font-bold text-slate-900">
                 {currentProf.isAvailable !== false ? '🟢 Available for Travelers & Bookings' : '🔴 Currently Busy / Unavailable'}
               </p>
-              <p className="text-[11px] text-slate-500">Visible in Traveler Live Availability Directory</p>
+              <p className="text-[11px] text-slate-500">Live status shown to Travelers</p>
             </div>
             <button
               onClick={() => updateCurrentProfile({ isAvailable: currentProf.isAvailable === false })}
@@ -965,13 +1021,60 @@ export default function GuideLinkRwandaApp() {
           </div>
         )}
 
-        {/* 1. TOURISM GRADUATE DASHBOARD */}
+        {/* 1. TOURISM GRADUATE DASHBOARD (WITH TRAVELER REQUEST CONFIRMATION) */}
         {activeTab === 'jobs' && currentRole === 'graduate' && (
           <div className="space-y-4">
+            {/* Incoming Traveler Requests Section for Graduates to Confirm */}
+            <div className="space-y-2.5">
+              <div className="flex justify-between items-center">
+                <h3 className="font-bold text-sm text-slate-900">🧳 Traveler Booking Requests ({matchingTravelerRequests.length})</h3>
+                <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">Action Needed</span>
+              </div>
+
+              {matchingTravelerRequests.length === 0 ? (
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 text-xs text-slate-500 text-center">
+                  No direct Traveler requests yet. Keep your status 🟢 Available!
+                </div>
+              ) : (
+                matchingTravelerRequests.map((req) => (
+                  <div key={req.id} className="bg-white p-4 rounded-2xl border-2 border-amber-300 space-y-2 shadow-sm text-xs">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase text-amber-700">Traveler Request</span>
+                        <h4 className="font-bold text-sm text-slate-900">{req.destination} ({req.guests} Guests)</h4>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        req.status === 'confirmed' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {req.status === 'confirmed' ? '✓ Confirmed' : '⏳ Pending'}
+                      </span>
+                    </div>
+                    <p className="text-slate-600">👤 Traveler: <strong>{req.travelerName}</strong> ({req.travelerContact})</p>
+                    <p className="text-slate-500">📅 Dates: {req.dates} • Target: {req.targetProvider}</p>
+                    {req.notes && <p className="text-slate-500 italic bg-slate-50 p-2 rounded-lg">"{req.notes}"</p>}
+
+                    {req.status !== 'confirmed' ? (
+                      <button
+                        onClick={() => handleConfirmTravelerRequest(req.id)}
+                        className="w-full py-2.5 bg-[#234E40] hover:bg-[#3B6E5B] text-white rounded-xl font-bold text-xs shadow transition"
+                      >
+                        ✓ Confirm Traveler Request
+                      </button>
+                    ) : (
+                      <div className="bg-emerald-50 text-emerald-800 p-2 rounded-xl font-bold text-center">
+                        ✓ Confirmed by {req.confirmedBy}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Agency & Tour Company Gig Board */}
             <div className="bg-[#234E40] text-white p-4 rounded-2xl shadow-sm space-y-1">
-              <span className="text-[10px] uppercase font-bold text-emerald-200">Graduate Gig Board</span>
-              <h3 className="font-bold text-base">Available Guiding & Consulting Tasks</h3>
-              <p className="text-xs text-emerald-100">Accept tours, complete assignments, and settle via MoMo Code {MOMO_PAYMENT_CODE}.</p>
+              <span className="text-[10px] uppercase font-bold text-emerald-200">Partner Gig Board</span>
+              <h3 className="font-bold text-base">Agency & Tour Company Assignments</h3>
+              <p className="text-xs text-emerald-100">Accept tours and settle via MoMo Code {MOMO_PAYMENT_CODE}.</p>
             </div>
 
             {tasks.map((task) => (
@@ -987,7 +1090,7 @@ export default function GuideLinkRwandaApp() {
                     onClick={() => handleAcceptTask(task.id)}
                     className="w-full py-2.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl text-xs font-bold transition"
                   >
-                    Accept Guiding Assignment →
+                    Accept Assignment →
                   </button>
                 )}
 
@@ -1007,32 +1110,47 @@ export default function GuideLinkRwandaApp() {
                 )}
               </div>
             ))}
+          </div>
+        )}
 
-            {tripRequests.length > 0 && (
-              <div className="space-y-2 pt-2">
-                <h4 className="font-bold text-xs uppercase text-slate-500">🧳 Direct Traveler Bookings & Requests</h4>
-                {tripRequests.map((req) => (
-                  <div key={req.id} className="bg-white p-3.5 rounded-2xl border border-amber-200 space-y-1 text-xs">
-                    <p className="font-bold text-slate-900">{req.destination} ({req.guests} Guests)</p>
-                    <p className="text-[#234E40] font-semibold">Target: {req.targetProvider}</p>
+        {/* 2. TRAVEL AGENCY & TOUR COMPANY DASHBOARD */}
+        {activeTab === 'jobs' && (currentRole === 'agency' || currentRole === 'tour_company') && (
+          <div className="space-y-4">
+            {/* Incoming Traveler Requests for Travel Agencies or Tour Companies */}
+            {matchingTravelerRequests.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="font-bold text-sm text-slate-900">🧳 Direct Traveler Requests ({matchingTravelerRequests.length})</h3>
+                {matchingTravelerRequests.map((req) => (
+                  <div key={req.id} className="bg-white p-4 rounded-2xl border-2 border-amber-300 space-y-2 text-xs">
+                    <div className="flex justify-between font-bold">
+                      <span>{req.destination} ({req.guests} Guests)</span>
+                      <span className={req.status === 'confirmed' ? 'text-emerald-700' : 'text-amber-700'}>
+                        {req.status === 'confirmed' ? '✓ Confirmed' : '⏳ Pending'}
+                      </span>
+                    </div>
                     <p className="text-slate-600">Traveler: {req.travelerName} ({req.travelerContact}) • {req.dates}</p>
                     {req.notes && <p className="text-slate-500 italic">"{req.notes}"</p>}
+                    {req.status !== 'confirmed' && (
+                      <button
+                        onClick={() => handleConfirmTravelerRequest(req.id)}
+                        className="w-full py-2 bg-[#234E40] text-white rounded-xl font-bold"
+                      >
+                        ✓ Confirm Traveler Booking
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
             )}
-          </div>
-        )}
 
-        {/* 2. TRAVEL AGENCY DASHBOARD */}
-        {activeTab === 'jobs' && currentRole === 'agency' && (
-          <div className="space-y-4">
             <form onSubmit={handlePostNewTask} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3 shadow-sm">
-              <h3 className="font-bold text-sm text-slate-900">📢 Post New Guiding Assignment</h3>
+              <h3 className="font-bold text-sm text-slate-900">
+                {currentRole === 'tour_company' ? '🚐 Post Safari / Tour Guide Assignment' : '📢 Post Travel Agency Guiding Task'}
+              </h3>
               <input
                 type="text"
                 required
-                placeholder="Tour Title (e.g. Akagera 2-Day Safari Guide)"
+                placeholder={currentRole === 'tour_company' ? 'e.g. 3-Day Akagera 4x4 Safari Escort' : 'e.g. Kigali Airport Transfer & City Tour'}
                 value={newTaskForm.title}
                 onChange={(e) => setNewTaskForm({ ...newTaskForm, title: e.target.value })}
                 className="w-full p-2.5 border rounded-xl text-xs"
@@ -1062,12 +1180,12 @@ export default function GuideLinkRwandaApp() {
                 className="w-full p-2.5 border rounded-xl text-xs"
               />
               <button type="submit" className="w-full py-2.5 bg-[#234E40] text-white rounded-xl font-bold text-xs shadow">
-                + Publish Task to Certified Guides
+                + Publish Assignment to Certified Graduates
               </button>
             </form>
 
             <div className="space-y-2">
-              <h4 className="font-bold text-xs uppercase text-slate-500">📋 Your Active Agency Tasks</h4>
+              <h4 className="font-bold text-xs uppercase text-slate-500">📋 Active Posted Assignments</h4>
               {tasks.map((t) => (
                 <div key={t.id} className="bg-white p-3.5 rounded-2xl border text-xs space-y-1">
                   <div className="flex justify-between font-bold">
@@ -1081,34 +1199,60 @@ export default function GuideLinkRwandaApp() {
           </div>
         )}
 
-        {/* 3. TRAVELER DASHBOARD (LIVE GUIDES, CONSULTANTS & TOUR COMPANIES AVAILABILITY) */}
+        {/* 3. TRAVELER DASHBOARD (CHOOSE BETWEEN GRADUATES, TRAVEL AGENCIES OR TOUR COMPANIES) */}
         {activeTab === 'jobs' && currentRole === 'traveler' && (
           <div className="space-y-4">
             <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-4 rounded-2xl shadow-sm space-y-1">
               <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Free Traveler Account</span>
-              <h3 className="font-bold text-base pt-1">Available Guides, Consultants & Tour Companies</h3>
-              <p className="text-xs text-emerald-100">Check live availability and book certified guides or licensed tour operators across Rwanda.</p>
+              <h3 className="font-bold text-base pt-1">Choose Your Travel Partner in Rwanda</h3>
+              <p className="text-xs text-emerald-100">Browse live availability and choose between <strong>Tourism Graduates</strong>, <strong>Travel Agencies</strong>, or <strong>Tour Companies</strong>.</p>
             </div>
 
-            {/* Directory Category Filter Buttons */}
-            <div className="grid grid-cols-3 gap-1.5 bg-white p-1.5 rounded-2xl border border-slate-200 text-xs font-bold">
+            {/* Traveler's Active Requests & Graduate Confirmations */}
+            {tripRequests.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="font-bold text-xs uppercase text-slate-500">📌 Your Booking Requests & Status</h4>
+                {tripRequests.map((req) => (
+                  <div key={req.id} className="bg-white p-3.5 rounded-2xl border border-slate-200 text-xs space-y-1 shadow-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-slate-900">{req.destination}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        req.status === 'confirmed' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {req.status === 'confirmed' ? `✓ Confirmed by ${req.confirmedBy}` : '⏳ Awaiting Confirmation'}
+                      </span>
+                    </div>
+                    <p className="text-slate-500">Requested: <strong>{req.targetProvider}</strong> • {req.dates}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 4-Way Category Selector Tabs */}
+            <div className="grid grid-cols-4 gap-1 bg-white p-1.5 rounded-2xl border border-slate-200 text-[10px] font-bold text-center">
               <button
                 onClick={() => setDirectoryFilter('all')}
-                className={`py-2 rounded-xl transition ${directoryFilter === 'all' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}
+                className={`py-2 px-1 rounded-xl transition ${directoryFilter === 'all' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}
               >
                 All ({providerDirectory.length})
               </button>
               <button
-                onClick={() => setDirectoryFilter('guides')}
-                className={`py-2 rounded-xl transition ${directoryFilter === 'guides' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}
+                onClick={() => setDirectoryFilter('graduate')}
+                className={`py-2 px-1 rounded-xl transition ${directoryFilter === 'graduate' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}
               >
-                🎓 Guides & Consultants
+                🎓 Graduates
               </button>
               <button
-                onClick={() => setDirectoryFilter('agencies')}
-                className={`py-2 rounded-xl transition ${directoryFilter === 'agencies' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}
+                onClick={() => setDirectoryFilter('agency')}
+                className={`py-2 px-1 rounded-xl transition ${directoryFilter === 'agency' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}
               >
-                🏢 Agencies & Tours
+                🏢 Agencies
+              </button>
+              <button
+                onClick={() => setDirectoryFilter('tour_company')}
+                className={`py-2 px-1 rounded-xl transition ${directoryFilter === 'tour_company' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}
+              >
+                🚐 Tour Co.
               </button>
             </div>
 
@@ -1122,7 +1266,7 @@ export default function GuideLinkRwandaApp() {
                         <img src={prov.photo} alt={prov.name} className="w-10 h-10 rounded-full object-cover border" />
                       ) : (
                         <div className="w-10 h-10 rounded-full bg-emerald-100 text-[#234E40] flex items-center justify-center font-bold text-sm">
-                          {prov.type === 'guide' ? '🎓' : '🏢'}
+                          {prov.type === 'graduate' ? '🎓' : prov.type === 'agency' ? '🏢' : '🚐'}
                         </div>
                       )}
                       <div>
@@ -1133,7 +1277,7 @@ export default function GuideLinkRwandaApp() {
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
                       prov.isAvailable ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
                     }`}>
-                      {prov.isAvailable ? '🟢 Available Now' : '🟡 Busy'}
+                      {prov.isAvailable ? '🟢 Available' : '🟡 Busy'}
                     </span>
                   </div>
 
@@ -1150,15 +1294,29 @@ export default function GuideLinkRwandaApp() {
                     onClick={() => setBookingTarget(prov)}
                     className="w-full py-2.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold text-xs transition shadow-sm"
                   >
-                    Book / Check Dates with {prov.name} →
+                    Book {prov.name} →
                   </button>
                 </div>
               ))}
             </div>
 
-            {/* General Custom Trip Request Form */}
+            {/* Custom Trip Request Form with Explicit Choice of Provider Type */}
             <form onSubmit={handleCreateTripRequest} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3 shadow-sm">
-              <h4 className="font-bold text-sm text-slate-900">🗺️ Post Open Custom Trip Request (Free)</h4>
+              <h4 className="font-bold text-sm text-slate-900">🗺️ Request Custom Trip (Choose Partner Type)</h4>
+              
+              <div>
+                <label className="text-[11px] font-bold text-slate-600">Who would you like to hire?</label>
+                <select
+                  value={tripRequestForm.preferredCategory}
+                  onChange={(e) => setTripRequestForm({ ...tripRequestForm, preferredCategory: e.target.value })}
+                  className="w-full mt-1 p-2.5 border rounded-xl text-xs bg-white font-semibold text-[#234E40]"
+                >
+                  <option value="graduate">🎓 Tourism Graduate (Freelance Guide / Consultant)</option>
+                  <option value="agency">🏢 Travel Agency (Bookings & Itineraries)</option>
+                  <option value="tour_company">🚐 Tour Company (Full Safari Fleet & Packages)</option>
+                </select>
+              </div>
+
               <div>
                 <label className="text-[11px] font-bold text-slate-600">Destination / Park</label>
                 <select
@@ -1172,6 +1330,7 @@ export default function GuideLinkRwandaApp() {
                   <option>Kigali City & Cultural Heritage Tour</option>
                 </select>
               </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <input
                   type="text"
@@ -1197,13 +1356,13 @@ export default function GuideLinkRwandaApp() {
                 className="w-full p-2.5 border rounded-xl text-xs"
               />
               <button type="submit" className="w-full py-2.5 bg-slate-900 text-white rounded-xl font-bold text-xs shadow">
-                Broadcast Request to All Guides & Agencies →
+                Send Request to Available {getRoleDisplayLabel(tripRequestForm.preferredCategory)}s →
               </button>
             </form>
           </div>
         )}
 
-        {/* PROFILE & CV TAB (SHARED ACROSS USER ROLES) */}
+        {/* PROFILE & CV TAB (SHARED ACROSS ALL USER ROLES) */}
         {activeTab === 'profile' && currentProf && (
           <div className="space-y-4">
             <div className="bg-white p-5 rounded-2xl border space-y-4 shadow-sm">
@@ -1355,7 +1514,7 @@ export default function GuideLinkRwandaApp() {
       <div className="bg-white border-t py-2.5 px-10 flex justify-around items-center text-xs font-bold text-slate-500 absolute bottom-0 w-full max-w-md z-20">
         <button onClick={() => setActiveTab('jobs')} className={`flex flex-col items-center ${activeTab === 'jobs' ? 'text-[#234E40]' : ''}`}>
           <span className="text-base">🏠</span>
-          <span>{currentRole === 'traveler' ? 'Guides & Tours' : 'Workspace'}</span>
+          <span>{currentRole === 'traveler' ? 'Explore & Book' : 'Workspace'}</span>
         </button>
         <button onClick={() => setActiveTab('profile')} className={`flex flex-col items-center ${activeTab === 'profile' ? 'text-[#234E40]' : ''}`}>
           <span className="text-base">👤</span>
