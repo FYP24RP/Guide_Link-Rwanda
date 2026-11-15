@@ -1,4 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase Client
+const SUPABASE_URL = 'https://gwwkdhgpfaandekxjsjy.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_w3I2_S57PjMC6NQlYYGWXw_mlP06djP';
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export default function GuideLinkRwandaApp() {
   const [currentRole, setCurrentRole] = useState('welcome'); // 'welcome' | 'signin' | 'signup' | 'owner' | 'graduate' | 'agency' | 'tour_company' | 'traveler'
@@ -15,9 +21,9 @@ export default function GuideLinkRwandaApp() {
 
   const MOMO_PAYMENT_CODE = '612771';
 
-  // Persistent Owner Profile (Updated with +250780558555, rutungurab5@gmail.com, and C.E.O title)
+  // Persistent Owner Profile (C.E.O RUTUNGURA Bonheur)
   const [ownerProfile, setOwnerProfile] = useState(() => {
-    const saved = localStorage.getItem('gl_owner_profile_v2');
+    const saved = localStorage.getItem('gl_owner_profile_v3');
     return saved
       ? JSON.parse(saved)
       : {
@@ -32,7 +38,7 @@ export default function GuideLinkRwandaApp() {
 
   // 3-Tier VIP System Configuration
   const [exemptAccounts, setExemptAccounts] = useState(() => {
-    const saved = localStorage.getItem('gl_exempt_users_v2');
+    const saved = localStorage.getItem('gl_exempt_users_v3');
     return saved
       ? JSON.parse(saved)
       : [
@@ -63,11 +69,11 @@ export default function GuideLinkRwandaApp() {
 
   const [activeUser, setActiveUser] = useState(null);
 
-  // Separate Sign-In Form State (With Password Security)
+  // Sign-In Form State (Password Protected)
   const [signInContact, setSignInContact] = useState('');
   const [signInPassword, setSignInPassword] = useState('');
 
-  // Separate Sign-Up Form State (With Password Creation)
+  // Sign-Up Form State (Password Creation)
   const [regStep, setRegStep] = useState('details');
   const [regForm, setRegForm] = useState({
     name: '',
@@ -78,13 +84,13 @@ export default function GuideLinkRwandaApp() {
     momoRef: ''
   });
 
-  // Partner Credentials, Services & Experience Inputs (Graduates, Agencies, Tour Companies)
+  // Partner Workspace Inputs (Qualifications, Services, Experience)
   const [newDegreeInput, setNewDegreeInput] = useState('');
   const [newServiceInput, setNewServiceInput] = useState('');
   const [newExperienceInput, setNewExperienceInput] = useState('');
   const [newSkillInput, setNewSkillInput] = useState('');
 
-  // Agency / Tour Company Task Posting Form
+  // Task Posting Form
   const [newTaskForm, setNewTaskForm] = useState({
     title: '',
     date: '',
@@ -143,8 +149,8 @@ export default function GuideLinkRwandaApp() {
         ];
   });
 
-  useEffect(() => { localStorage.setItem('gl_owner_profile_v2', JSON.stringify(ownerProfile)); }, [ownerProfile]);
-  useEffect(() => { localStorage.setItem('gl_exempt_users_v2', JSON.stringify(exemptAccounts)); }, [exemptAccounts]);
+  useEffect(() => { localStorage.setItem('gl_owner_profile_v3', JSON.stringify(ownerProfile)); }, [ownerProfile]);
+  useEffect(() => { localStorage.setItem('gl_exempt_users_v3', JSON.stringify(exemptAccounts)); }, [exemptAccounts]);
   useEffect(() => { localStorage.setItem('gl_registered_users', JSON.stringify(registeredUsers)); }, [registeredUsers]);
   useEffect(() => { localStorage.setItem('gl_user_profiles', JSON.stringify(userProfiles)); }, [userProfiles]);
   useEffect(() => { localStorage.setItem('gl_platform_settings', JSON.stringify(platformSettings)); }, [platformSettings]);
@@ -207,13 +213,13 @@ export default function GuideLinkRwandaApp() {
     setIsSaving(true);
     setTimeout(() => {
       if (!activeUser) {
-        localStorage.setItem('gl_owner_profile_v2', JSON.stringify(profileData));
+        localStorage.setItem('gl_owner_profile_v3', JSON.stringify(profileData));
       } else {
         const key = normalizeContact(activeUser.contact || activeUser.name);
         setUserProfiles({ ...userProfiles, [key]: profileData });
       }
       setIsSaving(false);
-      alert('✓ Profile & photo successfully saved!');
+      alert('✓ Profile & updates successfully saved!');
     }, 300);
   };
 
@@ -244,16 +250,15 @@ export default function GuideLinkRwandaApp() {
     );
   };
 
-  // 1. DEDICATED SIGN-IN HANDLER (Requires Registered Contact + User Password)
+  // Sign In Handler
   const handleSignInSubmit = (e) => {
     e.preventDefault();
     const cleanInput = normalizeContact(signInContact);
     if (!cleanInput || !signInPassword) {
-      alert('Please enter your registered Phone/Email and your Password.');
+      alert('Please enter your Phone/Email and Password.');
       return;
     }
 
-    // Check Owner or VIP Tiers
     const exemptMatch = checkExemptUser(signInContact);
     if (exemptMatch) {
       if (exemptMatch.id === 'owner') {
@@ -265,14 +270,6 @@ export default function GuideLinkRwandaApp() {
           return;
         }
         setShowOwnerPinModal(true);
-        return;
-      }
-      // VIP Partner login (uses their created password if set, or VIP access)
-      const vipUserRecord = registeredUsers.find(
-        (u) => normalizeContact(u.contact) === cleanInput
-      );
-      if (vipUserRecord && vipUserRecord.password && vipUserRecord.password !== signInPassword) {
-        alert('Incorrect password. Please try again.');
         return;
       }
       setActiveUser({
@@ -287,24 +284,22 @@ export default function GuideLinkRwandaApp() {
       return;
     }
 
-    // Check Registered Users
     const existingUser = registeredUsers.find(
       (u) => normalizeContact(u.contact) === cleanInput
     );
 
     if (!existingUser) {
-      alert('Account not found. Please click "Create Account (New Sign Up)" if you are a new user.');
+      alert('Account not found. Please click "Create Account (Sign Up)".');
       return;
     }
 
-    // Verify User Password
     if (existingUser.password && existingUser.password !== signInPassword) {
-      alert('Access Denied: Incorrect password for this account.');
+      alert('Access Denied: Incorrect password.');
       return;
     }
 
     if (existingUser.status !== 'approved') {
-      alert('⏳ Your account payment is still pending C.E.O approval. Please check back shortly.');
+      alert('⏳ Your account payment is pending C.E.O approval.');
       return;
     }
 
@@ -313,7 +308,7 @@ export default function GuideLinkRwandaApp() {
     setActiveTab('jobs');
   };
 
-  // 2. DEDICATED SIGN-UP HANDLER (Creates Secure Password for New Account)
+  // Sign Up Handler
   const handleSignUpSubmit = (e) => {
     e.preventDefault();
     if (!regForm.name.trim() || !regForm.contact.trim() || !regForm.password.trim()) {
@@ -322,32 +317,29 @@ export default function GuideLinkRwandaApp() {
     }
 
     if (regForm.password.length < 4) {
-      alert('Please choose a password with at least 4 characters.');
+      alert('Password must be at least 4 characters long.');
       return;
     }
 
     if (regForm.password !== regForm.confirmPassword) {
-      alert('Passwords do not match. Please re-enter carefully.');
+      alert('Passwords do not match.');
       return;
     }
 
     const cleanInput = normalizeContact(regForm.contact);
-
-    // Prevent duplicate sign-ups
     const existingUser = registeredUsers.find(
       (u) => normalizeContact(u.contact) === cleanInput
     );
     const exemptMatch = checkExemptUser(regForm.contact);
 
     if (existingUser || exemptMatch) {
-      alert('This phone number or email is already registered! Please use "Sign In" instead.');
+      alert('This contact is already registered! Please use "Sign In".');
       setSignInContact(regForm.contact);
       setSignInPassword('');
       setCurrentRole('signin');
       return;
     }
 
-    // Travelers sign up 100% FREE immediately with their secure password
     if (regForm.role === 'traveler') {
       const freeTraveler = {
         id: Date.now(),
@@ -368,7 +360,6 @@ export default function GuideLinkRwandaApp() {
       return;
     }
 
-    // Graduates, Travel Agencies & Tour Companies proceed to 500 RWF MoMo Code payment
     setRegStep('pay_500');
   };
 
@@ -420,14 +411,13 @@ export default function GuideLinkRwandaApp() {
     );
   };
 
-  // Graduate Actions
   const handleAcceptTask = (taskId) => {
     setTasks(
       tasks.map((t) =>
         t.id === taskId ? { ...t, status: 'accepted', assignedTo: activeUser?.name || 'Graduate' } : t
       )
     );
-    alert('✓ Gig accepted! Complete the assignment to settle via MoMo.');
+    alert('✓ Gig accepted!');
   };
 
   const handleCompleteTask = (taskId) => {
@@ -446,10 +436,9 @@ export default function GuideLinkRwandaApp() {
         return t;
       })
     );
-    alert(`✓ Task completed! ${platformSettings.commissionRatePercent}% commission routed to MoMo Code ${MOMO_PAYMENT_CODE}.`);
+    alert(`✓ Task completed! Commission routed to MoMo Code ${MOMO_PAYMENT_CODE}.`);
   };
 
-  // Graduate / Agency / Tour Company Confirm Traveler Request
   const handleConfirmTravelerRequest = (reqId) => {
     const responderName = activeUser?.name || 'Verified Provider';
     const responderRoleLabel = getRoleDisplayLabel(currentRole);
@@ -464,15 +453,14 @@ export default function GuideLinkRwandaApp() {
           : req
       )
     );
-    alert(`✓ Traveler booking request confirmed by ${responderName}!`);
+    alert(`✓ Traveler request confirmed by ${responderName}!`);
   };
 
-  // Agency / Tour Company Action: Post New Task
   const handlePostNewTask = (e) => {
     e.preventDefault();
     const numericPay = Number(newTaskForm.rawPay);
     if (!newTaskForm.title.trim() || !numericPay) {
-      alert('Please enter a valid task title and RWF amount.');
+      alert('Please enter a valid title and amount.');
       return;
     }
     const created = {
@@ -489,10 +477,9 @@ export default function GuideLinkRwandaApp() {
     };
     setTasks([created, ...tasks]);
     setNewTaskForm({ title: '', date: '', rawPay: '', location: 'Kigali' });
-    alert('✓ Guiding assignment published to Graduate Board!');
+    alert('✓ Assignment published to Graduate Board!');
   };
 
-  // Traveler Action: Post Custom Trip Request
   const handleCreateTripRequest = (e) => {
     e.preventDefault();
     const categoryLabel = getRoleDisplayLabel(tripRequestForm.preferredCategory);
@@ -517,10 +504,9 @@ export default function GuideLinkRwandaApp() {
       guests: '2',
       notes: ''
     });
-    alert(`✓ Request sent! Available ${categoryLabel}s can now confirm your booking.`);
+    alert(`✓ Request broadcasted to available ${categoryLabel}s!`);
   };
 
-  // Traveler Direct Provider Booking Handler
   const handleDirectProviderBooking = (e) => {
     e.preventDefault();
     if (!bookingTarget) return;
@@ -531,7 +517,7 @@ export default function GuideLinkRwandaApp() {
       preferredCategory: bookingTarget.type,
       targetProvider: `${bookingTarget.name} (${bookingTarget.categoryLabel})`,
       destination: bookingTarget.location,
-      dates: bookingDetails.dates || 'Requested Immediate Dates',
+      dates: bookingDetails.dates || 'Requested Dates',
       guests: bookingDetails.guests,
       notes: bookingDetails.notes,
       status: 'pending_confirmation',
@@ -540,10 +526,9 @@ export default function GuideLinkRwandaApp() {
     setTripRequests([newBooking, ...tripRequests]);
     setBookingTarget(null);
     setBookingDetails({ dates: '', guests: '2', notes: '' });
-    alert(`✓ Direct booking request sent to ${newBooking.targetProvider}! Awaiting confirmation.`);
+    alert(`✓ Booking request sent to ${newBooking.targetProvider}!`);
   };
 
-  // Build Live Directory including Partner Qualifications, Services & Experience
   const buildLiveProviderDirectory = () => {
     const defaultProviders = [
       {
@@ -558,34 +543,6 @@ export default function GuideLinkRwandaApp() {
         qualifications: ['Advanced Diploma in Tours & Travel (RP Kitabi)'],
         services: ['Gorilla Trekking Escort', 'Kigali Cultural Walks', 'Birding Tours'],
         experience: ['4+ Years Safari Guiding in Northern Province'],
-        isAvailable: true
-      },
-      {
-        id: 'prov-g2',
-        type: 'graduate',
-        categoryLabel: 'Tourism Graduate & Consultant',
-        name: 'Claudine Mukamana',
-        headline: 'Itinerary Planner, Airline Ticketing & Nyungwe Specialist',
-        location: 'Rusizi & Nyungwe Forest',
-        languages: 'English, Swahili, Kinyarwanda',
-        rate: 'RWF 35,000 / day',
-        qualifications: ['Diploma in Travel Management', 'Galileo & Sabre GDS Certified'],
-        services: ['Custom Itinerary Design', 'Airline Reservation & Ticketing', 'Canopy Walk Guiding'],
-        experience: ['3 Years Travel Desk & Eco-Tourism Consulting'],
-        isAvailable: true
-      },
-      {
-        id: 'prov-a1',
-        type: 'agency',
-        categoryLabel: 'Travel Agency',
-        name: 'Amahoro Heritage Travel Agency',
-        headline: 'Flight Ticketing, Hotel Reservations & Kigali City Excursions',
-        location: 'Kigali City',
-        languages: 'IATA / RDB Licensed Agency',
-        rate: 'Custom Packages',
-        qualifications: ['RDB Licensed Travel Agency'],
-        services: ['International Flight Bookings', 'Hotel & Lodge Reservations', 'Airport Transfers'],
-        experience: ['8 Years Corporate & Leisure Travel Management'],
         isAvailable: true
       },
       {
@@ -653,7 +610,7 @@ export default function GuideLinkRwandaApp() {
     return [...dynamicProviders, ...defaultProviders];
   };
 
-  // ---------------- WELCOME VIEW (SEPARATED SIGN IN & SIGN UP) ----------------
+  // Welcome View
   if (currentRole === 'welcome') {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl overflow-hidden border border-slate-200">
@@ -675,11 +632,10 @@ export default function GuideLinkRwandaApp() {
                 Connecting Tourism Graduates, Travel Agencies, Tour Companies, and Travelers across Rwanda.
               </p>
               <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-1.5">
-                Developed & Copyright © 2026 {ownerProfile.name} (C.E.O)
+                C.E.O: {ownerProfile.name} ({ownerProfile.contact})
               </p>
             </div>
 
-            {/* SEPARATED SIGN IN & SIGN UP CARDS */}
             <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-xs font-bold text-[#234E40] uppercase tracking-wider">Member Access</span>
@@ -688,7 +644,6 @@ export default function GuideLinkRwandaApp() {
                 </span>
               </div>
 
-              {/* 1. EXISTING USER SIGN IN BUTTON */}
               <button
                 onClick={() => {
                   setSignInContact('');
@@ -701,7 +656,6 @@ export default function GuideLinkRwandaApp() {
                 <span>Sign In (Registered Members) →</span>
               </button>
 
-              {/* 2. NEW USER SIGN UP BUTTON */}
               <button
                 onClick={() => {
                   setRegForm({ name: '', contact: '', password: '', confirmPassword: '', role: 'traveler', momoRef: '' });
@@ -724,7 +678,7 @@ export default function GuideLinkRwandaApp() {
                 className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs shadow-sm transition flex items-center justify-center space-x-2"
               >
                 <span>👑</span>
-                <span>C.E.O / Owner Login ({ownerProfile.name})</span>
+                <span>C.E.O Login ({ownerProfile.name})</span>
               </button>
             </div>
           </div>
@@ -774,16 +728,13 @@ export default function GuideLinkRwandaApp() {
     );
   }
 
-  // ---------------- DEDICATED SIGN-IN VIEW (PASSWORD PROTECTED) ----------------
+  // Sign In View
   if (currentRole === 'signin') {
     return (
       <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl border border-slate-200">
         <div className="bg-white px-6 py-4 border-b border-slate-200 flex justify-between items-center">
           <h2 className="font-bold text-slate-900">Secure Member Sign In</h2>
-          <button
-            onClick={resetToWelcome}
-            className="text-xs bg-slate-100 px-3 py-1.5 rounded-full font-semibold text-slate-600"
-          >
+          <button onClick={resetToWelcome} className="text-xs bg-slate-100 px-3 py-1.5 rounded-full font-semibold text-slate-600">
             ← Home
           </button>
         </div>
@@ -793,9 +744,7 @@ export default function GuideLinkRwandaApp() {
             <div>
               <span className="text-[11px] font-bold uppercase text-[#3B6E5B]">Password Protected</span>
               <h3 className="text-lg font-bold text-slate-900">Sign In to Your Dashboard</h3>
-              <p className="text-xs text-slate-500 mt-1">
-                Enter your registered Phone Number or Email and your personal Password.
-              </p>
+              <p className="text-xs text-slate-500 mt-1">Enter your registered Phone or Email and your password.</p>
             </div>
 
             <div>
@@ -804,7 +753,7 @@ export default function GuideLinkRwandaApp() {
                 type="text"
                 required
                 autoFocus
-                placeholder="e.g. +250780558555 or email"
+                placeholder="e.g. +250780558555"
                 value={signInContact}
                 onChange={(e) => setSignInContact(e.target.value)}
                 className="w-full mt-1 p-3 border border-slate-300 rounded-xl text-sm"
@@ -812,35 +761,25 @@ export default function GuideLinkRwandaApp() {
             </div>
 
             <div>
-              <label className="text-xs font-bold text-slate-700">Account Password</label>
+              <label className="text-xs font-bold text-slate-700">Password</label>
               <input
                 type="password"
                 required
-                placeholder="Enter your password"
+                placeholder="Enter password"
                 value={signInPassword}
                 onChange={(e) => setSignInPassword(e.target.value)}
                 className="w-full mt-1 p-3 border border-slate-300 rounded-xl text-sm"
               />
             </div>
 
-            <button
-              type="submit"
-              className="w-full py-3.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow transition"
-            >
+            <button type="submit" className="w-full py-3.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow transition">
               Unlock Dashboard →
             </button>
 
             <div className="pt-2 border-t text-center">
               <p className="text-xs text-slate-500">
-                New to GuideLink Rwanda?{' '}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRegStep('details');
-                    setCurrentRole('signup');
-                  }}
-                  className="text-[#234E40] font-bold underline"
-                >
+                New user?{' '}
+                <button type="button" onClick={() => { setRegStep('details'); setCurrentRole('signup'); }} className="text-[#234E40] font-bold underline">
                   Create Account (Sign Up)
                 </button>
               </p>
@@ -851,16 +790,13 @@ export default function GuideLinkRwandaApp() {
     );
   }
 
-  // ---------------- DEDICATED SIGN-UP VIEW (CREATES USER PASSWORD) ----------------
+  // Sign Up View
   if (currentRole === 'signup') {
     return (
       <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl border border-slate-200">
         <div className="bg-white px-6 py-4 border-b border-slate-200 flex justify-between items-center">
           <h2 className="font-bold text-slate-900">Create New Account</h2>
-          <button
-            onClick={resetToWelcome}
-            className="text-xs bg-slate-100 px-3 py-1.5 rounded-full font-semibold text-slate-600"
-          >
+          <button onClick={resetToWelcome} className="text-xs bg-slate-100 px-3 py-1.5 rounded-full font-semibold text-slate-600">
             ← Home
           </button>
         </div>
@@ -872,7 +808,7 @@ export default function GuideLinkRwandaApp() {
                 <span className="text-[11px] font-bold uppercase text-[#3B6E5B]">New Registration</span>
                 <h3 className="text-lg font-bold text-slate-900">Join GuideLink Rwanda</h3>
                 <p className="text-xs text-slate-500 mt-1">
-                  <strong>Travelers</strong> register <strong>100% Free</strong>. Tourism Graduates, Travel Agencies, and Tour Companies pay 500 RWF via MoMo Code <strong>{MOMO_PAYMENT_CODE}</strong>.
+                  Travelers are <strong>FREE</strong>. Partners register via MoMo Code <strong>{MOMO_PAYMENT_CODE}</strong> (500 RWF).
                 </p>
               </div>
               <div>
@@ -880,7 +816,7 @@ export default function GuideLinkRwandaApp() {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Alice Uwase / Virunga Safaris"
+                  placeholder="e.g. Alice Uwase"
                   value={regForm.name}
                   onChange={(e) => setRegForm({ ...regForm, name: e.target.value })}
                   className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-sm"
@@ -922,7 +858,7 @@ export default function GuideLinkRwandaApp() {
                 </div>
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-700">Select Account Category</label>
+                <label className="text-xs font-bold text-slate-700">Select Account Role</label>
                 <select
                   value={regForm.role}
                   onChange={(e) => setRegForm({ ...regForm, role: e.target.value })}
@@ -934,25 +870,9 @@ export default function GuideLinkRwandaApp() {
                   <option value="tour_company">🚐 Tour Company (Safari Operator)</option>
                 </select>
               </div>
-              <button
-                type="submit"
-                className="w-full py-3 bg-[#3B6E5B] text-white rounded-xl font-bold text-sm shadow"
-              >
+              <button type="submit" className="w-full py-3 bg-[#3B6E5B] text-white rounded-xl font-bold text-sm shadow">
                 {regForm.role === 'traveler' ? 'Complete Free Sign Up →' : 'Proceed to MoMo Verification →'}
               </button>
-
-              <div className="pt-2 border-t text-center">
-                <p className="text-xs text-slate-500">
-                  Already have an account?{' '}
-                  <button
-                    type="button"
-                    onClick={() => setCurrentRole('signin')}
-                    className="text-[#234E40] font-bold underline"
-                  >
-                    Sign In Here
-                  </button>
-                </p>
-              </div>
             </form>
           )}
 
@@ -974,10 +894,7 @@ export default function GuideLinkRwandaApp() {
                   className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-xs"
                 />
               </div>
-              <button
-                onClick={handleComplete500Payment}
-                className="w-full py-3 bg-[#234E40] text-white rounded-xl font-bold text-sm shadow"
-              >
+              <button onClick={handleComplete500Payment} className="w-full py-3 bg-[#234E40] text-white rounded-xl font-bold text-sm shadow">
                 Submit Payment & Notify C.E.O
               </button>
             </div>
@@ -987,12 +904,9 @@ export default function GuideLinkRwandaApp() {
             <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center space-y-4 shadow-sm">
               <h3 className="text-lg font-bold text-slate-900">Payment Pending C.E.O Approval</h3>
               <p className="text-xs text-slate-600">
-                Your payment to MoMo Code <strong>{MOMO_PAYMENT_CODE}</strong> has been logged. Once confirmed, use <strong>Sign In</strong> with your password.
+                Payment logged for MoMo Code <strong>{MOMO_PAYMENT_CODE}</strong>. Once confirmed by C.E.O RUTUNGURA Bonheur, sign in with your password.
               </p>
-              <button
-                onClick={resetToWelcome}
-                className="w-full py-2.5 bg-[#3B6E5B] text-white rounded-xl font-bold text-xs"
-              >
+              <button onClick={resetToWelcome} className="w-full py-2.5 bg-[#3B6E5B] text-white rounded-xl font-bold text-xs">
                 Return to Home Screen
               </button>
             </div>
@@ -1002,7 +916,7 @@ export default function GuideLinkRwandaApp() {
     );
   }
 
-  // ---------------- OWNER HQ VIEW ----------------
+  // C.E.O Owner HQ View
   if (currentRole === 'owner') {
     const totalRegFees = registeredUsers.reduce((sum, u) => sum + (u.feePaid || 0), 0);
     const totalDealCommissions = tasks
@@ -1028,7 +942,7 @@ export default function GuideLinkRwandaApp() {
           <button onClick={resetToWelcome} className="text-xs bg-emerald-900 px-3 py-1.5 rounded-full font-semibold">Log Out</button>
         </div>
 
-        {/* 5 OWNER ICONIC TABS */}
+        {/* 5 Owner Iconic Tabs */}
         <div className="bg-white border-b border-slate-200 px-2 py-2.5 grid grid-cols-5 gap-1 text-center sticky top-[76px] z-20 shadow-sm">
           <button onClick={() => setOwnerTab('pending')} className={`p-1.5 rounded-xl flex flex-col items-center relative ${ownerTab === 'pending' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
             <span className="text-base">⏳</span><span className="text-[9px]">Sign-Ups</span>
@@ -1076,17 +990,6 @@ export default function GuideLinkRwandaApp() {
                   MoMo Code: {MOMO_PAYMENT_CODE} • Sign-Ups: RWF {totalRegFees.toLocaleString()} • Commissions: RWF {totalDealCommissions.toLocaleString()}
                 </p>
               </div>
-              <div className="bg-white p-4 rounded-2xl border space-y-2 text-xs">
-                <label className="font-bold text-slate-700">Platform Commission Rate (%)</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="50"
-                  value={platformSettings.commissionRatePercent}
-                  onChange={(e) => setPlatformSettings({ ...platformSettings, commissionRatePercent: Number(e.target.value) })}
-                  className="w-full p-2 border rounded-xl font-bold"
-                />
-              </div>
             </div>
           )}
 
@@ -1128,11 +1031,11 @@ export default function GuideLinkRwandaApp() {
 
           {ownerTab === 'deals' && (
             <div className="bg-white p-4 rounded-2xl border space-y-2.5 text-xs font-bold">
-              <h3 className="font-bold text-sm text-slate-900">🎛️ Preview All 4 User Dashboards</h3>
+              <h3 className="font-bold text-sm text-slate-900">🎛️ Preview Dashboards</h3>
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'graduate' }); setCurrentRole('graduate'); setActiveTab('jobs'); }} className="p-3 bg-emerald-50 text-[#234E40] border rounded-xl">🎓 Graduate</button>
-                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'agency' }); setCurrentRole('agency'); setActiveTab('jobs'); }} className="p-3 bg-emerald-50 text-[#234E40] border rounded-xl">🏢 Travel Agency</button>
-                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'tour_company' }); setCurrentRole('tour_company'); setActiveTab('jobs'); }} className="p-3 bg-emerald-50 text-[#234E40] border rounded-xl">🚐 Tour Company</button>
+                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'agency' }); setCurrentRole('agency'); setActiveTab('jobs'); }} className="p-3 bg-emerald-50 text-[#234E40] border rounded-xl">🏢 Agency</button>
+                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'tour_company' }); setCurrentRole('tour_company'); setActiveTab('jobs'); }} className="p-3 bg-emerald-50 text-[#234E40] border rounded-xl">🚐 Tour Co.</button>
                 <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'traveler' }); setCurrentRole('traveler'); setActiveTab('jobs'); }} className="p-3 bg-emerald-50 text-[#234E40] border rounded-xl">🧳 Traveler</button>
               </div>
             </div>
@@ -1140,7 +1043,7 @@ export default function GuideLinkRwandaApp() {
 
           {ownerTab === 'owner_profile' && (
             <div className="bg-white p-5 rounded-2xl border space-y-4">
-              <h3 className="font-bold text-base text-slate-900">👑 C.E.O & Owner Profile</h3>
+              <h3 className="font-bold text-base text-slate-900">👑 C.E.O Profile & Photo</h3>
               <div className="flex flex-col items-center space-y-2">
                 {ownerProfile.photo ? (
                   <img src={ownerProfile.photo} alt="C.E.O" className="w-28 h-28 rounded-full object-cover border-4 border-[#3B6E5B] shadow-md" />
@@ -1148,7 +1051,7 @@ export default function GuideLinkRwandaApp() {
                   <div className="w-28 h-28 rounded-full bg-slate-200 flex items-center justify-center text-3xl">👑</div>
                 )}
                 <label className="cursor-pointer bg-[#234E40] text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-slate-800 transition">
-                  📷 Select & Upload C.E.O Photo
+                  📷 Upload C.E.O Photo
                   <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, (imgData) => setOwnerProfile({ ...ownerProfile, photo: imgData }))} />
                 </label>
               </div>
@@ -1169,7 +1072,7 @@ export default function GuideLinkRwandaApp() {
                   </div>
                   <div>
                     <label className="font-bold text-slate-700">Email Address</label>
-                    <input type="email" value={ownerProfile.email || 'rutungurab5@gmail.com'} onChange={(e) => setOwnerProfile({ ...ownerProfile, email: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
+                    <input type="email" value={ownerProfile.email} onChange={(e) => setOwnerProfile({ ...ownerProfile, email: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
                   </div>
                 </div>
                 <div>
@@ -1193,7 +1096,7 @@ export default function GuideLinkRwandaApp() {
     );
   }
 
-  // ---------------- ROLE-SPECIFIC USER DASHBOARDS ----------------
+  // Role Dashboards
   const currentProf = getCurrentProfile();
   const isPartnerRole = ['graduate', 'agency', 'tour_company'].includes(currentRole);
   const providerDirectory = buildLiveProviderDirectory();
@@ -1208,7 +1111,6 @@ export default function GuideLinkRwandaApp() {
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl overflow-hidden border border-slate-200 relative">
-      {/* Top Bar */}
       <div className="bg-white px-5 py-3.5 border-b flex justify-between items-center sticky top-0 z-30">
         <div className="flex items-center space-x-3">
           {currentProf?.photo ? (
@@ -1220,38 +1122,25 @@ export default function GuideLinkRwandaApp() {
           )}
           <div>
             <h2 className="font-bold text-sm">{currentProf?.name}</h2>
-            <p className="text-[11px] text-slate-500">
-              {currentRole === 'graduate'
-                ? '🎓 Tourism Graduate'
-                : currentRole === 'agency'
-                ? '🏢 Travel Agency'
-                : currentRole === 'tour_company'
-                ? '🚐 Tour Company'
-                : '🧳 Traveler (Free Access)'}
-            </p>
+            <p className="text-[11px] text-slate-500 capitalize">{getRoleDisplayLabel(currentRole)}</p>
           </div>
         </div>
         <button onClick={resetToWelcome} className="text-xs bg-slate-100 px-3 py-1.5 rounded-full font-semibold">Sign Out</button>
       </div>
 
-      {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto pb-24 p-4 space-y-4">
-        
-        {/* LIVE AVAILABILITY STATUS BAR FOR PARTNERS (ALL EXCEPT TRAVELER) */}
         {isPartnerRole && currentProf && (
           <div className="bg-white p-3.5 rounded-2xl border border-slate-200 flex justify-between items-center shadow-sm">
             <div>
               <p className="text-xs font-bold text-slate-900">
-                {currentProf.isAvailable !== false ? '🟢 Available for Travelers & Bookings' : '🔴 Currently Busy / Unavailable'}
+                {currentProf.isAvailable !== false ? '🟢 Available for Bookings' : '🔴 Currently Busy'}
               </p>
-              <p className="text-[11px] text-slate-500">Live status & portfolio visible to Travelers</p>
+              <p className="text-[11px] text-slate-500">Live status visible to Travelers</p>
             </div>
             <button
               onClick={() => updateCurrentProfile({ isAvailable: currentProf.isAvailable === false })}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                currentProf.isAvailable !== false
-                  ? 'bg-emerald-100 text-[#234E40]'
-                  : 'bg-slate-200 text-slate-700'
+                currentProf.isAvailable !== false ? 'bg-emerald-100 text-[#234E40]' : 'bg-slate-200 text-slate-700'
               }`}
             >
               {currentProf.isAvailable !== false ? 'Active' : 'Offline'}
@@ -1259,18 +1148,18 @@ export default function GuideLinkRwandaApp() {
           </div>
         )}
 
-        {/* 1. TOURISM GRADUATE WORKSPACE */}
+        {/* Graduate Workspace */}
         {activeTab === 'jobs' && currentRole === 'graduate' && (
           <div className="space-y-4">
             <div className="space-y-2.5">
               <div className="flex justify-between items-center">
-                <h3 className="font-bold text-sm text-slate-900">🧳 Traveler Booking Requests ({matchingTravelerRequests.length})</h3>
+                <h3 className="font-bold text-sm text-slate-900">🧳 Traveler Requests ({matchingTravelerRequests.length})</h3>
                 <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">Action Needed</span>
               </div>
 
               {matchingTravelerRequests.length === 0 ? (
                 <div className="bg-white p-4 rounded-2xl border border-slate-200 text-xs text-slate-500 text-center">
-                  No direct Traveler requests yet. Keep your qualifications & services updated!
+                  No direct requests yet. Keep your services updated!
                 </div>
               ) : (
                 matchingTravelerRequests.map((req) => (
@@ -1287,13 +1176,13 @@ export default function GuideLinkRwandaApp() {
                       </span>
                     </div>
                     <p className="text-slate-600">👤 Traveler: <strong>{req.travelerName}</strong> ({req.travelerContact})</p>
-                    <p className="text-slate-500">📅 Dates: {req.dates} • Target: {req.targetProvider}</p>
+                    <p className="text-slate-500">📅 Dates: {req.dates}</p>
                     {req.notes && <p className="text-slate-500 italic bg-slate-50 p-2 rounded-lg">"{req.notes}"</p>}
 
                     {req.status !== 'confirmed' ? (
                       <button
                         onClick={() => handleConfirmTravelerRequest(req.id)}
-                        className="w-full py-2.5 bg-[#234E40] hover:bg-[#3B6E5B] text-white rounded-xl font-bold text-xs shadow transition"
+                        className="w-full py-2.5 bg-[#234E40] text-white rounded-xl font-bold text-xs shadow transition"
                       >
                         ✓ Confirm Traveler Request
                       </button>
@@ -1322,26 +1211,18 @@ export default function GuideLinkRwandaApp() {
                 <p className="text-xs text-slate-500">🏢 {task.agency} • 📍 {task.location} • 📅 {task.date}</p>
                 
                 {task.status === 'open' && (
-                  <button
-                    onClick={() => handleAcceptTask(task.id)}
-                    className="w-full py-2.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl text-xs font-bold transition"
-                  >
+                  <button onClick={() => handleAcceptTask(task.id)} className="w-full py-2.5 bg-[#3B6E5B] text-white rounded-xl text-xs font-bold">
                     Accept Assignment →
                   </button>
                 )}
-
                 {task.status === 'accepted' && (
-                  <button
-                    onClick={() => handleCompleteTask(task.id)}
-                    className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-900 rounded-xl text-xs font-bold transition"
-                  >
-                    ✓ Mark Completed & Settle ({platformSettings.commissionRatePercent}% MoMo {MOMO_PAYMENT_CODE})
+                  <button onClick={() => handleCompleteTask(task.id)} className="w-full py-2.5 bg-amber-500 text-slate-900 rounded-xl text-xs font-bold">
+                    ✓ Complete & Settle (MoMo {MOMO_PAYMENT_CODE})
                   </button>
                 )}
-
                 {task.status === 'done' && (
                   <div className="bg-emerald-50 text-emerald-800 p-2 rounded-xl text-xs font-bold text-center">
-                    ✓ Completed & Settled (Net Payout: RWF {task.netGuidePayout?.toLocaleString()})
+                    ✓ Settled (Net Payout: RWF {task.netGuidePayout?.toLocaleString()})
                   </div>
                 )}
               </div>
@@ -1349,27 +1230,21 @@ export default function GuideLinkRwandaApp() {
           </div>
         )}
 
-        {/* 2. TRAVEL AGENCY & TOUR COMPANY WORKSPACE */}
+        {/* Agency / Tour Company Workspace */}
         {activeTab === 'jobs' && (currentRole === 'agency' || currentRole === 'tour_company') && (
           <div className="space-y-4">
             {matchingTravelerRequests.length > 0 && (
               <div className="space-y-2">
-                <h3 className="font-bold text-sm text-slate-900">🧳 Direct Traveler Requests ({matchingTravelerRequests.length})</h3>
+                <h3 className="font-bold text-sm text-slate-900">🧳 Direct Traveler Requests</h3>
                 {matchingTravelerRequests.map((req) => (
                   <div key={req.id} className="bg-white p-4 rounded-2xl border-2 border-amber-300 space-y-2 text-xs">
                     <div className="flex justify-between font-bold">
                       <span>{req.destination} ({req.guests} Guests)</span>
-                      <span className={req.status === 'confirmed' ? 'text-emerald-700' : 'text-amber-700'}>
-                        {req.status === 'confirmed' ? '✓ Confirmed' : '⏳ Pending'}
-                      </span>
+                      <span>{req.status === 'confirmed' ? '✓ Confirmed' : '⏳ Pending'}</span>
                     </div>
                     <p className="text-slate-600">Traveler: {req.travelerName} ({req.travelerContact}) • {req.dates}</p>
-                    {req.notes && <p className="text-slate-500 italic">"{req.notes}"</p>}
                     {req.status !== 'confirmed' && (
-                      <button
-                        onClick={() => handleConfirmTravelerRequest(req.id)}
-                        className="w-full py-2 bg-[#234E40] text-white rounded-xl font-bold"
-                      >
+                      <button onClick={() => handleConfirmTravelerRequest(req.id)} className="w-full py-2 bg-[#234E40] text-white rounded-xl font-bold">
                         ✓ Confirm Traveler Booking
                       </button>
                     )}
@@ -1379,13 +1254,11 @@ export default function GuideLinkRwandaApp() {
             )}
 
             <form onSubmit={handlePostNewTask} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3 shadow-sm">
-              <h3 className="font-bold text-sm text-slate-900">
-                {currentRole === 'tour_company' ? '🚐 Post Safari / Tour Guide Assignment' : '📢 Post Travel Agency Guiding Task'}
-              </h3>
+              <h3 className="font-bold text-sm text-slate-900">📢 Post Guiding Assignment</h3>
               <input
                 type="text"
                 required
-                placeholder={currentRole === 'tour_company' ? 'e.g. 3-Day Akagera 4x4 Safari Escort' : 'e.g. Kigali Airport Transfer & City Tour'}
+                placeholder="Title (e.g. Akagera 2-Day Safari)"
                 value={newTaskForm.title}
                 onChange={(e) => setNewTaskForm({ ...newTaskForm, title: e.target.value })}
                 className="w-full p-2.5 border rounded-xl text-xs"
@@ -1393,7 +1266,7 @@ export default function GuideLinkRwandaApp() {
               <div className="grid grid-cols-2 gap-2">
                 <input
                   type="text"
-                  placeholder="Location (e.g. Musanze)"
+                  placeholder="Location"
                   value={newTaskForm.location}
                   onChange={(e) => setNewTaskForm({ ...newTaskForm, location: e.target.value })}
                   className="p-2.5 border rounded-xl text-xs"
@@ -1401,7 +1274,7 @@ export default function GuideLinkRwandaApp() {
                 <input
                   type="number"
                   required
-                  placeholder="Fee in RWF (e.g. 50000)"
+                  placeholder="Fee in RWF"
                   value={newTaskForm.rawPay}
                   onChange={(e) => setNewTaskForm({ ...newTaskForm, rawPay: e.target.value })}
                   className="p-2.5 border rounded-xl text-xs"
@@ -1409,91 +1282,37 @@ export default function GuideLinkRwandaApp() {
               </div>
               <input
                 type="text"
-                placeholder="Date & Duration (e.g. Fri 27 Nov, Full Day)"
+                placeholder="Date & Duration"
                 value={newTaskForm.date}
                 onChange={(e) => setNewTaskForm({ ...newTaskForm, date: e.target.value })}
                 className="w-full p-2.5 border rounded-xl text-xs"
               />
               <button type="submit" className="w-full py-2.5 bg-[#234E40] text-white rounded-xl font-bold text-xs shadow">
-                + Publish Assignment to Certified Graduates
+                + Publish Assignment
               </button>
             </form>
-
-            <div className="space-y-2">
-              <h4 className="font-bold text-xs uppercase text-slate-500">📋 Active Posted Assignments</h4>
-              {tasks.map((t) => (
-                <div key={t.id} className="bg-white p-3.5 rounded-2xl border text-xs space-y-1">
-                  <div className="flex justify-between font-bold">
-                    <span>{t.title}</span>
-                    <span className="text-[#234E40]">{t.pay}</span>
-                  </div>
-                  <p className="text-slate-500">Status: <strong className="uppercase">{t.status}</strong> {t.assignedTo ? `• Guide: ${t.assignedTo}` : ''}</p>
-                </div>
-              ))}
-            </div>
           </div>
         )}
 
-        {/* 3. TRAVELER DASHBOARD (BROWSE QUALIFICATIONS, SERVICES & EXPERIENCE) */}
+        {/* Traveler Dashboard */}
         {activeTab === 'jobs' && currentRole === 'traveler' && (
           <div className="space-y-4">
             <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-4 rounded-2xl shadow-sm space-y-1">
               <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Free Traveler Account</span>
               <h3 className="font-bold text-base pt-1">Choose Your Travel Partner in Rwanda</h3>
-              <p className="text-xs text-emerald-100">Compare qualifications, services offered, and experience across Graduates, Travel Agencies, and Tour Companies.</p>
+              <p className="text-xs text-emerald-100">Browse qualifications, services, and experience across Graduates, Agencies, and Tour Companies.</p>
             </div>
 
-            {tripRequests.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="font-bold text-xs uppercase text-slate-500">📌 Your Booking Requests & Status</h4>
-                {tripRequests.map((req) => (
-                  <div key={req.id} className="bg-white p-3.5 rounded-2xl border border-slate-200 text-xs space-y-1 shadow-sm">
-                    <div className="flex justify-between items-center">
-                      <span className="font-bold text-slate-900">{req.destination}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        req.status === 'confirmed' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                      }`}>
-                        {req.status === 'confirmed' ? `✓ Confirmed by ${req.confirmedBy}` : '⏳ Awaiting Confirmation'}
-                      </span>
-                    </div>
-                    <p className="text-slate-500">Requested: <strong>{req.targetProvider}</strong> • {req.dates}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* 4-Way Category Selector Tabs */}
-            <div className="grid grid-cols-4 gap-1 bg-white p-1.5 rounded-2xl border border-slate-200 text-[10px] font-bold text-center">
-              <button
-                onClick={() => setDirectoryFilter('all')}
-                className={`py-2 px-1 rounded-xl transition ${directoryFilter === 'all' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}
-              >
-                All ({providerDirectory.length})
-              </button>
-              <button
-                onClick={() => setDirectoryFilter('graduate')}
-                className={`py-2 px-1 rounded-xl transition ${directoryFilter === 'graduate' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}
-              >
-                🎓 Graduates
-              </button>
-              <button
-                onClick={() => setDirectoryFilter('agency')}
-                className={`py-2 px-1 rounded-xl transition ${directoryFilter === 'agency' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}
-              >
-                🏢 Agencies
-              </button>
-              <button
-                onClick={() => setDirectoryFilter('tour_company')}
-                className={`py-2 px-1 rounded-xl transition ${directoryFilter === 'tour_company' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}
-              >
-                🚐 Tour Co.
-              </button>
+            <div className="grid grid-cols-4 gap-1 bg-white p-1.5 rounded-2xl border text-[10px] font-bold text-center">
+              <button onClick={() => setDirectoryFilter('all')} className={`py-2 rounded-xl ${directoryFilter === 'all' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}>All</button>
+              <button onClick={() => setDirectoryFilter('graduate')} className={`py-2 rounded-xl ${directoryFilter === 'graduate' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}>Graduates</button>
+              <button onClick={() => setDirectoryFilter('agency')} className={`py-2 rounded-xl ${directoryFilter === 'agency' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}>Agencies</button>
+              <button onClick={() => setDirectoryFilter('tour_company')} className={`py-2 rounded-xl ${directoryFilter === 'tour_company' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}>Tour Co.</button>
             </div>
 
-            {/* Live Provider Availability Cards with Qualifications, Services & Experience */}
             <div className="space-y-3">
               {filteredProviders.map((prov) => (
-                <div key={prov.id} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2.5 shadow-sm text-xs">
+                <div key={prov.id} className="bg-white p-4 rounded-2xl border space-y-2.5 shadow-sm text-xs">
                   <div className="flex justify-between items-start">
                     <div className="flex items-center space-x-2.5">
                       {prov.photo ? (
@@ -1508,9 +1327,7 @@ export default function GuideLinkRwandaApp() {
                         <h4 className="font-bold text-sm text-slate-900">{prov.name}</h4>
                       </div>
                     </div>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
-                      prov.isAvailable ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                    }`}>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${prov.isAvailable ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
                       {prov.isAvailable ? '🟢 Available' : '🟡 Busy'}
                     </span>
                   </div>
@@ -1529,50 +1346,40 @@ export default function GuideLinkRwandaApp() {
 
                   {((prov.qualifications && prov.qualifications.length > 0) || (prov.experience && prov.experience.length > 0)) && (
                     <div className="bg-slate-50 p-2.5 rounded-xl space-y-1 text-[11px] text-slate-600">
-                      {prov.qualifications?.map((q, idx) => (
-                        <p key={`q-${idx}`}>🎓 <strong>Credential:</strong> {q}</p>
-                      ))}
-                      {prov.experience?.map((exp, idx) => (
-                        <p key={`e-${idx}`}>💼 <strong>Experience:</strong> {exp}</p>
-                      ))}
+                      {prov.qualifications?.map((q, idx) => <p key={`q-${idx}`}>🎓 <strong>Credential:</strong> {q}</p>)}
+                      {prov.experience?.map((exp, idx) => <p key={`e-${idx}`}>💼 <strong>Experience:</strong> {exp}</p>)}
                     </div>
                   )}
 
-                  <div className="flex flex-wrap gap-2 text-[11px] text-slate-500 pt-0.5">
+                  <div className="flex flex-wrap gap-2 text-[11px] text-slate-500">
                     <span>📍 {prov.location}</span>
-                    <span>•</span>
-                    <span>🗣️ {prov.languages}</span>
                     <span>•</span>
                     <span className="font-bold text-[#234E40]">{prov.rate}</span>
                   </div>
 
-                  <button
-                    onClick={() => setBookingTarget(prov)}
-                    className="w-full py-2.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold text-xs transition shadow-sm"
-                  >
+                  <button onClick={() => setBookingTarget(prov)} className="w-full py-2.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold text-xs">
                     Book {prov.name} →
                   </button>
                 </div>
               ))}
             </div>
 
-            {/* Custom Trip Request Form */}
-            <form onSubmit={handleCreateTripRequest} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3 shadow-sm">
-              <h4 className="font-bold text-sm text-slate-900">🗺️ Request Custom Trip (Choose Partner Type)</h4>
+            <form onSubmit={handleCreateTripRequest} className="bg-white p-4 rounded-2xl border space-y-3 shadow-sm">
+              <h4 className="font-bold text-sm text-slate-900">🗺️ Request Custom Trip</h4>
               <div>
-                <label className="text-[11px] font-bold text-slate-600">Who would you like to hire?</label>
+                <label className="text-[11px] font-bold text-slate-600">Partner Category</label>
                 <select
                   value={tripRequestForm.preferredCategory}
                   onChange={(e) => setTripRequestForm({ ...tripRequestForm, preferredCategory: e.target.value })}
                   className="w-full mt-1 p-2.5 border rounded-xl text-xs bg-white font-semibold text-[#234E40]"
                 >
-                  <option value="graduate">🎓 Tourism Graduate (Freelance Guide / Consultant)</option>
-                  <option value="agency">🏢 Travel Agency (Bookings & Itineraries)</option>
-                  <option value="tour_company">🚐 Tour Company (Full Safari Fleet & Packages)</option>
+                  <option value="graduate">🎓 Tourism Graduate (Guide / Consultant)</option>
+                  <option value="agency">🏢 Travel Agency</option>
+                  <option value="tour_company">🚐 Tour Company (Safari Operator)</option>
                 </select>
               </div>
               <div>
-                <label className="text-[11px] font-bold text-slate-600">Destination / Park</label>
+                <label className="text-[11px] font-bold text-slate-600">Destination</label>
                 <select
                   value={tripRequestForm.destination}
                   onChange={(e) => setTripRequestForm({ ...tripRequestForm, destination: e.target.value })}
@@ -1585,37 +1392,18 @@ export default function GuideLinkRwandaApp() {
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="text"
-                  placeholder="Preferred Dates"
-                  value={tripRequestForm.dates}
-                  onChange={(e) => setTripRequestForm({ ...tripRequestForm, dates: e.target.value })}
-                  className="p-2.5 border rounded-xl text-xs"
-                />
-                <input
-                  type="number"
-                  min="1"
-                  placeholder="Guests"
-                  value={tripRequestForm.guests}
-                  onChange={(e) => setTripRequestForm({ ...tripRequestForm, guests: e.target.value })}
-                  className="p-2.5 border rounded-xl text-xs"
-                />
+                <input type="text" placeholder="Dates" value={tripRequestForm.dates} onChange={(e) => setTripRequestForm({ ...tripRequestForm, dates: e.target.value })} className="p-2.5 border rounded-xl text-xs" />
+                <input type="number" min="1" placeholder="Guests" value={tripRequestForm.guests} onChange={(e) => setTripRequestForm({ ...tripRequestForm, guests: e.target.value })} className="p-2.5 border rounded-xl text-xs" />
               </div>
-              <textarea
-                rows="2"
-                placeholder="Special requests (language, vehicle, itinerary notes)..."
-                value={tripRequestForm.notes}
-                onChange={(e) => setTripRequestForm({ ...tripRequestForm, notes: e.target.value })}
-                className="w-full p-2.5 border rounded-xl text-xs"
-              />
-              <button type="submit" className="w-full py-2.5 bg-slate-900 text-white rounded-xl font-bold text-xs shadow">
-                Send Request to Available {getRoleDisplayLabel(tripRequestForm.preferredCategory)}s →
+              <textarea rows="2" placeholder="Notes..." value={tripRequestForm.notes} onChange={(e) => setTripRequestForm({ ...tripRequestForm, notes: e.target.value })} className="w-full p-2.5 border rounded-xl text-xs" />
+              <button type="submit" className="w-full py-2.5 bg-slate-900 text-white rounded-xl font-bold text-xs">
+                Broadcast Request →
               </button>
             </form>
           </div>
         )}
 
-        {/* PROFILE, QUALIFICATIONS, SERVICES & EXPERIENCE WORKSPACE */}
+        {/* Profile & Qualifications Workspace */}
         {activeTab === 'profile' && currentProf && (
           <div className="space-y-4">
             <div className="bg-white p-5 rounded-2xl border space-y-4 shadow-sm">
@@ -1635,211 +1423,76 @@ export default function GuideLinkRwandaApp() {
 
               <div className="space-y-3 text-xs">
                 <div>
-                  <label className="font-bold text-slate-700">
-                    {currentRole === 'traveler' ? 'Traveler Full Name' : 'Full Name / Company Name'}
-                  </label>
+                  <label className="font-bold text-slate-700">Name / Company Name</label>
                   <input type="text" value={currentProf.name} onChange={(e) => updateCurrentProfile({ name: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
                 </div>
-
                 <div>
-                  <label className="font-bold text-slate-700">
-                    {currentRole === 'traveler' ? 'Travel Bio / Preferences' : 'Professional Headline / Tagline'}
-                  </label>
+                  <label className="font-bold text-slate-700">Headline / Tagline</label>
                   <input type="text" value={currentProf.headline} onChange={(e) => updateCurrentProfile({ headline: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
                 </div>
-
                 <div>
-                  <label className="font-bold text-slate-700">Location / Base City</label>
-                  <input type="text" value={currentProf.location || 'Kigali, Rwanda'} onChange={(e) => updateCurrentProfile({ location: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
+                  <label className="font-bold text-slate-700">Location</label>
+                  <input type="text" value={currentProf.location} onChange={(e) => updateCurrentProfile({ location: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
                 </div>
 
-                {/* DEDICATED QUALIFICATIONS, SERVICES & EXPERIENCE WORKSPACE FOR ALL USERS EXCEPT TRAVELER */}
                 {isPartnerRole && (
-                  <div className="space-y-4 pt-3 border-t border-slate-200">
+                  <div className="space-y-4 pt-3 border-t">
                     <div>
-                      <label className="font-bold text-slate-700">💰 Standard Rate / Package Pricing</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. RWF 40,000 / day or Custom Safari Packages"
-                        value={currentProf.rateInfo || ''}
-                        onChange={(e) => updateCurrentProfile({ rateInfo: e.target.value })}
-                        className="w-full mt-1 p-2.5 border rounded-xl"
-                      />
+                      <label className="font-bold text-slate-700">💰 Standard Rate / Pricing</label>
+                      <input type="text" value={currentProf.rateInfo || ''} onChange={(e) => updateCurrentProfile({ rateInfo: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
                     </div>
 
-                    {/* 1. SERVICES OFFERED */}
-                    <div className="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                      <label className="font-bold text-[#234E40] block">🛠️ Services Offered (Shown to Travelers)</label>
+                    {/* Services Offered */}
+                    <div className="space-y-2 bg-slate-50 p-3 rounded-xl border">
+                      <label className="font-bold text-[#234E40] block">🛠️ Services Offered</label>
                       <div className="flex space-x-2">
-                        <input
-                          type="text"
-                          placeholder={
-                            currentRole === 'graduate'
-                              ? 'e.g. Gorilla Trekking Escort, City Tours'
-                              : currentRole === 'agency'
-                              ? 'e.g. Flight Ticketing, Visa & Hotel Booking'
-                              : 'e.g. 4x4 Land Cruiser Safaris, Park Permits'
-                          }
-                          value={newServiceInput}
-                          onChange={(e) => setNewServiceInput(e.target.value)}
-                          className="flex-1 p-2 border rounded-xl bg-white"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!newServiceInput.trim()) return;
-                            updateCurrentProfile({ servicesOffered: [...(currentProf.servicesOffered || []), newServiceInput.trim()] });
-                            setNewServiceInput('');
-                          }}
-                          className="px-3 bg-[#234E40] text-white rounded-xl font-bold"
-                        >
-                          + Add
-                        </button>
+                        <input type="text" placeholder="e.g. Gorilla Trekking Escort" value={newServiceInput} onChange={(e) => setNewServiceInput(e.target.value)} className="flex-1 p-2 border rounded-xl bg-white" />
+                        <button type="button" onClick={() => { if (!newServiceInput.trim()) return; updateCurrentProfile({ servicesOffered: [...(currentProf.servicesOffered || []), newServiceInput.trim()] }); setNewServiceInput(''); }} className="px-3 bg-[#234E40] text-white rounded-xl font-bold">+ Add</button>
                       </div>
                       <div className="flex flex-wrap gap-1.5 pt-1">
                         {(currentProf.servicesOffered || []).map((srv, idx) => (
-                          <span key={idx} className="inline-flex items-center space-x-1 bg-white border border-emerald-200 text-[#234E40] px-2.5 py-1 rounded-lg font-semibold">
+                          <span key={idx} className="inline-flex items-center space-x-1 bg-white border text-[#234E40] px-2 py-1 rounded-lg">
                             <span>✓ {srv}</span>
-                            <button
-                              type="button"
-                              onClick={() => updateCurrentProfile({ servicesOffered: currentProf.servicesOffered.filter((_, i) => i !== idx) })}
-                              className="text-red-500 font-bold ml-1"
-                            >
-                              ✕
-                            </button>
+                            <button type="button" onClick={() => updateCurrentProfile({ servicesOffered: currentProf.servicesOffered.filter((_, i) => i !== idx) })} className="text-red-500 font-bold ml-1">✕</button>
                           </span>
                         ))}
                       </div>
                     </div>
 
-                    {/* 2. QUALIFICATIONS, DEGREES & LICENSES */}
-                    <div className="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                      <label className="font-bold text-[#234E40] block">
-                        {currentRole === 'graduate' ? '🎓 Academic Degrees & Certifications' : '📜 Operating Licenses & Accreditations'}
-                      </label>
+                    {/* Qualifications & Degrees */}
+                    <div className="space-y-2 bg-slate-50 p-3 rounded-xl border">
+                      <label className="font-bold text-[#234E40] block">🎓 Qualifications & Degrees</label>
                       <div className="flex space-x-2">
-                        <input
-                          type="text"
-                          placeholder={
-                            currentRole === 'graduate'
-                              ? 'e.g. Advanced Diploma in Tours & Travel (RP Kitabi)'
-                              : 'e.g. RDB Tour Operator License / IATA Accredited'
-                          }
-                          value={newDegreeInput}
-                          onChange={(e) => setNewDegreeInput(e.target.value)}
-                          className="flex-1 p-2 border rounded-xl bg-white"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!newDegreeInput.trim()) return;
-                            updateCurrentProfile({ degrees: [...(currentProf.degrees || []), newDegreeInput.trim()] });
-                            setNewDegreeInput('');
-                          }}
-                          className="px-3 bg-[#3B6E5B] text-white rounded-xl font-bold"
-                        >
-                          + Add
-                        </button>
+                        <input type="text" placeholder="e.g. Advanced Diploma in Tours & Travel (RP Kitabi)" value={newDegreeInput} onChange={(e) => setNewDegreeInput(e.target.value)} className="flex-1 p-2 border rounded-xl bg-white" />
+                        <button type="button" onClick={() => { if (!newDegreeInput.trim()) return; updateCurrentProfile({ degrees: [...(currentProf.degrees || []), newDegreeInput.trim()] }); setNewDegreeInput(''); }} className="px-3 bg-[#3B6E5B] text-white rounded-xl font-bold">+ Add</button>
                       </div>
                       {(currentProf.degrees || []).map((deg, idx) => (
-                        <div key={idx} className="flex justify-between items-center bg-white border p-2 rounded-xl">
+                        <div key={idx} className="flex justify-between items-center bg-white border p-2 rounded-xl mt-1">
                           <span>🎓 {deg}</span>
-                          <button
-                            type="button"
-                            onClick={() => updateCurrentProfile({ degrees: currentProf.degrees.filter((_, i) => i !== idx) })}
-                            className="text-red-500 font-bold"
-                          >
-                            ✕
-                          </button>
+                          <button type="button" onClick={() => updateCurrentProfile({ degrees: currentProf.degrees.filter((_, i) => i !== idx) })} className="text-red-500 font-bold">✕</button>
                         </div>
                       ))}
                     </div>
 
-                    {/* 3. WORK EXPERIENCE & TRACK RECORD */}
-                    <div className="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                      <label className="font-bold text-[#234E40] block">💼 Experience & Track Record</label>
+                    {/* Experience */}
+                    <div className="space-y-2 bg-slate-50 p-3 rounded-xl border">
+                      <label className="font-bold text-[#234E40] block">💼 Experience</label>
                       <div className="flex space-x-2">
-                        <input
-                          type="text"
-                          placeholder="e.g. 4 Years Safari Guiding at Volcanoes & Nyungwe"
-                          value={newExperienceInput}
-                          onChange={(e) => setNewExperienceInput(e.target.value)}
-                          className="flex-1 p-2 border rounded-xl bg-white"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!newExperienceInput.trim()) return;
-                            updateCurrentProfile({ experiences: [...(currentProf.experiences || []), newExperienceInput.trim()] });
-                            setNewExperienceInput('');
-                          }}
-                          className="px-3 bg-[#3B6E5B] text-white rounded-xl font-bold"
-                        >
-                          + Add
-                        </button>
+                        <input type="text" placeholder="e.g. 4 Years Safari Guiding" value={newExperienceInput} onChange={(e) => setNewExperienceInput(e.target.value)} className="flex-1 p-2 border rounded-xl bg-white" />
+                        <button type="button" onClick={() => { if (!newExperienceInput.trim()) return; updateCurrentProfile({ experiences: [...(currentProf.experiences || []), newExperienceInput.trim()] }); setNewExperienceInput(''); }} className="px-3 bg-[#3B6E5B] text-white rounded-xl font-bold">+ Add</button>
                       </div>
                       {(currentProf.experiences || []).map((exp, idx) => (
-                        <div key={idx} className="flex justify-between items-center bg-white border p-2 rounded-xl">
+                        <div key={idx} className="flex justify-between items-center bg-white border p-2 rounded-xl mt-1">
                           <span>💼 {exp}</span>
-                          <button
-                            type="button"
-                            onClick={() => updateCurrentProfile({ experiences: currentProf.experiences.filter((_, i) => i !== idx) })}
-                            className="text-red-500 font-bold"
-                          >
-                            ✕
-                          </button>
+                          <button type="button" onClick={() => updateCurrentProfile({ experiences: currentProf.experiences.filter((_, i) => i !== idx) })} className="text-red-500 font-bold">✕</button>
                         </div>
                       ))}
-                    </div>
-
-                    {/* 4. LANGUAGES & SPECIALTIES */}
-                    <div className="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                      <label className="font-bold text-[#234E40] block">🗣️ Languages & Specialties</label>
-                      <div className="flex space-x-2">
-                        <input
-                          type="text"
-                          placeholder="e.g. French, Swahili, Birdwatching"
-                          value={newSkillInput}
-                          onChange={(e) => setNewSkillInput(e.target.value)}
-                          className="flex-1 p-2 border rounded-xl bg-white"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!newSkillInput.trim()) return;
-                            updateCurrentProfile({ skills: [...(currentProf.skills || []), newSkillInput.trim()] });
-                            setNewSkillInput('');
-                          }}
-                          className="px-3 bg-[#3B6E5B] text-white rounded-xl font-bold"
-                        >
-                          + Add
-                        </button>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5 pt-1">
-                        {(currentProf.skills || []).map((sk, idx) => (
-                          <span key={idx} className="inline-flex items-center space-x-1 bg-white border px-2.5 py-1 rounded-lg">
-                            <span>{sk}</span>
-                            <button
-                              type="button"
-                              onClick={() => updateCurrentProfile({ skills: currentProf.skills.filter((_, i) => i !== idx) })}
-                              className="text-red-500 font-bold ml-1"
-                            >
-                              ✕
-                            </button>
-                          </span>
-                        ))}
-                      </div>
                     </div>
                   </div>
                 )}
 
-                <button
-                  type="button"
-                  disabled={isSaving}
-                  onClick={() => handleSaveWithButton(currentProf)}
-                  className="w-full py-3.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold text-sm shadow transition"
-                >
-                  {isSaving ? '⏳ Saving...' : '💾 Save & Publish Profile'}
+                <button type="button" disabled={isSaving} onClick={() => handleSaveWithButton(currentProf)} className="w-full py-3.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold text-sm shadow transition">
+                  {isSaving ? '⏳ Saving...' : '💾 Save Profile'}
                 </button>
               </div>
             </div>
@@ -1847,71 +1500,33 @@ export default function GuideLinkRwandaApp() {
         )}
       </div>
 
-      {/* Direct Provider Booking Modal for Travelers */}
       {bookingTarget && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <form onSubmit={handleDirectProviderBooking} className="bg-white rounded-2xl p-5 w-full max-w-xs space-y-3.5 shadow-xl text-xs">
             <div>
               <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">{bookingTarget.categoryLabel}</span>
               <h3 className="font-bold text-base text-slate-900">Book {bookingTarget.name}</h3>
-              <p className="text-slate-500 mt-0.5">📍 {bookingTarget.location} • {bookingTarget.rate}</p>
             </div>
-
             <div>
               <label className="font-bold text-slate-700">Travel Dates</label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. 12 Dec - 15 Dec 2026"
-                value={bookingDetails.dates}
-                onChange={(e) => setBookingDetails({ ...bookingDetails, dates: e.target.value })}
-                className="w-full mt-1 p-2.5 border rounded-xl"
-              />
+              <input type="text" required placeholder="e.g. 12 Dec - 15 Dec 2026" value={bookingDetails.dates} onChange={(e) => setBookingDetails({ ...bookingDetails, dates: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
             </div>
-
             <div>
               <label className="font-bold text-slate-700">Number of Travelers</label>
-              <input
-                type="number"
-                min="1"
-                required
-                value={bookingDetails.guests}
-                onChange={(e) => setBookingDetails({ ...bookingDetails, guests: e.target.value })}
-                className="w-full mt-1 p-2.5 border rounded-xl"
-              />
+              <input type="number" min="1" required value={bookingDetails.guests} onChange={(e) => setBookingDetails({ ...bookingDetails, guests: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
             </div>
-
             <div>
-              <label className="font-bold text-slate-700">Trip Details / Notes</label>
-              <textarea
-                rows="2"
-                placeholder="Itinerary preferences, pickup point, etc."
-                value={bookingDetails.notes}
-                onChange={(e) => setBookingDetails({ ...bookingDetails, notes: e.target.value })}
-                className="w-full mt-1 p-2.5 border rounded-xl"
-              />
+              <label className="font-bold text-slate-700">Notes</label>
+              <textarea rows="2" value={bookingDetails.notes} onChange={(e) => setBookingDetails({ ...bookingDetails, notes: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
             </div>
-
             <div className="flex space-x-2 pt-1">
-              <button
-                type="button"
-                onClick={() => setBookingTarget(null)}
-                className="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-semibold"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="flex-1 py-2.5 bg-[#234E40] text-white rounded-xl font-bold"
-              >
-                Confirm Request
-              </button>
+              <button type="button" onClick={() => setBookingTarget(null)} className="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-semibold">Cancel</button>
+              <button type="submit" className="flex-1 py-2.5 bg-[#234E40] text-white rounded-xl font-bold">Confirm Request</button>
             </div>
           </form>
         </div>
       )}
 
-      {/* Bottom Navigation Bar */}
       <div className="bg-white border-t py-2.5 px-10 flex justify-around items-center text-xs font-bold text-slate-500 absolute bottom-0 w-full max-w-md z-20">
         <button onClick={() => setActiveTab('jobs')} className={`flex flex-col items-center ${activeTab === 'jobs' ? 'text-[#234E40]' : ''}`}>
           <span className="text-base">🏠</span>
