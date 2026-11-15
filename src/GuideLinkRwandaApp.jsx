@@ -1,10 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase Client
-const SUPABASE_URL = 'https://gwwkdhgpfaandekxjsjy.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_w3I2_S57PjMC6NQlYYGWXw_mlP06djP';
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export default function GuideLinkRwandaApp() {
   const [currentRole, setCurrentRole] = useState('welcome'); // 'welcome' | 'signin' | 'signup' | 'owner' | 'graduate' | 'agency' | 'tour_company' | 'traveler'
@@ -23,7 +17,7 @@ export default function GuideLinkRwandaApp() {
 
   // Persistent Owner Profile (C.E.O RUTUNGURA Bonheur)
   const [ownerProfile, setOwnerProfile] = useState(() => {
-    const saved = localStorage.getItem('gl_owner_profile_v3');
+    const saved = localStorage.getItem('gl_owner_profile_v4');
     return saved
       ? JSON.parse(saved)
       : {
@@ -38,7 +32,7 @@ export default function GuideLinkRwandaApp() {
 
   // 3-Tier VIP System Configuration
   const [exemptAccounts, setExemptAccounts] = useState(() => {
-    const saved = localStorage.getItem('gl_exempt_users_v3');
+    const saved = localStorage.getItem('gl_exempt_users_v4');
     return saved
       ? JSON.parse(saved)
       : [
@@ -149,8 +143,8 @@ export default function GuideLinkRwandaApp() {
         ];
   });
 
-  useEffect(() => { localStorage.setItem('gl_owner_profile_v3', JSON.stringify(ownerProfile)); }, [ownerProfile]);
-  useEffect(() => { localStorage.setItem('gl_exempt_users_v3', JSON.stringify(exemptAccounts)); }, [exemptAccounts]);
+  useEffect(() => { localStorage.setItem('gl_owner_profile_v4', JSON.stringify(ownerProfile)); }, [ownerProfile]);
+  useEffect(() => { localStorage.setItem('gl_exempt_users_v4', JSON.stringify(exemptAccounts)); }, [exemptAccounts]);
   useEffect(() => { localStorage.setItem('gl_registered_users', JSON.stringify(registeredUsers)); }, [registeredUsers]);
   useEffect(() => { localStorage.setItem('gl_user_profiles', JSON.stringify(userProfiles)); }, [userProfiles]);
   useEffect(() => { localStorage.setItem('gl_platform_settings', JSON.stringify(platformSettings)); }, [platformSettings]);
@@ -213,7 +207,7 @@ export default function GuideLinkRwandaApp() {
     setIsSaving(true);
     setTimeout(() => {
       if (!activeUser) {
-        localStorage.setItem('gl_owner_profile_v3', JSON.stringify(profileData));
+        localStorage.setItem('gl_owner_profile_v4', JSON.stringify(profileData));
       } else {
         const key = normalizeContact(activeUser.contact || activeUser.name);
         setUserProfiles({ ...userProfiles, [key]: profileData });
