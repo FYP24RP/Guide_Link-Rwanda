@@ -46,12 +46,11 @@ export default function GuideLinkRwandaApp() {
     photo: ''
   });
 
-  // STRICTLY PRIVATE: 3-Tier VIP configuration accessible ONLY by C.E.O
+  // STRICTLY PRIVATE: 3-Tier VIP configuration controlled ONLY from C.E.O HQ
   const [exemptAccounts, setExemptAccounts] = useState([
-    { id: 'owner', name: 'RUTUNGURA Bonheur (C.E.O)', contact: '+250780558555', email: 'rutungurab5@gmail.com', role: 'owner', tier: 'C.E.O & Administrator HQ', confirmed: true },
-    { id: 'vip1', name: 'VIP Partner Tier 1 (Platinum)', contact: '+250781111111', role: 'graduate', tier: 'Tier 1 - Platinum Partner', confirmed: true },
-    { id: 'vip2', name: 'VIP Partner Tier 2 (Gold)', contact: '+250782222222', role: 'agency', tier: 'Tier 2 - Gold Partner', confirmed: true },
-    { id: 'vip3', name: 'VIP Partner Tier 3 (Silver)', contact: '+250783333333', role: 'tour_company', tier: 'Tier 3 - Silver Partner', confirmed: true }
+    { id: 'vip1', name: 'VIP Partner Tier 1 (Platinum)', contact: '+250781111111', role: 'graduate', tier: 'Tier 1 - Platinum Partner', confirmed: false },
+    { id: 'vip2', name: 'VIP Partner Tier 2 (Gold)', contact: '+250782222222', role: 'agency', tier: 'Tier 2 - Gold Partner', confirmed: false },
+    { id: 'vip3', name: 'VIP Partner Tier 3 (Silver)', contact: '+250783333333', role: 'tour_company', tier: 'Tier 3 - Silver Partner', confirmed: false }
   ]);
 
   const [registeredUsers, setRegisteredUsers] = useState([]);
@@ -249,6 +248,9 @@ export default function GuideLinkRwandaApp() {
 
   const checkExemptUser = (contactInput) => {
     const cleanInput = normalizeContact(contactInput);
+    if (cleanInput === normalizeContact(ownerProfile.contact) || normalizeContact(ownerProfile.email) === cleanInput) {
+      return { id: 'owner', name: ownerProfile.name, contact: ownerProfile.contact, role: 'owner', tier: 'C.E.O & Administrator HQ', confirmed: true };
+    }
     return exemptAccounts.find(
       (acc) =>
         acc.confirmed &&
@@ -425,9 +427,17 @@ export default function GuideLinkRwandaApp() {
     alert('✓ User approved and granted access successfully in cloud database!');
   };
 
-  const updateVipTierSlot = (slotId, field, value) => {
+  // C.E.O Toggle to Grant or Revoke VIP Access for each Tier
+  const toggleVipTierAccess = (slotId) => {
     setExemptAccounts(
-      exemptAccounts.map((acc) => (acc.id === slotId ? { ...acc, [field]: value } : acc))
+      exemptAccounts.map((acc) => {
+        if (acc.id === slotId) {
+          const newStatus = !acc.confirmed;
+          alert(`✓ ${acc.tier} access has been successfully ${newStatus ? 'GRANTED' : 'REVOKED'}!`);
+          return { ...acc, confirmed: newStatus };
+        }
+        return acc;
+      })
     );
   };
 
@@ -550,6 +560,8 @@ export default function GuideLinkRwandaApp() {
   };
 
   const buildLiveProviderDirectory = () => {
+    // Only real default and approved registered providers appear in the traveler public directory.
+    // VIP tiers are strictly confidential until granted access by the C.E.O.
     const defaultProviders = [
       {
         id: 'prov-g1',
@@ -583,8 +595,9 @@ export default function GuideLinkRwandaApp() {
 
     const dynamicProviders = [];
 
+    // Include VIP tier only if C.E.O has explicitly confirmed/granted access
     exemptAccounts.forEach((acc) => {
-      if (acc.id !== 'owner' && acc.confirmed && ['graduate', 'agency', 'tour_company'].includes(acc.role)) {
+      if (acc.confirmed && ['graduate', 'agency', 'tour_company'].includes(acc.role)) {
         const key = normalizeContact(acc.contact);
         const prof = userProfiles[key] || {};
         dynamicProviders.push({
@@ -1005,44 +1018,57 @@ export default function GuideLinkRwandaApp() {
             </div>
           )}
 
-          {/* STRICTLY PRIVATE 3-Tier VIP Management (Only visible to Owner HQ) */}
+          {/* STRICTLY PRIVATE 3-Tier VIP Management with Individual Grant Access Buttons */}
           {ownerTab === 'vip' && (
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3">
+            <div className="space-y-3">
               <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl text-xs space-y-1">
                 <span className="font-bold text-amber-900">🔒 Confidential C.E.O Area</span>
-                <p className="text-amber-800">These 3 tiers are strictly confidential and known only to you. Regular users cannot see this configuration.</p>
+                <p className="text-amber-800">These 3 tiers are hidden from regular users. Press <strong>"Grant Access"</strong> to instantly make a tier active on the traveler platform.</p>
               </div>
-              <h3 className="font-bold text-sm text-slate-900">⭐ 3-Tier VIP & Free Access</h3>
-              <div className="space-y-3 pt-1">
-                {exemptAccounts.map((acc) => (
-                  <div key={acc.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
-                    <div className="flex justify-between items-center">
-                      <span className="font-bold text-[#234E40]">{acc.tier}</span>
-                      <label className="flex items-center space-x-1 font-semibold text-slate-700">
-                        <input
-                          type="checkbox"
-                          checked={acc.confirmed}
-                          disabled={acc.id === 'owner'}
-                          onChange={(e) => updateVipTierSlot(acc.id, 'confirmed', e.target.checked)}
-                        />
-                        <span>Free Access</span>
-                      </label>
-                    </div>
+              <h3 className="font-bold text-sm text-slate-900">⭐ 3-Tier VIP Access Control</h3>
+              
+              {exemptAccounts.map((acc) => (
+                <div key={acc.id} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2.5 text-xs shadow-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-[#234E40] text-sm">{acc.tier}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${acc.confirmed ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
+                      {acc.confirmed ? '🟢 Access Granted' : '🔒 Access Revoked'}
+                    </span>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500">Partner Name / Title</label>
                     <input
                       type="text"
                       value={acc.name}
-                      onChange={(e) => updateVipTierSlot(acc.id, 'name', e.target.value)}
-                      className="w-full p-2 border border-slate-200 rounded-lg bg-white text-xs"
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setExemptAccounts(exemptAccounts.map(a => a.id === acc.id ? { ...a, name: val } : a));
+                      }}
+                      className="w-full mt-0.5 p-2 border rounded-xl bg-slate-50 text-xs font-semibold"
                     />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500">Contact / Phone</label>
                     <input
                       type="text"
                       value={acc.contact}
-                      onChange={(e) => updateVipTierSlot(acc.id, 'contact', e.target.value)}
-                      className="w-full p-2 border border-slate-200 rounded-lg bg-white text-xs"
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setExemptAccounts(exemptAccounts.map(a => a.id === acc.id ? { ...a, contact: val } : a));
+                      }}
+                      className="w-full mt-0.5 p-2 border rounded-xl bg-slate-50 text-xs"
                     />
                   </div>
-                ))}
-              </div>
+                  <button
+                    onClick={() => toggleVipTierAccess(acc.id)}
+                    className={`w-full py-2.5 rounded-xl font-bold text-xs shadow transition ${
+                      acc.confirmed ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-[#3B6E5B] hover:bg-[#234E40] text-white'
+                    }`}
+                  >
+                    {acc.confirmed ? `Revoke Access for ${acc.tier}` : `✓ Grant Access for ${acc.tier}`}
+                  </button>
+                </div>
+              ))}
             </div>
           )}
 
