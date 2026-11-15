@@ -46,6 +46,7 @@ export default function GuideLinkRwandaApp() {
     photo: ''
   });
 
+  // STRICTLY PRIVATE: 3-Tier VIP configuration accessible ONLY by C.E.O
   const [exemptAccounts, setExemptAccounts] = useState([
     { id: 'owner', name: 'RUTUNGURA Bonheur (C.E.O)', contact: '+250780558555', email: 'rutungurab5@gmail.com', role: 'owner', tier: 'C.E.O & Administrator HQ', confirmed: true },
     { id: 'vip1', name: 'VIP Partner Tier 1 (Platinum)', contact: '+250781111111', role: 'graduate', tier: 'Tier 1 - Platinum Partner', confirmed: true },
@@ -298,6 +299,11 @@ export default function GuideLinkRwandaApp() {
       return;
     }
 
+    if (existingUser.status !== 'approved') {
+      alert('Your account is pending C.E.O payment confirmation. Please wait for approval.');
+      return;
+    }
+
     if (existingUser.password && existingUser.password !== signInPassword) {
       alert('Access Denied: Incorrect password.');
       return;
@@ -416,7 +422,7 @@ export default function GuideLinkRwandaApp() {
       registeredUsers.map((u) => (u.id === userId ? { ...u, status: 'approved' } : u))
     );
     await supabaseApi('profiles', 'PATCH', { status: 'approved' }, `?contact=eq.${encodeURIComponent(userContact)}`);
-    alert('✓ User approved successfully!');
+    alert('✓ User approved and granted access successfully in cloud database!');
   };
 
   const updateVipTierSlot = (slotId, field, value) => {
@@ -963,6 +969,7 @@ export default function GuideLinkRwandaApp() {
           {ownerTab === 'pending' && (
             <div className="space-y-3">
               <h3 className="font-bold text-sm text-slate-900">⏳ Member Sign-Ups & Approvals</h3>
+              <p className="text-[11px] text-slate-500">Approving a member instantly grants them secure access to their dashboard.</p>
               {registeredUsers.length === 0 ? (
                 <div className="bg-white p-6 rounded-2xl border text-center text-xs text-slate-500">No sign-ups logged yet.</div>
               ) : (
@@ -974,7 +981,7 @@ export default function GuideLinkRwandaApp() {
                     </div>
                     <p className="text-slate-500">{user.contact} • Ref: {user.momoRef}</p>
                     {user.status === 'approved' ? (
-                      <span className="text-emerald-700 font-bold">✓ Active & Approved</span>
+                      <span className="text-emerald-700 font-bold">✓ Active & Granted Access</span>
                     ) : (
                       <button onClick={() => approveRegistrant(user.id, user.contact)} className="w-full py-2 bg-[#3B6E5B] text-white rounded-xl font-bold">
                         ✓ Confirm Payment & Grant Access
@@ -998,9 +1005,14 @@ export default function GuideLinkRwandaApp() {
             </div>
           )}
 
+          {/* STRICTLY PRIVATE 3-Tier VIP Management (Only visible to Owner HQ) */}
           {ownerTab === 'vip' && (
             <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3">
-              <h3 className="font-bold text-sm text-slate-900">⭐ 3-Tier VIP & Free Sign-Up Access</h3>
+              <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl text-xs space-y-1">
+                <span className="font-bold text-amber-900">🔒 Confidential C.E.O Area</span>
+                <p className="text-amber-800">These 3 tiers are strictly confidential and known only to you. Regular users cannot see this configuration.</p>
+              </div>
+              <h3 className="font-bold text-sm text-slate-900">⭐ 3-Tier VIP & Free Access</h3>
               <div className="space-y-3 pt-1">
                 {exemptAccounts.map((acc) => (
                   <div key={acc.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
