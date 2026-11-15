@@ -1,9 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = 'https://gwwkdhgpfaandekxjsjy.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_w3I2_S57PjMC6NQlYYGWXw_mlP06djP';
-export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+const SUPABASE_KEY = 'sb_publishable_w3I2_S57PjMC6NQlYYGWXw_mlP06djP';
+
+// Helper for direct REST requests to Supabase (No npm package needed!)
+const supabaseApi = async (table, method = 'GET', data = null, query = '') => {
+  try {
+    const options = {
+      method,
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      }
+    };
+    if (data) options.body = JSON.stringify(data);
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}${query}`, options);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) {
+    return null;
+  }
+};
 
 export default function GuideLinkRwandaApp() {
   const [currentRole, setCurrentRole] = useState('welcome');
@@ -73,58 +92,54 @@ export default function GuideLinkRwandaApp() {
   ]);
 
   useEffect(() => {
-    fetchCloudData();
+    loadCloudData();
   }, []);
 
-  const fetchCloudData = async () => {
-    try {
-      const { data: profilesData } = await supabase.from('profiles').select('*');
-      if (profilesData && profilesData.length > 0) {
-        const mappedUsers = [];
-        const mappedProfiles = {};
-        profilesData.forEach((p) => {
-          if (p.role === 'owner') {
-            setOwnerProfile({
-              name: p.name,
-              title: p.headline || ownerProfile.title,
-              contact: p.contact,
-              email: p.email || ownerProfile.email,
-              bio: p.bio || ownerProfile.bio,
-              photo: p.photo || ''
-            });
-          } else {
-            mappedUsers.push({
-              id: p.id,
-              name: p.name,
-              contact: p.contact,
-              password: p.password,
-              role: p.role,
-              feePaid: p.fee_paid || 500,
-              momoRef: p.momo_ref || 'Online Supabase Reg',
-              status: p.status || 'approved'
-            });
-            mappedProfiles[normalizeContact(p.contact)] = {
-              name: p.name,
-              contact: p.contact,
-              role: p.role,
-              photo: p.photo || '',
-              isAvailable: p.is_available !== false,
-              headline: p.headline || '',
-              location: p.location || 'Kigali, Rwanda',
-              rateInfo: p.rate_info || '',
-              bio: p.bio || '',
-              degrees: p.degrees || [],
-              servicesOffered: p.services || [],
-              experiences: p.experiences || [],
-              skills: p.skills || ['English', 'Kinyarwanda']
-            };
-          }
-        });
-        if (mappedUsers.length > 0) setRegisteredUsers(mappedUsers);
-        if (Object.keys(mappedProfiles).length > 0) setUserProfiles(mappedProfiles);
-      }
-    } catch (err) {
-      console.log('Using local fallback state due to Supabase table setup:', err);
+  const loadCloudData = async () => {
+    const profiles = await supabaseApi('profiles', 'GET');
+    if (profiles && profiles.length > 0) {
+      const users = [];
+      const profs = {};
+      profiles.forEach(p => {
+        if (p.role === 'owner') {
+          setOwnerProfile({
+            name: p.name,
+            title: p.headline || ownerProfile.title,
+            contact: p.contact,
+            email: p.email || ownerProfile.email,
+            bio: p.bio || ownerProfile.bio,
+            photo: p.photo || ''
+          });
+        } else {
+          users.push({
+            id: p.id,
+            name: p.name,
+            contact: p.contact,
+            password: p.password,
+            role: p.role,
+            feePaid: p.fee_paid || 500,
+            momoRef: p.momo_ref || 'Cloud Reg',
+            status: p.status || 'approved'
+          });
+          profs[normalizeContact(p.contact)] = {
+            name: p.name,
+            contact: p.contact,
+            role: p.role,
+            photo: p.photo || '',
+            isAvailable: p.is_available !== false,
+            headline: p.headline || '',
+            location: p.location || 'Kigali, Rwanda',
+            rateInfo: p.rate_info || '',
+            bio: p.bio || '',
+            degrees: p.degrees || [],
+            servicesOffered: p.services || [],
+            experiences: p.experiences || [],
+            skills: p.skills || ['English', 'Kinyarwanda']
+          };
+        }
+      });
+      if (users.length > 0) setRegisteredUsers(users);
+      if (Object.keys(profs).length > 0) setUserProfiles(profs);
     }
   };
 
@@ -163,18 +178,16 @@ export default function GuideLinkRwandaApp() {
     if (!activeUser) {
       const updatedOwner = { ...ownerProfile, ...updates };
       setOwnerProfile(updatedOwner);
-      try {
-        await supabase.from('profiles').upsert({
-          contact: ownerProfile.contact,
-          name: updatedOwner.name,
-          role: 'owner',
-          password: 'FYP$2026',
-          headline: updatedOwner.title,
-          email: updatedOwner.email,
-          bio: updatedOwner.bio,
-          photo: updatedOwner.photo
-        }, { onConflict: 'contact' });
-      } catch (e) {}
+      await supabaseApi('profiles', 'POST', {
+        contact: ownerProfile.contact,
+        name: updatedOwner.name,
+        role: 'owner',
+        password: 'FYP$2026',
+        headline: updatedOwner.title,
+        email: updatedOwner.email,
+        bio: updatedOwner.bio,
+        photo: updatedOwner.photo
+      }, '?on_conflict=contact');
       return;
     }
 
@@ -182,34 +195,30 @@ export default function GuideLinkRwandaApp() {
     const existing = getCurrentProfile();
     const updated = { ...existing, ...updates };
     setUserProfiles({ ...userProfiles, [key]: updated });
-    if (updates.name) {
-      setActiveUser({ ...activeUser, name: updates.name });
-    }
+    if (updates.name) setActiveUser({ ...activeUser, name: updates.name });
 
-    try {
-      await supabase.from('profiles').upsert({
-        contact: activeUser.contact,
-        name: updated.name,
-        role: activeUser.role,
-        password: activeUser.password || '1234',
-        is_available: updated.isAvailable,
-        headline: updated.headline,
-        location: updated.location,
-        rate_info: updated.rateInfo,
-        photo: updated.photo,
-        degrees: updated.degrees,
-        services: updated.servicesOffered,
-        experiences: updated.experiences,
-        skills: updated.skills
-      }, { onConflict: 'contact' });
-    } catch (e) {}
+    await supabaseApi('profiles', 'POST', {
+      contact: activeUser.contact,
+      name: updated.name,
+      role: activeUser.role,
+      password: activeUser.password || '1234',
+      is_available: updated.isAvailable,
+      headline: updated.headline,
+      location: updated.location,
+      rate_info: updated.rateInfo,
+      photo: updated.photo,
+      degrees: updated.degrees,
+      services: updated.servicesOffered,
+      experiences: updated.experiences,
+      skills: updated.skills
+    }, '?on_conflict=contact');
   };
 
   const handleSaveWithButton = async (profileData) => {
     setIsSaving(true);
     await updateCurrentProfile(profileData);
     setIsSaving(false);
-    alert('✓ Profile successfully saved!');
+    alert('✓ Profile successfully saved to cloud database!');
   };
 
   const handleImageUpload = (e, onSuccess) => {
@@ -303,6 +312,13 @@ export default function GuideLinkRwandaApp() {
       setActiveUser(freeTraveler);
       setCurrentRole('traveler');
       setActiveTab('jobs');
+      supabaseApi('profiles', 'POST', {
+        name: freeTraveler.name,
+        contact: freeTraveler.contact,
+        password: freeTraveler.password,
+        role: 'traveler',
+        status: 'approved'
+      });
       return;
     }
 
@@ -326,17 +342,15 @@ export default function GuideLinkRwandaApp() {
     };
     setRegisteredUsers([newReg, ...registeredUsers]);
     setRegStep('pending_approval');
-    try {
-      await supabase.from('profiles').insert({
-        name: newReg.name,
-        contact: newReg.contact,
-        password: newReg.password,
-        role: newReg.role,
-        fee_paid: 500,
-        momo_ref: newReg.momoRef,
-        status: 'pending_approval'
-      });
-    } catch (e) {}
+    await supabaseApi('profiles', 'POST', {
+      name: newReg.name,
+      contact: newReg.contact,
+      password: newReg.password,
+      role: newReg.role,
+      fee_paid: 500,
+      momo_ref: newReg.momoRef,
+      status: 'pending_approval'
+    });
   };
 
   const handleOwnerLogin = (e) => {
@@ -352,9 +366,10 @@ export default function GuideLinkRwandaApp() {
     }
   };
 
-  const approveRegistrant = (userId) => {
+  const approveRegistrant = async (userId, userContact) => {
     setRegisteredUsers(registeredUsers.map((u) => (u.id === userId ? { ...u, status: 'approved' } : u)));
-    alert('✓ User approved successfully!');
+    await supabaseApi('profiles', 'PATCH', { status: 'approved' }, `?contact=eq.${encodeURIComponent(userContact)}`);
+    alert('✓ User approved successfully in cloud database!');
   };
 
   const updateVipTierSlot = (slotId, field, value) => {
@@ -683,7 +698,7 @@ export default function GuideLinkRwandaApp() {
                     {user.status === 'approved' ? (
                       <span className="text-emerald-700 font-bold">✓ Active & Approved</span>
                     ) : (
-                      <button onClick={() => approveRegistrant(user.id)} className="w-full py-2 bg-[#3B6E5B] text-white rounded-xl font-bold">✓ Confirm Payment</button>
+                      <button onClick={() => approveRegistrant(user.id, user.contact)} className="w-full py-2 bg-[#3B6E5B] text-white rounded-xl font-bold">✓ Confirm Payment</button>
                     )}
                   </div>
                 ))
@@ -743,7 +758,6 @@ export default function GuideLinkRwandaApp() {
   }
 
   const currentProf = getCurrentProfile();
-  const isPartnerRole = ['graduate', 'agency', 'tour_company'].includes(currentRole);
   const providerDirectory = buildLiveProviderDirectory();
   const filteredProviders = providerDirectory.filter((item) => directoryFilter === 'all' || item.type === directoryFilter);
   const matchingTravelerRequests = tripRequests.filter((req) => !req.preferredCategory || req.preferredCategory === currentRole);
