@@ -251,12 +251,13 @@ export default function GuideLinkRwandaApp() {
     if (cleanInput === normalizeContact(ownerProfile.contact) || normalizeContact(ownerProfile.email) === cleanInput) {
       return { id: 'owner', name: ownerProfile.name, contact: ownerProfile.contact, role: 'owner', tier: 'C.E.O & Administrator HQ', confirmed: true };
     }
-    return exemptAccounts.find(
+    const vipMatch = exemptAccounts.find(
       (acc) =>
         acc.confirmed &&
         (normalizeContact(acc.contact) === cleanInput ||
           (acc.email && normalizeContact(acc.email) === cleanInput))
     );
+    return vipMatch;
   };
 
   const handleSignInSubmit = (e) => {
@@ -427,7 +428,7 @@ export default function GuideLinkRwandaApp() {
     alert('✓ User approved and granted access successfully in cloud database!');
   };
 
-  // C.E.O Toggle to Grant or Revoke VIP Access for each Tier
+  // Toggle VIP tier access (Grant / Revoke)
   const toggleVipTierAccess = (slotId) => {
     setExemptAccounts(
       exemptAccounts.map((acc) => {
@@ -560,8 +561,6 @@ export default function GuideLinkRwandaApp() {
   };
 
   const buildLiveProviderDirectory = () => {
-    // Only real default and approved registered providers appear in the traveler public directory.
-    // VIP tiers are strictly confidential until granted access by the C.E.O.
     const defaultProviders = [
       {
         id: 'prov-g1',
@@ -595,7 +594,7 @@ export default function GuideLinkRwandaApp() {
 
     const dynamicProviders = [];
 
-    // Include VIP tier only if C.E.O has explicitly confirmed/granted access
+    // Include VIP tier ONLY if confirmed (access granted)
     exemptAccounts.forEach((acc) => {
       if (acc.confirmed && ['graduate', 'agency', 'tour_company'].includes(acc.role)) {
         const key = normalizeContact(acc.contact);
@@ -1018,12 +1017,12 @@ export default function GuideLinkRwandaApp() {
             </div>
           )}
 
-          {/* STRICTLY PRIVATE 3-Tier VIP Management with Individual Grant Access Buttons */}
+          {/* STRICTLY PRIVATE 3-Tier VIP Management with Individual Grant/Revoke Buttons */}
           {ownerTab === 'vip' && (
             <div className="space-y-3">
               <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl text-xs space-y-1">
                 <span className="font-bold text-amber-900">🔒 Confidential C.E.O Area</span>
-                <p className="text-amber-800">These 3 tiers are hidden from regular users. Press <strong>"Grant Access"</strong> to instantly make a tier active on the traveler platform.</p>
+                <p className="text-amber-800">These 3 tiers are hidden from regular users. Revoking access instantly removes the user from the traveler directory.</p>
               </div>
               <h3 className="font-bold text-sm text-slate-900">⭐ 3-Tier VIP Access Control</h3>
               
@@ -1139,7 +1138,7 @@ export default function GuideLinkRwandaApp() {
     );
   }
 
-  // Role Dashboards
+  // Role Dashboards & Workspaces
   const currentProf = getCurrentProfile();
   const isPartnerRole = ['graduate', 'agency', 'tour_company'].includes(currentRole);
   const providerDirectory = buildLiveProviderDirectory();
@@ -1343,7 +1342,7 @@ export default function GuideLinkRwandaApp() {
             <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-4 rounded-2xl shadow-sm space-y-1">
               <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Free Traveler Account</span>
               <h3 className="font-bold text-base pt-1">Choose Your Travel Partner in Rwanda</h3>
-              <p className="text-xs text-emerald-100">Browse qualifications, services, and experience across Graduates, Agencies, and Tour Companies.</p>
+              <p className="text-xs text-emerald-100">Browse qualifications, live availability, and experience across Graduates, Agencies, and Tour Companies.</p>
             </div>
 
             <div className="grid grid-cols-4 gap-1 bg-white p-1.5 rounded-2xl border text-[10px] font-bold text-center">
