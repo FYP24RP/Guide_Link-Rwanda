@@ -47,9 +47,9 @@ export default function GuideLinkRwandaApp() {
   });
 
   const [exemptAccounts, setExemptAccounts] = useState([
-    { id: 'vip1', name: 'VIP Partner Tier 1 (Platinum)', contact: '+250781111111', role: 'graduate', tier: 'Tier 1 - Platinum Partner', confirmed: false },
-    { id: 'vip2', name: 'VIP Partner Tier 2 (Gold)', contact: '+250782222222', role: 'agency', tier: 'Tier 2 - Gold Partner', confirmed: false },
-    { id: 'vip3', name: 'VIP Partner Tier 3 (Silver)', contact: '+250783333333', role: 'tour_company', tier: 'Tier 3 - Silver Partner', confirmed: false }
+    { id: 'vip1', name: 'VIP Partner Tier 1 (Platinum)', contact: '+250781111111', role: 'graduate', tier: 'Tier 1 - Platinum Partner', confirmed: true },
+    { id: 'vip2', name: 'VIP Partner Tier 2 (Gold)', contact: '+250782222222', role: 'agency', tier: 'Tier 2 - Gold Partner', confirmed: true },
+    { id: 'vip3', name: 'VIP Partner Tier 3 (Silver)', contact: '+250783333333', role: 'tour_company', tier: 'Tier 3 - Silver Partner', confirmed: true }
   ]);
 
   const [registeredUsers, setRegisteredUsers] = useState([]);
@@ -429,1311 +429,397 @@ export default function GuideLinkRwandaApp() {
 
   const toggleVipTierAccess = (slotId) => {
     setExemptAccounts(
-      exemptAccounts.map((acc) => {
-        if (acc.id === slotId) {
-          const newStatus = !acc.confirmed;
-          alert(`✓ ${acc.tier} access has been successfully ${newStatus ? 'GRANTED' : 'REVOKED'}!`);
-          return { ...acc, confirmed: newStatus };
-        }
-        return acc;
-      })
+      exemptAccounts.map((acc) => (acc.id === slotId ? { ...acc, confirmed: !acc.confirmed } : acc))
     );
   };
 
-  const handleAcceptTask = (taskId) => {
-    setTasks(
-      tasks.map((t) =>
-        t.id === taskId ? { ...t, status: 'accepted', assignedTo: activeUser?.name || 'Graduate' } : t
-      )
-    );
-    alert('✓ Gig accepted!');
-  };
-
-  const handleCompleteTask = (taskId) => {
-    setTasks(
-      tasks.map((t) => {
-        if (t.id === taskId) {
-          const commission = Math.round((t.rawPay * platformSettings.commissionRatePercent) / 100);
-          return {
-            ...t,
-            status: 'done',
-            paymentStatus: 'paid',
-            ownerCommission: commission,
-            netGuidePayout: t.rawPay - commission
-          };
-        }
-        return t;
-      })
-    );
-    alert(`✓ Task completed! Commission routed to MoMo Code ${MOMO_PAYMENT_CODE}.`);
-  };
-
-  const handleConfirmTravelerRequest = (reqId) => {
-    const responderName = activeUser?.name || 'Verified Provider';
-    const responderRoleLabel = getRoleDisplayLabel(currentRole);
-    setTripRequests(
-      tripRequests.map((req) =>
-        req.id === reqId
-          ? {
-              ...req,
-              status: 'confirmed',
-              confirmedBy: `${responderName} (${responderRoleLabel})`
-            }
-          : req
-      )
-    );
-    alert(`✓ Traveler request confirmed by ${responderName}!`);
-  };
-
-  const handlePostNewTask = (e) => {
-    e.preventDefault();
-    const numericPay = Number(newTaskForm.rawPay);
-    if (!newTaskForm.title.trim() || !numericPay) {
-      alert('Please enter a valid title and amount.');
-      return;
-    }
-    const created = {
-      id: Date.now(),
-      title: newTaskForm.title.trim(),
-      agency: `${activeUser?.name || 'Partner'} (${getRoleDisplayLabel(currentRole)})`,
-      location: newTaskForm.location || 'Kigali',
-      rawPay: numericPay,
-      pay: `RWF ${numericPay.toLocaleString()}`,
-      date: newTaskForm.date || 'Flexible Date',
-      status: 'open',
-      assignedTo: null,
-      paymentStatus: 'pending',
-      category: newTaskForm.category || 'Guiding Job'
-    };
-    setTasks([created, ...tasks]);
-    setNewTaskForm({ title: '', date: '', rawPay: '', location: 'Kigali', category: 'Guiding Job' });
-    alert('✓ Assignment/Opportunity published to Graduate Board!');
-  };
-
-  const handleCreateTripRequest = (e) => {
-    e.preventDefault();
-    const categoryLabel = getRoleDisplayLabel(tripRequestForm.preferredCategory);
-    const req = {
-      id: Date.now(),
-      travelerName: activeUser?.name || 'Traveler',
-      travelerContact: activeUser?.contact || '',
-      preferredCategory: tripRequestForm.preferredCategory,
-      targetProvider: `Any Available ${categoryLabel}`,
-      destination: tripRequestForm.destination,
-      dates: tripRequestForm.dates || 'Upcoming',
-      guests: tripRequestForm.guests,
-      notes: tripRequestForm.notes,
-      status: 'pending_confirmation',
-      confirmedBy: null
-    };
-    setTripRequests([req, ...tripRequests]);
-    setTripRequestForm({
-      preferredCategory: 'graduate',
-      destination: 'Volcanoes National Park / Musanze',
-      dates: '',
-      guests: '2',
-      notes: ''
-    });
-    alert(`✓ Request broadcasted to available ${categoryLabel}s!`);
-  };
-
-  const handleDirectProviderBooking = (e) => {
-    e.preventDefault();
-    if (!bookingTarget) return;
-    const newBooking = {
-      id: Date.now(),
-      travelerName: activeUser?.name || 'Traveler',
-      travelerContact: activeUser?.contact || '',
-      preferredCategory: bookingTarget.type,
-      targetProvider: `${bookingTarget.name} (${bookingTarget.categoryLabel})`,
-      destination: bookingTarget.location,
-      dates: bookingDetails.dates || 'Requested Dates',
-      guests: bookingDetails.guests,
-      notes: bookingDetails.notes,
-      status: 'pending_confirmation',
-      confirmedBy: null
-    };
-    setTripRequests([newBooking, ...tripRequests]);
-    setBookingTarget(null);
-    setBookingDetails({ dates: '', guests: '2', notes: '' });
-    alert(`✓ Booking request sent to ${newBooking.targetProvider}!`);
-  };
-
-  const buildLiveProviderDirectory = () => {
-    const defaultProviders = [
-      {
-        id: 'prov-g1',
-        type: 'graduate',
-        categoryLabel: 'Tourism Graduate & Guide',
-        name: 'Jean Bosco Habimana',
-        headline: 'Certified Multilingual Safari & Cultural Guide',
-        location: 'Kigali & Volcanoes NP',
-        languages: 'English, French, Kinyarwanda',
-        rate: 'RWF 40,000 / day',
-        qualifications: ['Advanced Diploma in Tours & Travel (RP Kitabi)'],
-        services: ['Gorilla Trekking Escort', 'Kigali Cultural Walks', 'Birding Tours'],
-        experience: ['4+ Years Safari Guiding in Northern Province'],
-        isAvailable: true
-      },
-      {
-        id: 'prov-tc1',
-        type: 'tour_company',
-        categoryLabel: 'Tour Company',
-        name: 'Cheetah Safaris Rwanda',
-        headline: '4x4 Safari Fleet, Gorilla Trekking & Akagera Wildlife Expeditions',
-        location: 'Kigali & Musanze',
-        languages: 'Full Safari Fleet & Permits',
-        rate: 'All-Inclusive Safaris',
-        qualifications: ['RDB Certified Tour Operator', 'AUTO Member'],
-        services: ['4x4 Land Cruiser Rental', 'Gorilla Permit Processing', 'Multi-Day Wildlife Safaris'],
-        experience: ['10+ Years East Africa Safari Operations'],
-        isAvailable: true
-      }
-    ];
-
-    const dynamicProviders = [];
-
-    exemptAccounts.forEach((acc) => {
-      if (acc.confirmed && ['graduate', 'agency', 'tour_company'].includes(acc.role)) {
-        const key = normalizeContact(acc.contact);
-        const prof = userProfiles[key] || {};
-        dynamicProviders.push({
-          id: `vip-${acc.id}`,
-          type: acc.role,
-          categoryLabel: `${getRoleDisplayLabel(acc.role)} (${acc.tier})`,
-          name: prof.name || acc.name,
-          headline: prof.headline || `${acc.tier} • Verified Partner`,
-          location: prof.location || 'Kigali, Rwanda',
-          languages: (prof.skills || ['English', 'Kinyarwanda']).join(', '),
-          rate: prof.rateInfo || (acc.role === 'graduate' ? 'RWF 45,000 / day' : 'Custom Packages'),
-          qualifications: prof.degrees || [],
-          services: prof.servicesOffered || [],
-          experience: prof.experiences || [],
-          isAvailable: prof.isAvailable !== false,
-          photo: prof.photo || ''
-        });
-      }
-    });
-
-    registeredUsers.forEach((u) => {
-      if (u.status === 'approved' && ['graduate', 'agency', 'tour_company'].includes(u.role)) {
-        const key = normalizeContact(u.contact);
-        const prof = userProfiles[key] || {};
-        dynamicProviders.push({
-          id: `reg-${u.id}`,
-          type: u.role,
-          categoryLabel: getRoleDisplayLabel(u.role),
-          name: prof.name || u.name,
-          headline: prof.headline || `Verified ${getRoleDisplayLabel(u.role)}`,
-          location: prof.location || 'Rwanda',
-          languages: (prof.skills || ['English', 'Kinyarwanda']).join(', '),
-          rate: prof.rateInfo || (u.role === 'graduate' ? 'RWF 35,000 / day' : 'Custom Itineraries'),
-          qualifications: prof.degrees || [],
-          services: prof.servicesOffered || [],
-          experience: prof.experiences || [],
-          isAvailable: prof.isAvailable !== false,
-          photo: prof.photo || ''
-        });
-      }
-    });
-
-    return [...dynamicProviders, ...defaultProviders];
-  };
-
-  // Welcome View
-  if (currentRole === 'welcome') {
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl overflow-hidden border border-slate-200">
-        <div>
-          <div className="bg-[#E2ECE9] p-6 text-center relative overflow-hidden">
-            <div className="absolute top-4 right-6 w-14 h-14 bg-amber-400 rounded-full shadow-md"></div>
-            <div className="h-28 flex items-end justify-center space-x-1">
-              <div className="w-full h-16 bg-[#5A8F7B] rounded-t-full opacity-60"></div>
-              <div className="absolute bottom-0 w-full h-12 bg-[#3B6E5B] rounded-t-full opacity-80"></div>
-              <div className="absolute bottom-0 w-3/4 h-8 bg-[#234E40] rounded-t-full"></div>
-            </div>
+  return (
+    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col items-center p-4">
+      <div className="w-full max-w-4xl bg-slate-800 rounded-xl shadow-xl p-6 border border-slate-700">
+        <header className="flex justify-between items-center border-b border-slate-700 pb-4 mb-6">
+          <div>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+              GuideLink Rwanda
+            </h1>
+            <p className="text-sm text-slate-400">Advanced Tourism & Guide Placement Platform</p>
           </div>
+          {currentRole !== 'welcome' && (
+            <button
+              onClick={resetToWelcome}
+              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm transition"
+            >
+              Sign Out
+            </button>
+          )}
+        </header>
 
-          <div className="p-6 space-y-5">
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900 tracking-tight">GuideLink Rwanda</h1>
-              <p className="text-lg font-medium text-[#234E40] mt-1">Turn your tourism degree into paid work.</p>
-              <p className="text-xs text-slate-600 mt-2">
-                Connecting Tourism Graduates, Travel Agencies, Tour Companies, and Travelers across Rwanda.
-              </p>
-              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-1.5">
-                C.E.O: {ownerProfile.name} ({ownerProfile.contact})
-              </p>
-            </div>
-
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-bold text-[#234E40] uppercase tracking-wider">Member Access</span>
-                <span className="text-[11px] font-bold bg-emerald-100 text-[#234E40] px-2.5 py-0.5 rounded-full">
-                  Travelers: FREE
-                </span>
-              </div>
-
+        {currentRole === 'welcome' && (
+          <div className="text-center py-12 space-y-6">
+            <h2 className="text-3xl font-semibold">Welcome to GuideLink Rwanda</h2>
+            <p className="text-slate-300 max-w-xl mx-auto">
+              Connecting elite tourism graduates, licensed tour operators, agencies, and travelers across Rwanda.
+            </p>
+            <div className="flex justify-center gap-4">
               <button
-                onClick={() => {
-                  setSignInContact('');
-                  setSignInPassword('');
-                  setCurrentRole('signin');
-                }}
-                className="w-full py-3.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow transition flex items-center justify-center space-x-2"
+                onClick={() => setCurrentRole('signin')}
+                className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-medium transition"
               >
-                <span>🔑</span>
-                <span>Sign In (Registered Members) →</span>
+                Sign In
               </button>
-
               <button
-                onClick={() => {
-                  setRegForm({ name: '', contact: '', password: '', confirmPassword: '', role: 'traveler', momoRef: '' });
-                  setRegStep('details');
-                  setCurrentRole('signup');
-                }}
-                className="w-full py-3 bg-emerald-50 hover:bg-emerald-100 text-[#234E40] border border-[#3B6E5B]/30 rounded-xl font-bold text-sm transition flex items-center justify-center space-x-2"
+                onClick={() => setCurrentRole('signup')}
+                className="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 rounded-lg font-medium transition"
               >
-                <span>📝</span>
-                <span>Create Account (New Sign Up)</span>
+                Create Account (Sign Up)
               </button>
             </div>
-
-            <div className="pt-1">
+            <div className="pt-6 border-t border-slate-700">
               <button
-                onClick={() => {
-                  setOwnerPinInput('');
-                  setShowOwnerPinModal(true);
-                }}
-                className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs shadow-sm transition flex items-center justify-center space-x-2"
+                onClick={() => setShowOwnerPinModal(true)}
+                className="text-xs text-slate-400 hover:text-emerald-400 underline transition"
               >
-                <span>👑</span>
-                <span>C.E.O Login ({ownerProfile.name})</span>
+                C.E.O / Administrator Portal Login
               </button>
             </div>
-          </div>
-        </div>
-
-        {showOwnerPinModal && (
-          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-            <form onSubmit={handleOwnerLogin} className="bg-white rounded-2xl p-6 w-full max-w-xs space-y-4 shadow-xl">
-              <div className="text-center space-y-1">
-                <div className="w-10 h-10 bg-slate-900 text-white rounded-full flex items-center justify-center mx-auto text-base">
-                  🔐
-                </div>
-                <h3 className="font-bold text-base text-slate-900">C.E.O Authentication</h3>
-                <p className="text-xs text-slate-500">Enter private password to unlock Owner HQ.</p>
-              </div>
-              <input
-                type="password"
-                required
-                autoFocus
-                placeholder="••••••••"
-                value={ownerPinInput}
-                onChange={(e) => setOwnerPinInput(e.target.value)}
-                className="w-full p-3 border border-slate-300 rounded-xl text-sm text-center font-bold tracking-wider"
-              />
-              <div className="flex space-x-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowOwnerPinModal(false);
-                    setOwnerPinInput('');
-                  }}
-                  className="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-2.5 bg-[#234E40] text-white rounded-xl text-xs font-bold"
-                >
-                  Unlock
-                </button>
-              </div>
-            </form>
           </div>
         )}
-      </div>
-    );
-  }
 
-  // Sign In View
-  if (currentRole === 'signin') {
-    return (
-      <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl border border-slate-200">
-        <div className="bg-white px-6 py-4 border-b border-slate-200 flex justify-between items-center">
-          <h2 className="font-bold text-slate-900">Secure Member Sign In</h2>
-          <button onClick={resetToWelcome} className="text-xs bg-slate-100 px-3 py-1.5 rounded-full font-semibold text-slate-600">
-            ← Home
-          </button>
-        </div>
-
-        <div className="p-6 flex-1">
-          <form onSubmit={handleSignInSubmit} className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
+        {currentRole === 'signin' && (
+          <form onSubmit={handleSignInSubmit} className="max-w-md mx-auto space-y-4">
+            <h2 className="text-xl font-bold text-center">Sign In to Your Account</h2>
             <div>
-              <span className="text-[11px] font-bold uppercase text-[#3B6E5B]">Password Protected</span>
-              <h3 className="text-lg font-bold text-slate-900">Sign In to Your Dashboard</h3>
-              <p className="text-xs text-slate-500 mt-1">Enter your registered Phone or Email and your password.</p>
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-slate-700">Phone Number or Email</label>
+              <label className="block text-sm text-slate-400 mb-1">Phone Number or Email</label>
               <input
                 type="text"
-                required
-                autoFocus
-                placeholder="e.g. +250780558555"
                 value={signInContact}
                 onChange={(e) => setSignInContact(e.target.value)}
-                className="w-full mt-1 p-3 border border-slate-300 rounded-xl text-sm"
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-slate-100 focus:outline-none focus:border-emerald-500"
+                placeholder="e.g. +250780558555"
               />
             </div>
-
             <div>
-              <label className="text-xs font-bold text-slate-700">Password</label>
+              <label className="block text-sm text-slate-400 mb-1">Password</label>
               <input
                 type="password"
-                required
-                placeholder="Enter password"
                 value={signInPassword}
                 onChange={(e) => setSignInPassword(e.target.value)}
-                className="w-full mt-1 p-3 border border-slate-300 rounded-xl text-sm"
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-slate-100 focus:outline-none focus:border-emerald-500"
+                placeholder="••••••••"
               />
             </div>
-
-            <button type="submit" className="w-full py-3.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow transition">
-              Unlock Dashboard →
+            <button
+              type="submit"
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-medium transition"
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={resetToWelcome}
+              className="w-full text-sm text-slate-400 hover:text-slate-200"
+            >
+              Back to Welcome
             </button>
           </form>
-        </div>
-      </div>
-    );
-  }
+        )}
 
-  // Sign Up View
-  if (currentRole === 'signup') {
-    return (
-      <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl border border-slate-200">
-        <div className="bg-white px-6 py-4 border-b border-slate-200 flex justify-between items-center">
-          <h2 className="font-bold text-slate-900">Create New Account</h2>
-          <button onClick={resetToWelcome} className="text-xs bg-slate-100 px-3 py-1.5 rounded-full font-semibold text-slate-600">
-            ← Home
-          </button>
-        </div>
-
-        <div className="p-6 flex-1 overflow-y-auto">
-          {regStep === 'details' && (
-            <form onSubmit={handleSignUpSubmit} className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3.5 shadow-sm">
-              <div>
-                <span className="text-[11px] font-bold uppercase text-[#3B6E5B]">New Registration</span>
-                <h3 className="text-lg font-bold text-slate-900">Join GuideLink Rwanda</h3>
-                <p className="text-xs text-slate-500 mt-1">
-                  Travelers are <strong>FREE</strong>. Partners register via MoMo Code <strong>{MOMO_PAYMENT_CODE}</strong> (500 RWF).
-                </p>
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-700">Full Name or Company Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Alice Uwase"
-                  value={regForm.name}
-                  onChange={(e) => setRegForm({ ...regForm, name: e.target.value })}
-                  className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-700">Phone Number or Email</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. +250788000000"
-                  value={regForm.contact}
-                  onChange={(e) => setRegForm({ ...regForm, contact: e.target.value })}
-                  className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-sm"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-xs font-bold text-slate-700">Create Password</label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="••••••"
-                    value={regForm.password}
-                    onChange={(e) => setRegForm({ ...regForm, password: e.target.value })}
-                    className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-700">Confirm Password</label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="••••••"
-                    value={regForm.confirmPassword}
-                    onChange={(e) => setRegForm({ ...regForm, confirmPassword: e.target.value })}
-                    className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-sm"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-700">Select Account Role</label>
-                <select
-                  value={regForm.role}
-                  onChange={(e) => setRegForm({ ...regForm, role: e.target.value })}
-                  className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-sm bg-white"
-                >
-                  <option value="traveler">🧳 Traveler (FREE Instant Access)</option>
-                  <option value="graduate">🎓 Tourism Graduate (Guide / Consultant)</option>
-                  <option value="agency">🏢 Travel Agency</option>
-                  <option value="tour_company">🚐 Tour Company (Safari Operator)</option>
-                </select>
-              </div>
-              <button type="submit" className="w-full py-3 bg-[#3B6E5B] text-white rounded-xl font-bold text-sm shadow">
-                {regForm.role === 'traveler' ? 'Complete Free Sign Up →' : 'Proceed to MoMo Verification →'}
-              </button>
-            </form>
-          )}
-
-          {regStep === 'pay_500' && (
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
-              <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-xl space-y-1">
-                <h3 className="text-lg font-bold text-slate-900">Pay 500 RWF via MoMo Code</h3>
-                <p className="text-xs text-slate-700">
-                  Send <strong>500 RWF</strong> to MoMo Code: <strong className="text-[#234E40] text-sm">{MOMO_PAYMENT_CODE}</strong>
-                </p>
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-700">MoMo Transaction ID / Reference</label>
-                <input
-                  type="text"
-                  required
-                  value={regForm.momoRef}
-                  onChange={(e) => setRegForm({ ...regForm, momoRef: e.target.value })}
-                  className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-xs"
-                />
-              </div>
-              <button onClick={handleComplete500Payment} className="w-full py-3 bg-[#234E40] text-white rounded-xl font-bold text-sm shadow">
-                Submit Payment & Notify C.E.O
-              </button>
-            </div>
-          )}
-
-          {regStep === 'pending_approval' && (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center space-y-4 shadow-sm">
-              <h3 className="text-lg font-bold text-slate-900">Payment Pending C.E.O Approval</h3>
-              <p className="text-xs text-slate-600">
-                Payment logged for MoMo Code <strong>{MOMO_PAYMENT_CODE}</strong>. Once confirmed by C.E.O RUTUNGURA Bonheur, sign in with your password.
-              </p>
-              <button onClick={resetToWelcome} className="w-full py-2.5 bg-[#3B6E5B] text-white rounded-xl font-bold text-xs">
-                Return to Home Screen
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // C.E.O Owner HQ View
-  if (currentRole === 'owner') {
-    const totalRegFees = registeredUsers.reduce((sum, u) => sum + (u.feePaid || 0), 0);
-    const totalDealCommissions = tasks
-      .filter((t) => t.paymentStatus === 'paid')
-      .reduce((sum, t) => sum + (t.ownerCommission || 0), 0);
-    const grandTotalRevenue = totalRegFees + totalDealCommissions;
-    const pendingCount = registeredUsers.filter((u) => u.status === 'pending_approval').length;
-
-    return (
-      <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl border border-slate-200 relative">
-        <div className="bg-[#234E40] text-white px-5 py-4 flex justify-between items-center sticky top-0 z-30">
-          <div className="flex items-center space-x-3">
-            {ownerProfile.photo ? (
-              <img src={ownerProfile.photo} alt="C.E.O" className="w-11 h-11 rounded-full object-cover border-2 border-amber-400" />
-            ) : (
-              <div className="w-11 h-11 bg-amber-400 text-slate-900 rounded-full flex items-center justify-center font-extrabold text-sm">👑</div>
-            )}
+        {currentRole === 'signup' && regStep === 'details' && (
+          <form onSubmit={handleSignUpSubmit} className="max-w-md mx-auto space-y-4">
+            <h2 className="text-xl font-bold text-center">Create Account</h2>
             <div>
-              <h2 className="font-bold text-sm">{ownerProfile.name} <span className="text-[10px] bg-amber-400 text-slate-900 px-1.5 py-0.5 rounded font-extrabold ml-1">C.E.O</span></h2>
-              <p className="text-[11px] text-emerald-200">{ownerProfile.contact} • MoMo: {MOMO_PAYMENT_CODE}</p>
+              <label className="block text-sm text-slate-400 mb-1">Full Name</label>
+              <input
+                type="text"
+                value={regForm.name}
+                onChange={(e) => setRegForm({ ...regForm, name: e.target.value })}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-slate-100 focus:outline-none focus:border-cyan-500"
+                placeholder="Your Name"
+              />
             </div>
+            <div>
+              <label className="block text-sm text-slate-400 mb-1">Phone Number or Email</label>
+              <input
+                type="text"
+                value={regForm.contact}
+                onChange={(e) => setRegForm({ ...regForm, contact: e.target.value })}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-slate-100 focus:outline-none focus:border-cyan-500"
+                placeholder="+250..."
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">Password</label>
+                <input
+                  type="password"
+                  value={regForm.password}
+                  onChange={(e) => setRegForm({ ...regForm, password: e.target.value })}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-slate-100 focus:outline-none focus:border-cyan-500"
+                  placeholder="Password"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">Confirm Password</label>
+                <input
+                  type="password"
+                  value={regForm.confirmPassword}
+                  onChange={(e) => setRegForm({ ...regForm, confirmPassword: e.target.value })}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-slate-100 focus:outline-none focus:border-cyan-500"
+                  placeholder="Confirm"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm text-slate-400 mb-1">Account Role</label>
+              <select
+                value={regForm.role}
+                onChange={(e) => setRegForm({ ...regForm, role: e.target.value })}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-slate-100 focus:outline-none focus:border-cyan-500"
+              >
+                <option value="traveler">Traveler (Free)</option>
+                <option value="graduate">Tourism Graduate / Guide (RWF 500 Reg Fee)</option>
+                <option value="agency">Travel Agency (RWF 500 Reg Fee)</option>
+                <option value="tour_company">Tour Company (RWF 500 Reg Fee)</option>
+              </select>
+            </div>
+            <button
+              type="submit"
+              className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 rounded-lg font-medium transition"
+            >
+              Continue
+            </button>
+            <button
+              type="button"
+              onClick={resetToWelcome}
+              className="w-full text-sm text-slate-400 hover:text-slate-200"
+            >
+              Back to Welcome
+            </button>
+          </form>
+        )}
+
+        {currentRole === 'signup' && regStep === 'pay_500' && (
+          <div className="max-w-md mx-auto space-y-4 text-center">
+            <h2 className="text-xl font-bold">Complete Registration Fee</h2>
+            <p className="text-sm text-slate-300">
+              Professional accounts require a one-time verification fee of <b>RWF 500</b> sent via MTN/Airtel MoMo Code: <span className="text-emerald-400 font-bold">{MOMO_PAYMENT_CODE}</span>.
+            </p>
+            <div>
+              <label className="block text-sm text-slate-400 mb-1 text-left">MoMo Transaction Reference ID</label>
+              <input
+                type="text"
+                value={regForm.momoRef}
+                onChange={(e) => setRegForm({ ...regForm, momoRef: e.target.value })}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-slate-100 focus:outline-none focus:border-cyan-500"
+                placeholder="Enter Transaction ID / SMS Ref"
+              />
+            </div>
+            <button
+              onClick={handleComplete500Payment}
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-medium transition"
+            >
+              Submit Payment Reference
+            </button>
           </div>
-          <button onClick={resetToWelcome} className="text-xs bg-emerald-900 px-3 py-1.5 rounded-full font-semibold">Log Out</button>
-        </div>
+        )}
 
-        {/* 5 Owner Iconic Tabs */}
-        <div className="bg-white border-b border-slate-200 px-2 py-2.5 grid grid-cols-5 gap-1 text-center sticky top-[76px] z-20 shadow-sm">
-          <button onClick={() => setOwnerTab('pending')} className={`p-1.5 rounded-xl flex flex-col items-center relative ${ownerTab === 'pending' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
-            <span className="text-base">⏳</span><span className="text-[9px]">Sign-Ups</span>
-            {pendingCount > 0 && <span className="absolute top-1 right-2 bg-red-600 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center">{pendingCount}</span>}
-          </button>
-          <button onClick={() => setOwnerTab('overview')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'overview' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-base">📊</span><span className="text-[9px]">Revenue</span></button>
-          <button onClick={() => setOwnerTab('vip')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'vip' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-base">⭐</span><span className="text-[9px]">3-Tier VIP</span></button>
-          <button onClick={() => setOwnerTab('deals')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'deals' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-base">🎛️</span><span className="text-[9px]">Roles</span></button>
-          <button onClick={() => setOwnerTab('owner_profile')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'owner_profile' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-base">👤</span><span className="text-[9px]">My Profile</span></button>
-        </div>
+        {currentRole === 'signup' && regStep === 'pending_approval' && (
+          <div className="max-w-md mx-auto text-center py-8 space-y-4">
+            <h2 className="text-2xl font-bold text-amber-400">Registration Pending Approval</h2>
+            <p className="text-slate-300">
+              Your registration and MoMo payment reference have been sent to the C.E.O for verification. Once approved, you can sign in with your credentials.
+            </p>
+            <button
+              onClick={resetToWelcome}
+              className="px-6 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition"
+            >
+              Return to Welcome
+            </button>
+          </div>
+        )}
 
-        <div className="p-4 space-y-4 flex-1 overflow-y-auto pb-10">
-          {ownerTab === 'pending' && (
-            <div className="space-y-3">
-              <h3 className="font-bold text-sm text-slate-900">⏳ Member Sign-Ups, Approvals & Access Control</h3>
-              <p className="text-[11px] text-slate-500">Grant or revoke access for any user who complies or fails to comply with requirements.</p>
-              {registeredUsers.length === 0 ? (
-                <div className="bg-white p-6 rounded-2xl border text-center text-xs text-slate-500">No sign-ups logged yet.</div>
-              ) : (
-                registeredUsers.map((user) => (
-                  <div key={user.id} className="bg-white p-4 rounded-2xl border space-y-2.5 text-xs shadow-sm">
-                    <div className="flex justify-between items-center">
-                      <p className="font-bold text-sm">{user.name} <span className="text-slate-500 font-normal">({getRoleDisplayLabel(user.role)})</span></p>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${user.status === 'approved' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
-                        {user.status === 'approved' ? '🟢 Active Access' : '🔒 Revoked / Pending'}
-                      </span>
-                    </div>
-                    <p className="text-slate-500">{user.contact} • Ref: {user.momoRef} • Fee: {user.feePaid} RWF</p>
-                    
-                    <div className="flex space-x-2 pt-1">
-                      {user.status !== 'approved' ? (
-                        <button onClick={() => toggleUserAccessStatus(user.id, user.contact, user.status)} className="flex-1 py-2 bg-[#3B6E5B] text-white rounded-xl font-bold">
-                          ✓ Grant Access
-                        </button>
-                      ) : (
-                        <button onClick={() => toggleUserAccessStatus(user.id, user.contact, user.status)} className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold">
-                          ✕ Revoke Access
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
+        {currentRole === 'owner' && (
+          <div className="space-y-6">
+            <div className="flex gap-2 border-b border-slate-700 pb-3">
+              <button
+                onClick={() => setOwnerTab('pending')}
+                className={`px-4 py-2 rounded-lg font-medium text-sm transition ${ownerTab === 'pending' ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-300'}`}
+              >
+                Pending Users ({registeredUsers.filter(u => u.status === 'pending_approval').length})
+              </button>
+              <button
+                onClick={() => setOwnerTab('all')}
+                className={`px-4 py-2 rounded-lg font-medium text-sm transition ${ownerTab === 'all' ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-300'}`}
+              >
+                All Users ({registeredUsers.length})
+              </button>
             </div>
-          )}
 
-          {ownerTab === 'overview' && (
-            <div className="space-y-4">
-              <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-5 rounded-2xl text-center space-y-1">
-                <span className="text-xs uppercase text-emerald-200 font-bold">Total Platform Revenue</span>
-                <div className="text-3xl font-extrabold">RWF {grandTotalRevenue.toLocaleString()}</div>
-                <p className="text-[11px] text-emerald-100">
-                  MoMo Code: {MOMO_PAYMENT_CODE} • Sign-Ups: RWF {totalRegFees.toLocaleString()} • Commissions: RWF {totalDealCommissions.toLocaleString()}
-                </p>
+            {ownerTab === 'pending' && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Pending Registrations</h3>
+                {registeredUsers.filter(u => u.status === 'pending_approval').length === 0 ? (
+                  <p className="text-slate-400">No pending registrations at this time.</p>
+                ) : (
+                  registeredUsers
+                    .filter(u => u.status === 'pending_approval')
+                    .map((user) => (
+                      <div key={user.id} className="bg-slate-900 p-4 rounded-lg border border-slate-700 flex justify-between items-center">
+                        <div>
+                          <p className="font-bold">{user.name}</p>
+                          <p className="text-sm text-slate-400">{user.contact} • Role: {getRoleDisplayLabel(user.role)}</p>
+                          <p className="text-xs text-emerald-400 mt-1">MoMo Ref: {user.momoRef}</p>
+                        </div>
+                        <button
+                          onClick={() => toggleUserAccessStatus(user.id, user.contact, 'pending_approval')}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-xs font-medium transition"
+                        >
+                          Approve Account
+                        </button>
+                      </div>
+                    ))
+                )}
               </div>
+            )}
+
+            {ownerTab === 'all' && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Registered Users Directory</h3>
+                {registeredUsers.length === 0 ? (
+                  <p className="text-slate-400">No registered users yet.</p>
+                ) : (
+                  registeredUsers.map((user) => (
+                    <div key={user.id} className="bg-slate-900 p-4 rounded-lg border border-slate-700 flex justify-between items-center">
+                      <div>
+                        <p className="font-bold">{user.name} <span className="text-xs text-slate-400">({getRoleDisplayLabel(user.role)})</span></p>
+                        <p className="text-sm text-slate-400">{user.contact}</p>
+                        <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs ${user.status === 'approved' ? 'bg-emerald-900 text-emerald-300' : 'bg-red-900 text-red-300'}`}>
+                          {user.status}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => toggleUserAccessStatus(user.id, user.contact, user.status)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${user.status === 'approved' ? 'bg-red-600 hover:bg-red-500' : 'bg-emerald-600 hover:bg-emerald-500'}`}
+                      >
+                        {user.status === 'approved' ? 'Revoke' : 'Approve'}
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {currentRole !== 'welcome' && currentRole !== 'signin' && currentRole !== 'signup' && currentRole !== 'owner' && (
+          <div className="space-y-6">
+            <div className="flex gap-2 border-b border-slate-700 pb-3">
+              <button
+                onClick={() => setActiveTab('jobs')}
+                className={`px-4 py-2 rounded-lg font-medium text-sm transition ${activeTab === 'jobs' ? 'bg-cyan-600 text-white' : 'bg-slate-700 text-slate-300'}`}
+              >
+                Jobs & Gigs
+              </button>
+              <button
+                onClick={() => setActiveTab('profile')}
+                className={`px-4 py-2 rounded-lg font-medium text-sm transition ${activeTab === 'profile' ? 'bg-cyan-600 text-white' : 'bg-slate-700 text-slate-300'}`}
+              >
+                My Profile
+              </button>
             </div>
-          )}
 
-          {ownerTab === 'vip' && (
-            <div className="space-y-3">
-              <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl text-xs space-y-1">
-                <span className="font-bold text-amber-900">🔒 Confidential C.E.O Area</span>
-                <p className="text-amber-800">These 3 tiers are hidden from regular users. Revoking access instantly removes the user from the traveler directory.</p>
-              </div>
-              <h3 className="font-bold text-sm text-slate-900">⭐ 3-Tier VIP Access Control</h3>
-              
-              {exemptAccounts.map((acc) => (
-                <div key={acc.id} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2.5 text-xs shadow-sm">
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold text-[#234E40] text-sm">{acc.tier}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${acc.confirmed ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
-                      {acc.confirmed ? '🟢 Access Granted' : '🔒 Access Revoked'}
-                    </span>
+            {activeTab === 'jobs' && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Available Tourism & Guiding Tasks</h3>
+                {tasks.map((task) => (
+                  <div key={task.id} className="bg-slate-900 p-4 rounded-lg border border-slate-700 space-y-2">
+                    <div className="flex justify-between items-start">
+                      <h4 className="font-bold text-cyan-400">{task.title}</h4>
+                      <span className="text-sm font-semibold text-emerald-400">{task.pay}</span>
+                    </div>
+                    <p className="text-sm text-slate-300">Agency/Company: {task.agency}</p>
+                    <p className="text-xs text-slate-400">Location: {task.location} • Date: {task.date}</p>
                   </div>
+                ))}
+              </div>
+            )}
+
+            {activeTab === 'profile' && (
+              <div className="space-y-4 max-w-lg mx-auto">
+                <h3 className="text-lg font-semibold">Manage Profile</h3>
+                <div className="bg-slate-900 p-4 rounded-lg border border-slate-700 space-y-3">
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500">Partner Name / Title</label>
+                    <label className="block text-sm text-slate-400 mb-1">Name</label>
                     <input
                       type="text"
-                      value={acc.name}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setExemptAccounts(exemptAccounts.map(a => a.id === acc.id ? { ...a, name: val } : a));
-                      }}
-                      className="w-full mt-0.5 p-2 border rounded-xl bg-slate-50 text-xs font-semibold"
+                      value={getCurrentProfile().name}
+                      onChange={(e) => updateCurrentProfile({ name: e.target.value })}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-100"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500">Contact / Phone</label>
+                    <label className="block text-sm text-slate-400 mb-1">Headline / Title</label>
                     <input
                       type="text"
-                      value={acc.contact}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setExemptAccounts(exemptAccounts.map(a => a.id === acc.id ? { ...a, contact: val } : a));
-                      }}
-                      className="w-full mt-0.5 p-2 border rounded-xl bg-slate-50 text-xs"
+                      value={getCurrentProfile().headline}
+                      onChange={(e) => updateCurrentProfile({ headline: e.target.value })}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">Bio / Overview</label>
+                    <textarea
+                      value={getCurrentProfile().bio}
+                      onChange={(e) => updateCurrentProfile({ bio: e.target.value })}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-100"
+                      rows={3}
                     />
                   </div>
                   <button
-                    onClick={() => toggleVipTierAccess(acc.id)}
-                    className={`w-full py-2.5 rounded-xl font-bold text-xs shadow transition ${
-                      acc.confirmed ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-[#3B6E5B] hover:bg-[#234E40] text-white'
-                    }`}
+                    onClick={() => handleSaveWithButton(getCurrentProfile())}
+                    disabled={isSaving}
+                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-medium transition"
                   >
-                    {acc.confirmed ? `Revoke Access for ${acc.tier}` : `✓ Grant Access for ${acc.tier}`}
+                    {isSaving ? 'Saving...' : 'Save Profile Changes'}
                   </button>
                 </div>
-              ))}
-            </div>
-          )}
-
-          {ownerTab === 'deals' && (
-            <div className="bg-white p-4 rounded-2xl border space-y-2.5 text-xs font-bold">
-              <h3 className="font-bold text-sm text-slate-900">🎛️ Preview Dashboards</h3>
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'graduate' }); setCurrentRole('graduate'); setActiveTab('jobs'); }} className="p-3 bg-emerald-50 text-[#234E40] border rounded-xl">🎓 Graduate</button>
-                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'agency' }); setCurrentRole('agency'); setActiveTab('jobs'); }} className="p-3 bg-emerald-50 text-[#234E40] border rounded-xl">🏢 Agency</button>
-                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'tour_company' }); setCurrentRole('tour_company'); setActiveTab('jobs'); }} className="p-3 bg-emerald-50 text-[#234E40] border rounded-xl">🚐 Tour Co.</button>
-                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'traveler' }); setCurrentRole('traveler'); setActiveTab('jobs'); }} className="p-3 bg-emerald-50 text-[#234E40] border rounded-xl">🧳 Traveler</button>
-              </div>
-            </div>
-          )}
-
-          {ownerTab === 'owner_profile' && (
-            <div className="bg-white p-5 rounded-2xl border space-y-4">
-              <h3 className="font-bold text-base text-slate-900">👑 C.E.O Profile & Photo</h3>
-              <div className="flex flex-col items-center space-y-2">
-                {ownerProfile.photo ? (
-                  <img src={ownerProfile.photo} alt="C.E.O" className="w-28 h-28 rounded-full object-cover border-4 border-[#3B6E5B] shadow-md" />
-                ) : (
-                  <div className="w-28 h-28 rounded-full bg-slate-200 flex items-center justify-center text-3xl">👑</div>
-                )}
-                <label className="cursor-pointer bg-[#234E40] text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-slate-800 transition">
-                  📷 Upload C.E.O Photo
-                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, (imgData) => setOwnerProfile({ ...ownerProfile, photo: imgData }))} />
-                </label>
-              </div>
-
-              <div className="space-y-3 text-xs">
-                <div>
-                  <label className="font-bold text-slate-700">Full Name</label>
-                  <input type="text" value={ownerProfile.name} onChange={(e) => setOwnerProfile({ ...ownerProfile, name: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
-                </div>
-                <div>
-                  <label className="font-bold text-slate-700">Executive Title</label>
-                  <input type="text" value={ownerProfile.title} onChange={(e) => setOwnerProfile({ ...ownerProfile, title: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="font-bold text-slate-700">Phone Number</label>
-                    <input type="text" value={ownerProfile.contact} onChange={(e) => setOwnerProfile({ ...ownerProfile, contact: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
-                  </div>
-                  <div>
-                    <label className="font-bold text-slate-700">Email Address</label>
-                    <input type="email" value={ownerProfile.email} onChange={(e) => setOwnerProfile({ ...ownerProfile, email: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
-                  </div>
-                </div>
-                <div>
-                  <label className="font-bold text-slate-700">Executive Bio</label>
-                  <textarea rows="3" value={ownerProfile.bio} onChange={(e) => setOwnerProfile({ ...ownerProfile, bio: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
-                </div>
-                
-                <button
-                  type="button"
-                  disabled={isSaving}
-                  onClick={() => handleSaveWithButton(ownerProfile)}
-                  className="w-full py-3.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold text-sm shadow transition"
-                >
-                  {isSaving ? '⏳ Saving...' : '💾 Save C.E.O Profile & Photo'}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // Role Dashboards & Workspaces
-  const currentProf = getCurrentProfile();
-  const isPartnerRole = ['graduate', 'agency', 'tour_company'].includes(currentRole);
-  const providerDirectory = buildLiveProviderDirectory();
-  const filteredProviders = providerDirectory.filter((item) => {
-    if (directoryFilter === 'all') return true;
-    return item.type === directoryFilter;
-  });
-
-  const matchingTravelerRequests = tripRequests.filter(
-    (req) => !req.preferredCategory || req.preferredCategory === currentRole
-  );
-
-  return (
-    <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl overflow-hidden border border-slate-200 relative">
-      <div className="bg-white px-5 py-3.5 border-b flex justify-between items-center sticky top-0 z-30">
-        <div className="flex items-center space-x-3">
-          {currentProf?.photo ? (
-            <img src={currentProf.photo} alt="Profile" className="w-10 h-10 rounded-full object-cover border-2 border-[#3B6E5B]" />
-          ) : (
-            <div className="w-10 h-10 rounded-full bg-[#3B6E5B] text-white flex items-center justify-center font-bold">
-              {(currentProf?.name || 'U').charAt(0)}
-            </div>
-          )}
-          <div>
-            <h2 className="font-bold text-sm">{currentProf?.name}</h2>
-            <p className="text-[11px] text-slate-500 capitalize">{getRoleDisplayLabel(currentRole)}</p>
-          </div>
-        </div>
-        <button onClick={resetToWelcome} className="text-xs bg-slate-100 px-3 py-1.5 rounded-full font-semibold">Sign Out</button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto pb-24 p-4 space-y-4">
-        {isPartnerRole && currentProf && (
-          <div className="bg-white p-3.5 rounded-2xl border border-slate-200 flex justify-between items-center shadow-sm">
-            <div>
-              <p className="text-xs font-bold text-slate-900">
-                {currentProf.isAvailable !== false ? '🟢 Available for Bookings' : '🔴 Currently Busy'}
-              </p>
-              <p className="text-[11px] text-slate-500">Live status visible across platform</p>
-            </div>
-            <button
-              onClick={() => updateCurrentProfile({ isAvailable: currentProf.isAvailable === false })}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                currentProf.isAvailable !== false ? 'bg-emerald-100 text-[#234E40]' : 'bg-slate-200 text-slate-700'
-              }`}
-            >
-              {currentProf.isAvailable !== false ? 'Active' : 'Offline'}
-            </button>
-          </div>
-        )}
-
-        {/* Graduate Workspace: See Guiding Jobs, Consultant Jobs, Freelance Traveler Requests */}
-        {activeTab === 'jobs' && currentRole === 'graduate' && (
-          <div className="space-y-4">
-            <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-4 rounded-2xl shadow-sm space-y-1">
-              <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Graduate Opportunity Hub</span>
-              <h3 className="font-bold text-base pt-1">Guiding Jobs, Consultant Roles & Freelance Travelers</h3>
-              <p className="text-xs text-emerald-100">Review qualifications, tour schedules, and accept assignments suited for tourism professionals.</p>
-            </div>
-
-            <div className="space-y-2.5">
-              <div className="flex justify-between items-center">
-                <h3 className="font-bold text-sm text-slate-900">🧳 Freelance Traveler Requests ({matchingTravelerRequests.length})</h3>
-                <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">Action Needed</span>
-              </div>
-
-              {matchingTravelerRequests.length === 0 ? (
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 text-xs text-slate-500 text-center">
-                  No direct freelance traveler requests right now.
-                </div>
-              ) : (
-                matchingTravelerRequests.map((req) => (
-                  <div key={req.id} className="bg-white p-4 rounded-2xl border-2 border-amber-300 space-y-2 shadow-sm text-xs">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <span className="text-[10px] font-bold uppercase text-amber-700">Traveler Expectation / Request</span>
-                        <h4 className="font-bold text-sm text-slate-900">{req.destination} ({req.guests} Guests)</h4>
-                      </div>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        req.status === 'confirmed' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                      }`}>
-                        {req.status === 'confirmed' ? '✓ Confirmed' : '⏳ Pending'}
-                      </span>
-                    </div>
-                    <p className="text-slate-600">👤 Traveler: <strong>{req.travelerName}</strong> ({req.travelerContact})</p>
-                    <p className="text-slate-500">📅 Dates: {req.dates}</p>
-                    {req.notes && <p className="text-slate-500 italic bg-slate-50 p-2 rounded-lg">"{req.notes}"</p>}
-
-                    {req.status !== 'confirmed' ? (
-                      <button
-                        onClick={() => handleConfirmTravelerRequest(req.id)}
-                        className="w-full py-2.5 bg-[#234E40] text-white rounded-xl font-bold text-xs shadow transition"
-                      >
-                        ✓ Accept & Confirm Traveler Request
-                      </button>
-                    ) : (
-                      <div className="bg-emerald-50 text-emerald-800 p-2 rounded-xl font-bold text-center">
-                        ✓ Confirmed by {req.confirmedBy}
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-
-            <div className="space-y-3 pt-2">
-              <h3 className="font-bold text-sm text-slate-900">📋 Available Guiding & Consultant Jobs</h3>
-              {tasks.map((task) => (
-                <div key={task.id} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2.5 shadow-sm text-xs">
-                  <div className="flex justify-between items-start font-bold text-sm">
-                    <div>
-                      <span className="text-[10px] font-semibold text-[#3B6E5B] uppercase">{task.category || 'Guiding Job'}</span>
-                      <h4 className="text-slate-900">{task.title}</h4>
-                    </div>
-                    <span className="text-[#234E40] bg-emerald-50 px-2.5 py-1 rounded-lg shrink-0">{task.pay}</span>
-                  </div>
-                  <p className="text-slate-500">🏢 {task.agency} • 📍 {task.location} • 📅 {task.date}</p>
-                  
-                  {task.status === 'open' && (
-                    <button onClick={() => handleAcceptTask(task.id)} className="w-full py-2.5 bg-[#3B6E5B] text-white rounded-xl font-bold">
-                      Accept Assignment →
-                    </button>
-                  )}
-                  {task.status === 'accepted' && (
-                    <button onClick={() => handleCompleteTask(task.id)} className="w-full py-2.5 bg-amber-500 text-slate-900 rounded-xl font-bold">
-                      ✓ Complete & Settle (MoMo {MOMO_PAYMENT_CODE})
-                    </button>
-                  )}
-                  {task.status === 'done' && (
-                    <div className="bg-emerald-50 text-emerald-800 p-2 rounded-xl font-bold text-center">
-                      ✓ Settled (Net Payout: RWF {task.netGuidePayout?.toLocaleString()})
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Travel Agency Workspace: See Travel Consultants, Guides, Tourists & Live Availability */}
-        {activeTab === 'jobs' && currentRole === 'agency' && (
-          <div className="space-y-4">
-            <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-4 rounded-2xl shadow-sm space-y-1">
-              <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Travel Agency Hub</span>
-              <h3 className="font-bold text-base pt-1">Explore Travel Consultants, Guides & Tourists</h3>
-              <p className="text-xs text-emerald-100">Review availability, qualifications, and post consultant/guiding assignments.</p>
-            </div>
-
-            {matchingTravelerRequests.length > 0 && (
-              <div className="space-y-2">
-                <h3 className="font-bold text-sm text-slate-900">🧳 Direct Traveler Expectations & Bookings</h3>
-                {matchingTravelerRequests.map((req) => (
-                  <div key={req.id} className="bg-white p-4 rounded-2xl border-2 border-amber-300 space-y-2 text-xs">
-                    <div className="flex justify-between font-bold">
-                      <span>{req.destination} ({req.guests} Guests)</span>
-                      <span>{req.status === 'confirmed' ? '✓ Confirmed' : '⏳ Pending'}</span>
-                    </div>
-                    <p className="text-slate-600">Traveler: {req.travelerName} ({req.travelerContact}) • {req.dates}</p>
-                    {req.status !== 'confirmed' && (
-                      <button onClick={() => handleConfirmTravelerRequest(req.id)} className="w-full py-2 bg-[#234E40] text-white rounded-xl font-bold">
-                        ✓ Confirm Traveler Booking
-                      </button>
-                    )}
-                  </div>
-                ))}
               </div>
             )}
-
-            <div className="space-y-3">
-              <h3 className="font-bold text-sm text-slate-900">👥 Available Consultants, Guides & Partners</h3>
-              {filteredProviders.filter(p => p.type === 'graduate').map((prov) => (
-                <div key={prov.id} className="bg-white p-4 rounded-2xl border space-y-2 shadow-sm text-xs">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center space-x-2.5">
-                      <div className="w-10 h-10 rounded-full bg-emerald-100 text-[#234E40] flex items-center justify-center font-bold text-sm">🎓</div>
-                      <div>
-                        <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">Travel / Tour Consultant & Guide</span>
-                        <h4 className="font-bold text-sm text-slate-900">{prov.name}</h4>
-                      </div>
-                    </div>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${prov.isAvailable ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                      {prov.isAvailable ? '🟢 Available' : '🟡 Busy'}
-                    </span>
-                  </div>
-                  <p className="text-slate-700">{prov.headline}</p>
-                  <p className="text-slate-500">📍 {prov.location} • 💰 {prov.rate}</p>
-                  {prov.qualifications?.length > 0 && <p className="text-slate-600">🎓 <strong>Credential:</strong> {prov.qualifications[0]}</p>}
-                </div>
-              ))}
-            </div>
-
-            <form onSubmit={handlePostNewTask} className="bg-white p-4 rounded-2xl border space-y-3 shadow-sm text-xs">
-              <h3 className="font-bold text-sm text-slate-900">📢 Post Consultant or Guiding Assignment</h3>
-              <div>
-                <label className="font-bold text-slate-700">Job Category</label>
-                <select
-                  value={newTaskForm.category}
-                  onChange={(e) => setNewTaskForm({ ...newTaskForm, category: e.target.value })}
-                  className="w-full mt-1 p-2.5 border rounded-xl bg-white font-semibold"
-                >
-                  <option value="Consultant Job">Consultant Job</option>
-                  <option value="Guiding Job">Guiding Job</option>
-                  <option value="Tourism Service">Tourism Service</option>
-                </select>
-              </div>
-              <input
-                type="text"
-                required
-                placeholder="Title (e.g. Senior Itinerary Consultant)"
-                value={newTaskForm.title}
-                onChange={(e) => setNewTaskForm({ ...newTaskForm, title: e.target.value })}
-                className="w-full p-2.5 border rounded-xl"
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="text"
-                  placeholder="Location"
-                  value={newTaskForm.location}
-                  onChange={(e) => setNewTaskForm({ ...newTaskForm, location: e.target.value })}
-                  className="p-2.5 border rounded-xl"
-                />
-                <input
-                  type="number"
-                  required
-                  placeholder="Fee in RWF"
-                  value={newTaskForm.rawPay}
-                  onChange={(e) => setNewTaskForm({ ...newTaskForm, rawPay: e.target.value })}
-                  className="p-2.5 border rounded-xl"
-                />
-              </div>
-              <input
-                type="text"
-                placeholder="Date & Duration"
-                value={newTaskForm.date}
-                onChange={(e) => setNewTaskForm({ ...newTaskForm, date: e.target.value })}
-                className="w-full p-2.5 border rounded-xl"
-              />
-              <button type="submit" className="w-full py-2.5 bg-[#234E40] text-white rounded-xl font-bold shadow">
-                + Publish Opportunity
-              </button>
-            </form>
           </div>
         )}
 
-        {/* Tour Company Workspace: See Tour Consultants, Guides, Tourists, Graduates */}
-        {activeTab === 'jobs' && currentRole === 'tour_company' && (
-          <div className="space-y-4">
-            <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-4 rounded-2xl shadow-sm space-y-1">
-              <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Tour Company Hub</span>
-              <h3 className="font-bold text-base pt-1">Explore Tour Consultants, Guides, Tourists & Graduates</h3>
-              <p className="text-xs text-emerald-100">Review live availability, safari qualifications, and publish expedition gigs.</p>
-            </div>
-
-            {matchingTravelerRequests.length > 0 && (
-              <div className="space-y-2">
-                <h3 className="font-bold text-sm text-slate-900">🧳 Direct Traveler Expectations & Requests</h3>
-                {matchingTravelerRequests.map((req) => (
-                  <div key={req.id} className="bg-white p-4 rounded-2xl border-2 border-amber-300 space-y-2 text-xs">
-                    <div className="flex justify-between font-bold">
-                      <span>{req.destination} ({req.guests} Guests)</span>
-                      <span>{req.status === 'confirmed' ? '✓ Confirmed' : '⏳ Pending'}</span>
-                    </div>
-                    <p className="text-slate-600">Traveler: {req.travelerName} ({req.travelerContact}) • {req.dates}</p>
-                    {req.status !== 'confirmed' && (
-                      <button onClick={() => handleConfirmTravelerRequest(req.id)} className="w-full py-2 bg-[#234E40] text-white rounded-xl font-bold">
-                        ✓ Confirm Traveler Booking
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="space-y-3">
-              <h3 className="font-bold text-sm text-slate-900">🚐 Available Tour Consultants, Guides & Graduates</h3>
-              {filteredProviders.filter(p => p.type === 'graduate' || p.type === 'tour_company').map((prov) => (
-                <div key={prov.id} className="bg-white p-4 rounded-2xl border space-y-2 shadow-sm text-xs">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center space-x-2.5">
-                      <div className="w-10 h-10 rounded-full bg-emerald-100 text-[#234E40] flex items-center justify-center font-bold text-sm">🚐</div>
-                      <div>
-                        <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">Tour Consultant & Safari Guide</span>
-                        <h4 className="font-bold text-sm text-slate-900">{prov.name}</h4>
-                      </div>
-                    </div>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${prov.isAvailable ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                      {prov.isAvailable ? '🟢 Available' : '🟡 Busy'}
-                    </span>
-                  </div>
-                  <p className="text-slate-700">{prov.headline}</p>
-                  <p className="text-slate-500">📍 {prov.location} • 💰 {prov.rate}</p>
-                  {prov.qualifications?.length > 0 && <p className="text-slate-600">🎓 <strong>Credential:</strong> {prov.qualifications[0]}</p>}
-                </div>
-              ))}
-            </div>
-
-            <form onSubmit={handlePostNewTask} className="bg-white p-4 rounded-2xl border space-y-3 shadow-sm text-xs">
-              <h3 className="font-bold text-sm text-slate-900">📢 Post Tour Expedition or Guiding Job</h3>
-              <div>
-                <label className="font-bold text-slate-700">Job Category</label>
-                <select
-                  value={newTaskForm.category}
-                  onChange={(e) => setNewTaskForm({ ...newTaskForm, category: e.target.value })}
-                  className="w-full mt-1 p-2.5 border rounded-xl bg-white font-semibold"
-                >
-                  <option value="Guiding Job">Guiding Job</option>
-                  <option value="Consultant Job">Tour Consultant Job</option>
-                  <option value="Safari Expedition">Safari Expedition</option>
-                </select>
-              </div>
-              <input
-                type="text"
-                required
-                placeholder="Title (e.g. Akagera 3-Day Safari Escort)"
-                value={newTaskForm.title}
-                onChange={(e) => setNewTaskForm({ ...newTaskForm, title: e.target.value })}
-                className="w-full p-2.5 border rounded-xl"
-              />
-              <div className="grid grid-cols-2 gap-2">
+        {showOwnerPinModal && (
+          <div className="fixed inset-0 bg-black/70 flex justify-center items-center p-4 z-50">
+            <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 max-w-sm w-full space-y-4">
+              <h3 className="text-lg font-bold">C.E.O / Administrator Authentication</h3>
+              <p className="text-xs text-slate-400">Enter secure admin password to access management controls.</p>
+              <form onSubmit={handleOwnerLogin} className="space-y-3">
                 <input
-                  type="text"
-                  placeholder="Location"
-                  value={newTaskForm.location}
-                  onChange={(e) => setNewTaskForm({ ...newTaskForm, location: e.target.value })}
-                  className="p-2.5 border rounded-xl"
+                  type="password"
+                  value={ownerPinInput}
+                  onChange={(e) => setOwnerPinInput(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-slate-100 focus:outline-none focus:border-emerald-500"
+                  placeholder="Enter Password"
+                  autoFocus
                 />
-                <input
-                  type="number"
-                  required
-                  placeholder="Fee in RWF"
-                  value={newTaskForm.rawPay}
-                  onChange={(e) => setNewTaskForm({ ...newTaskForm, rawPay: e.target.value })}
-                  className="p-2.5 border rounded-xl"
-                />
-              </div>
-              <input
-                type="text"
-                placeholder="Date & Duration"
-                value={newTaskForm.date}
-                onChange={(e) => setNewTaskForm({ ...newTaskForm, date: e.target.value })}
-                className="p-2.5 border rounded-xl"
-              />
-              <button type="submit" className="w-full py-2.5 bg-[#234E40] text-white rounded-xl font-bold shadow">
-                + Publish Assignment
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* Traveler Dashboard */}
-        {activeTab === 'jobs' && currentRole === 'traveler' && (
-          <div className="space-y-4">
-            <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-4 rounded-2xl shadow-sm space-y-1">
-              <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Free Traveler Account</span>
-              <h3 className="font-bold text-base pt-1">Choose Your Travel Partner in Rwanda</h3>
-              <p className="text-xs text-emerald-100">Browse live availability, graduate qualifications, and travel agency expectations.</p>
-            </div>
-
-            <div className="grid grid-cols-4 gap-1 bg-white p-1.5 rounded-2xl border text-[10px] font-bold text-center">
-              <button onClick={() => setDirectoryFilter('all')} className={`py-2 rounded-xl ${directoryFilter === 'all' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}>All</button>
-              <button onClick={() => setDirectoryFilter('graduate')} className={`py-2 rounded-xl ${directoryFilter === 'graduate' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}>Graduates</button>
-              <button onClick={() => setDirectoryFilter('agency')} className={`py-2 rounded-xl ${directoryFilter === 'agency' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}>Agencies</button>
-              <button onClick={() => setDirectoryFilter('tour_company')} className={`py-2 rounded-xl ${directoryFilter === 'tour_company' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}>Tour Co.</button>
-            </div>
-
-            <div className="space-y-3">
-              {filteredProviders.map((prov) => (
-                <div key={prov.id} className="bg-white p-4 rounded-2xl border space-y-2.5 shadow-sm text-xs">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center space-x-2.5">
-                      {prov.photo ? (
-                        <img src={prov.photo} alt={prov.name} className="w-10 h-10 rounded-full object-cover border" />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-emerald-100 text-[#234E40] flex items-center justify-center font-bold text-sm">
-                          {prov.type === 'graduate' ? '🎓' : prov.type === 'agency' ? '🏢' : '🚐'}
-                        </div>
-                      )}
-                      <div>
-                        <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">{prov.categoryLabel}</span>
-                        <h4 className="font-bold text-sm text-slate-900">{prov.name}</h4>
-                      </div>
-                    </div>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${prov.isAvailable ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                      {prov.isAvailable ? '🟢 Available' : '🟡 Busy'}
-                    </span>
-                  </div>
-
-                  <p className="text-slate-700 font-medium">{prov.headline}</p>
-
-                  {prov.services && prov.services.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {prov.services.map((srv, idx) => (
-                        <span key={idx} className="bg-emerald-50 text-[#234E40] border border-emerald-200 px-2 py-0.5 rounded-md text-[10px] font-semibold">
-                          ✓ {srv}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {((prov.qualifications && prov.qualifications.length > 0) || (prov.experience && prov.experience.length > 0)) && (
-                    <div className="bg-slate-50 p-2.5 rounded-xl space-y-1 text-[11px] text-slate-600">
-                      {prov.qualifications?.map((q, idx) => <p key={`q-${idx}`}>🎓 <strong>Credential:</strong> {q}</p>)}
-                      {prov.experience?.map((exp, idx) => <p key={`e-${idx}`}>💼 <strong>Experience:</strong> {exp}</p>)}
-                    </div>
-                  )}
-
-                  <div className="flex flex-wrap gap-2 text-[11px] text-slate-500">
-                    <span>📍 {prov.location}</span>
-                    <span>•</span>
-                    <span className="font-bold text-[#234E40]">{prov.rate}</span>
-                  </div>
-
-                  <button onClick={() => setBookingTarget(prov)} className="w-full py-2.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold text-xs">
-                    Book {prov.name} →
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-medium transition"
+                  >
+                    Authorize
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowOwnerPinModal(false)}
+                    className="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg transition"
+                  >
+                    Cancel
                   </button>
                 </div>
-              ))}
-            </div>
-
-            <form onSubmit={handleCreateTripRequest} className="bg-white p-4 rounded-2xl border space-y-3 shadow-sm">
-              <h4 className="font-bold text-sm text-slate-900">🗺️ Request Custom Trip</h4>
-              <div>
-                <label className="text-[11px] font-bold text-slate-600">Partner Category</label>
-                <select
-                  value={tripRequestForm.preferredCategory}
-                  onChange={(e) => setTripRequestForm({ ...tripRequestForm, preferredCategory: e.target.value })}
-                  className="w-full mt-1 p-2.5 border rounded-xl text-xs bg-white font-semibold text-[#234E40]"
-                >
-                  <option value="graduate">🎓 Tourism Graduate (Guide / Consultant)</option>
-                  <option value="agency">🏢 Travel Agency</option>
-                  <option value="tour_company">🚐 Tour Company (Safari Operator)</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-slate-600">Destination</label>
-                <select
-                  value={tripRequestForm.destination}
-                  onChange={(e) => setTripRequestForm({ ...tripRequestForm, destination: e.target.value })}
-                  className="w-full mt-1 p-2.5 border rounded-xl text-xs bg-white"
-                >
-                  <option>Volcanoes National Park / Musanze</option>
-                  <option>Nyungwe Forest & Lake Kivu (Rusizi / Karongi)</option>
-                  <option>Akagera National Park Safari</option>
-                  <option>Kigali City & Cultural Heritage Tour</option>
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <input type="text" placeholder="Dates" value={tripRequestForm.dates} onChange={(e) => setTripRequestForm({ ...tripRequestForm, dates: e.target.value })} className="p-2.5 border rounded-xl text-xs" />
-                <input type="number" min="1" placeholder="Guests" value={tripRequestForm.guests} onChange={(e) => setTripRequestForm({ ...tripRequestForm, guests: e.target.value })} className="p-2.5 border rounded-xl text-xs" />
-              </div>
-              <textarea rows="2" placeholder="Notes..." value={tripRequestForm.notes} onChange={(e) => setTripRequestForm({ ...tripRequestForm, notes: e.target.value })} className="w-full p-2.5 border rounded-xl text-xs" />
-              <button type="submit" className="w-full py-2.5 bg-slate-900 text-white rounded-xl font-bold text-xs">
-                Broadcast Request →
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* Profile & Qualifications Workspace */}
-        {activeTab === 'profile' && currentProf && (
-          <div className="space-y-4">
-            <div className="bg-white p-5 rounded-2xl border space-y-4 shadow-sm">
-              <div className="flex flex-col items-center space-y-2">
-                {currentProf.photo ? (
-                  <img src={currentProf.photo} alt="Avatar" className="w-24 h-24 rounded-full object-cover border-4 border-[#3B6E5B]" />
-                ) : (
-                  <div className="w-24 h-24 rounded-full bg-emerald-100 text-[#234E40] flex items-center justify-center font-bold text-2xl">
-                    {currentProf.name.charAt(0)}
-                  </div>
-                )}
-                <label className="cursor-pointer bg-[#3B6E5B] text-white px-3.5 py-1.5 rounded-xl text-xs font-bold">
-                  📷 Upload Profile Photo
-                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, (imgData) => updateCurrentProfile({ photo: imgData }))} />
-                </label>
-              </div>
-
-              <div className="space-y-3 text-xs">
-                <div>
-                  <label className="font-bold text-slate-700">Name / Company Name</label>
-                  <input type="text" value={currentProf.name} onChange={(e) => updateCurrentProfile({ name: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
-                </div>
-                <div>
-                  <label className="font-bold text-slate-700">Headline / Tagline</label>
-                  <input type="text" value={currentProf.headline} onChange={(e) => updateCurrentProfile({ headline: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
-                </div>
-                <div>
-                  <label className="font-bold text-slate-700">Location</label>
-                  <input type="text" value={currentProf.location} onChange={(e) => updateCurrentProfile({ location: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
-                </div>
-
-                {isPartnerRole && (
-                  <div className="space-y-4 pt-3 border-t">
-                    <div>
-                      <label className="font-bold text-slate-700">💰 Standard Rate / Pricing</label>
-                      <input type="text" value={currentProf.rateInfo || ''} onChange={(e) => updateCurrentProfile({ rateInfo: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
-                    </div>
-
-                    {/* Services Offered */}
-                    <div className="space-y-2 bg-slate-50 p-3 rounded-xl border">
-                      <label className="font-bold text-[#234E40] block">🛠️ Services Offered</label>
-                      <div className="flex space-x-2">
-                        <input type="text" placeholder="e.g. Gorilla Trekking Escort" value={newServiceInput} onChange={(e) => setNewServiceInput(e.target.value)} className="flex-1 p-2 border rounded-xl bg-white" />
-                        <button type="button" onClick={() => { if (!newServiceInput.trim()) return; updateCurrentProfile({ servicesOffered: [...(currentProf.servicesOffered || []), newServiceInput.trim()] }); setNewServiceInput(''); }} className="px-3 bg-[#234E40] text-white rounded-xl font-bold">+ Add</button>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5 pt-1">
-                        {(currentProf.servicesOffered || []).map((srv, idx) => (
-                          <span key={idx} className="inline-flex items-center space-x-1 bg-white border text-[#234E40] px-2 py-1 rounded-lg">
-                            <span>✓ {srv}</span>
-                            <button type="button" onClick={() => updateCurrentProfile({ servicesOffered: currentProf.servicesOffered.filter((_, i) => i !== idx) })} className="text-red-500 font-bold ml-1">✕</button>
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Qualifications & Degrees */}
-                    <div className="space-y-2 bg-slate-50 p-3 rounded-xl border">
-                      <label className="font-bold text-[#234E40] block">🎓 Qualifications & Degrees</label>
-                      <div className="flex space-x-2">
-                        <input type="text" placeholder="e.g. Advanced Diploma in Tours & Travel (RP Kitabi)" value={newDegreeInput} onChange={(e) => setNewDegreeInput(e.target.value)} className="flex-1 p-2 border rounded-xl bg-white" />
-                        <button type="button" onClick={() => { if (!newDegreeInput.trim()) return; updateCurrentProfile({ degrees: [...(currentProf.degrees || []), newDegreeInput.trim()] }); setNewDegreeInput(''); }} className="px-3 bg-[#3B6E5B] text-white rounded-xl font-bold">+ Add</button>
-                      </div>
-                      {(currentProf.degrees || []).map((deg, idx) => (
-                        <div key={idx} className="flex justify-between items-center bg-white border p-2 rounded-xl mt-1">
-                          <span>🎓 {deg}</span>
-                          <button type="button" onClick={() => updateCurrentProfile({ degrees: currentProf.degrees.filter((_, i) => i !== idx) })} className="text-red-500 font-bold">✕</button>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Experience */}
-                    <div className="space-y-2 bg-slate-50 p-3 rounded-xl border">
-                      <label className="font-bold text-[#234E40] block">💼 Experience</label>
-                      <div className="flex space-x-2">
-                        <input type="text" placeholder="e.g. 4 Years Safari Guiding" value={newExperienceInput} onChange={(e) => setNewExperienceInput(e.target.value)} className="flex-1 p-2 border rounded-xl bg-white" />
-                        <button type="button" onClick={() => { if (!newExperienceInput.trim()) return; updateCurrentProfile({ experiences: [...(currentProf.experiences || []), newExperienceInput.trim()] }); setNewExperienceInput(''); }} className="px-3 bg-[#3B6E5B] text-white rounded-xl font-bold">+ Add</button>
-                      </div>
-                      {(currentProf.experiences || []).map((exp, idx) => (
-                        <div key={idx} className="flex justify-between items-center bg-white border p-2 rounded-xl mt-1">
-                          <span>💼 {exp}</span>
-                          <button type="button" onClick={() => updateCurrentProfile({ experiences: currentProf.experiences.filter((_, i) => i !== idx) })} className="text-red-500 font-bold">✕</button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <button type="button" disabled={isSaving} onClick={() => handleSaveWithButton(currentProf)} className="w-full py-3.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold text-sm shadow transition">
-                  {isSaving ? '⏳ Saving...' : '💾 Save Profile to Cloud'}
-                </button>
-              </div>
+              </form>
             </div>
           </div>
         )}
-      </div>
-
-      {bookingTarget && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleDirectProviderBooking} className="bg-white rounded-2xl p-5 w-full max-w-xs space-y-3.5 shadow-xl text-xs">
-            <div>
-              <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">{bookingTarget.categoryLabel}</span>
-              <h3 className="font-bold text-base text-slate-900">Book {bookingTarget.name}</h3>
-            </div>
-            <div>
-              <label className="font-bold text-slate-700">Travel Dates</label>
-              <input type="text" required placeholder="e.g. 12 Dec - 15 Dec 2026" value={bookingDetails.dates} onChange={(e) => setBookingDetails({ ...bookingDetails, dates: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
-            </div>
-            <div>
-              <label className="font-bold text-slate-700">Number of Travelers</label>
-              <input type="number" min="1" required value={bookingDetails.guests} onChange={(e) => setBookingDetails({ ...bookingDetails, guests: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
-            </div>
-            <div>
-              <label className="font-bold text-slate-700">Notes</label>
-              <textarea rows="2" value={bookingDetails.notes} onChange={(e) => setBookingDetails({ ...bookingDetails, notes: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
-            </div>
-            <div className="flex space-x-2 pt-1">
-              <button type="button" onClick={() => setBookingTarget(null)} className="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-semibold">Cancel</button>
-              <button type="submit" className="flex-1 py-2.5 bg-[#234E40] text-white rounded-xl font-bold">Confirm Request</button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      <div className="bg-white border-t py-2.5 px-10 flex justify-around items-center text-xs font-bold text-slate-500 absolute bottom-0 w-full max-w-md z-20">
-        <button onClick={() => setActiveTab('jobs')} className={`flex flex-col items-center ${activeTab === 'jobs' ? 'text-[#234E40]' : ''}`}>
-          <span className="text-base">🏠</span>
-          <span>{currentRole === 'traveler' ? 'Explore & Book' : 'Workspace'}</span>
-        </button>
-        <button onClick={() => setActiveTab('profile')} className={`flex flex-col items-center ${activeTab === 'profile' ? 'text-[#234E40]' : ''}`}>
-          <span className="text-base">👤</span>
-          <span>{isPartnerRole ? 'Profile & Services' : 'My Profile'}</span>
-        </button>
       </div>
     </div>
   );
