@@ -46,7 +46,6 @@ export default function GuideLinkRwandaApp() {
     photo: ''
   });
 
-  // STRICTLY PRIVATE: 3-Tier VIP configuration controlled ONLY from C.E.O HQ
   const [exemptAccounts, setExemptAccounts] = useState([
     { id: 'vip1', name: 'VIP Partner Tier 1 (Platinum)', contact: '+250781111111', role: 'graduate', tier: 'Tier 1 - Platinum Partner', confirmed: false },
     { id: 'vip2', name: 'VIP Partner Tier 2 (Gold)', contact: '+250782222222', role: 'agency', tier: 'Tier 2 - Gold Partner', confirmed: false },
@@ -251,13 +250,12 @@ export default function GuideLinkRwandaApp() {
     if (cleanInput === normalizeContact(ownerProfile.contact) || normalizeContact(ownerProfile.email) === cleanInput) {
       return { id: 'owner', name: ownerProfile.name, contact: ownerProfile.contact, role: 'owner', tier: 'C.E.O & Administrator HQ', confirmed: true };
     }
-    const vipMatch = exemptAccounts.find(
+    return exemptAccounts.find(
       (acc) =>
         acc.confirmed &&
         (normalizeContact(acc.contact) === cleanInput ||
           (acc.email && normalizeContact(acc.email) === cleanInput))
     );
-    return vipMatch;
   };
 
   const handleSignInSubmit = (e) => {
@@ -303,7 +301,7 @@ export default function GuideLinkRwandaApp() {
     }
 
     if (existingUser.status !== 'approved') {
-      alert('Your account is pending C.E.O payment confirmation. Please wait for approval.');
+      alert('Access Denied: Your account access has been revoked or is pending C.E.O approval.');
       return;
     }
 
@@ -420,15 +418,16 @@ export default function GuideLinkRwandaApp() {
     }
   };
 
-  const approveRegistrant = async (userId, userContact) => {
+  // C.E.O Member Access Control (Grant / Revoke)
+  const toggleUserAccessStatus = async (userId, userContact, currentStatus) => {
+    const nextStatus = currentStatus === 'approved' ? 'revoked' : 'approved';
     setRegisteredUsers(
-      registeredUsers.map((u) => (u.id === userId ? { ...u, status: 'approved' } : u))
+      registeredUsers.map((u) => (u.id === userId ? { ...u, status: nextStatus } : u))
     );
-    await supabaseApi('profiles', 'PATCH', { status: 'approved' }, `?contact=eq.${encodeURIComponent(userContact)}`);
-    alert('✓ User approved and granted access successfully in cloud database!');
+    await supabaseApi('profiles', 'PATCH', { status: nextStatus }, `?contact=eq.${encodeURIComponent(userContact)}`);
+    alert(`✓ User access has been successfully ${nextStatus === 'approved' ? 'GRANTED' : 'REVOKED'}!`);
   };
 
-  // Toggle VIP tier access (Grant / Revoke)
   const toggleVipTierAccess = (slotId) => {
     setExemptAccounts(
       exemptAccounts.map((acc) => {
@@ -594,7 +593,6 @@ export default function GuideLinkRwandaApp() {
 
     const dynamicProviders = [];
 
-    // Include VIP tier ONLY if confirmed (access granted)
     exemptAccounts.forEach((acc) => {
       if (acc.confirmed && ['graduate', 'agency', 'tour_company'].includes(acc.role)) {
         const key = normalizeContact(acc.contact);
@@ -980,25 +978,32 @@ export default function GuideLinkRwandaApp() {
         <div className="p-4 space-y-4 flex-1 overflow-y-auto pb-10">
           {ownerTab === 'pending' && (
             <div className="space-y-3">
-              <h3 className="font-bold text-sm text-slate-900">⏳ Member Sign-Ups & Approvals</h3>
-              <p className="text-[11px] text-slate-500">Approving a member instantly grants them secure access to their dashboard.</p>
+              <h3 className="font-bold text-sm text-slate-900">⏳ Member Sign-Ups, Approvals & Access Control</h3>
+              <p className="text-[11px] text-slate-500">Grant or revoke access for any user who complies or fails to comply with requirements.</p>
               {registeredUsers.length === 0 ? (
                 <div className="bg-white p-6 rounded-2xl border text-center text-xs text-slate-500">No sign-ups logged yet.</div>
               ) : (
                 registeredUsers.map((user) => (
-                  <div key={user.id} className="bg-white p-4 rounded-2xl border space-y-2 text-xs">
-                    <div className="flex justify-between">
+                  <div key={user.id} className="bg-white p-4 rounded-2xl border space-y-2.5 text-xs shadow-sm">
+                    <div className="flex justify-between items-center">
                       <p className="font-bold text-sm">{user.name} <span className="text-slate-500 font-normal">({getRoleDisplayLabel(user.role)})</span></p>
-                      <span className="font-bold text-[#234E40]">{user.feePaid === 0 ? 'FREE' : `${user.feePaid} RWF`}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${user.status === 'approved' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
+                        {user.status === 'approved' ? '🟢 Active Access' : '🔒 Revoked / Pending'}
+                      </span>
                     </div>
-                    <p className="text-slate-500">{user.contact} • Ref: {user.momoRef}</p>
-                    {user.status === 'approved' ? (
-                      <span className="text-emerald-700 font-bold">✓ Active & Granted Access</span>
-                    ) : (
-                      <button onClick={() => approveRegistrant(user.id, user.contact)} className="w-full py-2 bg-[#3B6E5B] text-white rounded-xl font-bold">
-                        ✓ Confirm Payment & Grant Access
-                      </button>
-                    )}
+                    <p className="text-slate-500">{user.contact} • Ref: {user.momoRef} • Fee: {user.feePaid} RWF</p>
+                    
+                    <div className="flex space-x-2 pt-1">
+                      {user.status !== 'approved' ? (
+                        <button onClick={() => toggleUserAccessStatus(user.id, user.contact, user.status)} className="flex-1 py-2 bg-[#3B6E5B] text-white rounded-xl font-bold">
+                          ✓ Grant Access
+                        </button>
+                      ) : (
+                        <button onClick={() => toggleUserAccessStatus(user.id, user.contact, user.status)} className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold">
+                          ✕ Revoke Access
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))
               )}
@@ -1342,7 +1347,7 @@ export default function GuideLinkRwandaApp() {
             <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-4 rounded-2xl shadow-sm space-y-1">
               <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Free Traveler Account</span>
               <h3 className="font-bold text-base pt-1">Choose Your Travel Partner in Rwanda</h3>
-              <p className="text-xs text-emerald-100">Browse qualifications, live availability, and experience across Graduates, Agencies, and Tour Companies.</p>
+              <p className="text-xs text-emerald-100">Browse live availability, graduate qualifications, and travel agency expectations.</p>
             </div>
 
             <div className="grid grid-cols-4 gap-1 bg-white p-1.5 rounded-2xl border text-[10px] font-bold text-center">
