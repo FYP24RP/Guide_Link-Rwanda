@@ -73,7 +73,7 @@ export default function GuideLinkRwandaApp() {
   const [newServiceInput, setNewServiceInput] = useState('');
   const [newExperienceInput, setNewExperienceInput] = useState('');
 
-  const [newTaskForm, setNewTaskForm] = useState({ title: '', date: '', rawPay: '', location: 'Kigali' });
+  const [newTaskForm, setNewTaskForm] = useState({ title: '', date: '', rawPay: '', location: 'Kigali', category: 'Guiding Job' });
   const [tripRequestForm, setTripRequestForm] = useState({
     preferredCategory: 'graduate',
     destination: 'Volcanoes National Park / Musanze',
@@ -85,8 +85,8 @@ export default function GuideLinkRwandaApp() {
   const [tripRequests, setTripRequests] = useState([]);
   const [platformSettings] = useState({ commissionRatePercent: 10 });
   const [tasks, setTasks] = useState([
-    { id: 1, title: 'Half-day Kigali city tour & cultural heritage', agency: 'Cheetah Safaris / Partner Agency', location: 'Kigali', rawPay: 35000, pay: 'RWF 35,000', date: 'Sat 21 Nov, 09:00 to 13:00', status: 'open', assignedTo: null, paymentStatus: 'pending' },
-    { id: 2, title: 'Nyungwe Canopy Walk & Tea Plantation Escort', agency: 'Rwanda Eco Tours', location: 'Nyungwe / Rusizi', rawPay: 65000, pay: 'RWF 65,000', date: 'Mon 23 Nov, Full Day', status: 'open', assignedTo: null, paymentStatus: 'pending' }
+    { id: 1, title: 'Half-day Kigali city tour & cultural heritage', agency: 'Cheetah Safaris / Partner Agency', location: 'Kigali', rawPay: 35000, pay: 'RWF 35,000', date: 'Sat 21 Nov, 09:00 to 13:00', status: 'open', assignedTo: null, paymentStatus: 'pending', category: 'Guiding Job' },
+    { id: 2, title: 'Nyungwe Canopy Walk & Tea Plantation Escort', agency: 'Rwanda Eco Tours', location: 'Nyungwe / Rusizi', rawPay: 65000, pay: 'RWF 65,000', date: 'Mon 23 Nov, Full Day', status: 'open', assignedTo: null, paymentStatus: 'pending', category: 'Consultant Job' }
   ]);
 
   useEffect(() => {
@@ -418,7 +418,6 @@ export default function GuideLinkRwandaApp() {
     }
   };
 
-  // C.E.O Member Access Control (Grant / Revoke)
   const toggleUserAccessStatus = async (userId, userContact, currentStatus) => {
     const nextStatus = currentStatus === 'approved' ? 'revoked' : 'approved';
     setRegisteredUsers(
@@ -503,11 +502,12 @@ export default function GuideLinkRwandaApp() {
       date: newTaskForm.date || 'Flexible Date',
       status: 'open',
       assignedTo: null,
-      paymentStatus: 'pending'
+      paymentStatus: 'pending',
+      category: newTaskForm.category || 'Guiding Job'
     };
     setTasks([created, ...tasks]);
-    setNewTaskForm({ title: '', date: '', rawPay: '', location: 'Kigali' });
-    alert('✓ Assignment published to Graduate Board!');
+    setNewTaskForm({ title: '', date: '', rawPay: '', location: 'Kigali', category: 'Guiding Job' });
+    alert('✓ Assignment/Opportunity published to Graduate Board!');
   };
 
   const handleCreateTripRequest = (e) => {
@@ -1022,7 +1022,6 @@ export default function GuideLinkRwandaApp() {
             </div>
           )}
 
-          {/* STRICTLY PRIVATE 3-Tier VIP Management with Individual Grant/Revoke Buttons */}
           {ownerTab === 'vip' && (
             <div className="space-y-3">
               <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl text-xs space-y-1">
@@ -1182,7 +1181,7 @@ export default function GuideLinkRwandaApp() {
               <p className="text-xs font-bold text-slate-900">
                 {currentProf.isAvailable !== false ? '🟢 Available for Bookings' : '🔴 Currently Busy'}
               </p>
-              <p className="text-[11px] text-slate-500">Live status visible to Travelers</p>
+              <p className="text-[11px] text-slate-500">Live status visible across platform</p>
             </div>
             <button
               onClick={() => updateCurrentProfile({ isAvailable: currentProf.isAvailable === false })}
@@ -1195,25 +1194,31 @@ export default function GuideLinkRwandaApp() {
           </div>
         )}
 
-        {/* Graduate Workspace */}
+        {/* Graduate Workspace: See Guiding Jobs, Consultant Jobs, Freelance Traveler Requests */}
         {activeTab === 'jobs' && currentRole === 'graduate' && (
           <div className="space-y-4">
+            <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-4 rounded-2xl shadow-sm space-y-1">
+              <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Graduate Opportunity Hub</span>
+              <h3 className="font-bold text-base pt-1">Guiding Jobs, Consultant Roles & Freelance Travelers</h3>
+              <p className="text-xs text-emerald-100">Review qualifications, tour schedules, and accept assignments suited for tourism professionals.</p>
+            </div>
+
             <div className="space-y-2.5">
               <div className="flex justify-between items-center">
-                <h3 className="font-bold text-sm text-slate-900">🧳 Traveler Requests ({matchingTravelerRequests.length})</h3>
+                <h3 className="font-bold text-sm text-slate-900">🧳 Freelance Traveler Requests ({matchingTravelerRequests.length})</h3>
                 <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">Action Needed</span>
               </div>
 
               {matchingTravelerRequests.length === 0 ? (
                 <div className="bg-white p-4 rounded-2xl border border-slate-200 text-xs text-slate-500 text-center">
-                  No direct requests yet. Keep your services updated!
+                  No direct freelance traveler requests right now.
                 </div>
               ) : (
                 matchingTravelerRequests.map((req) => (
                   <div key={req.id} className="bg-white p-4 rounded-2xl border-2 border-amber-300 space-y-2 shadow-sm text-xs">
                     <div className="flex justify-between items-start">
                       <div>
-                        <span className="text-[10px] font-bold uppercase text-amber-700">Traveler Request</span>
+                        <span className="text-[10px] font-bold uppercase text-amber-700">Traveler Expectation / Request</span>
                         <h4 className="font-bold text-sm text-slate-900">{req.destination} ({req.guests} Guests)</h4>
                       </div>
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -1231,7 +1236,7 @@ export default function GuideLinkRwandaApp() {
                         onClick={() => handleConfirmTravelerRequest(req.id)}
                         className="w-full py-2.5 bg-[#234E40] text-white rounded-xl font-bold text-xs shadow transition"
                       >
-                        ✓ Confirm Traveler Request
+                        ✓ Accept & Confirm Traveler Request
                       </button>
                     ) : (
                       <div className="bg-emerald-50 text-emerald-800 p-2 rounded-xl font-bold text-center">
@@ -1243,46 +1248,52 @@ export default function GuideLinkRwandaApp() {
               )}
             </div>
 
-            <div className="bg-[#234E40] text-white p-4 rounded-2xl shadow-sm space-y-1">
-              <span className="text-[10px] uppercase font-bold text-emerald-200">Partner Gig Board</span>
-              <h3 className="font-bold text-base">Agency & Tour Company Assignments</h3>
-              <p className="text-xs text-emerald-100">Accept tours and settle via MoMo Code {MOMO_PAYMENT_CODE}.</p>
-            </div>
-
-            {tasks.map((task) => (
-              <div key={task.id} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2.5 shadow-sm">
-                <div className="flex justify-between items-start font-bold text-sm">
-                  <span className="text-slate-900">{task.title}</span>
-                  <span className="text-[#234E40] bg-emerald-50 px-2.5 py-0.5 rounded-lg shrink-0">{task.pay}</span>
-                </div>
-                <p className="text-xs text-slate-500">🏢 {task.agency} • 📍 {task.location} • 📅 {task.date}</p>
-                
-                {task.status === 'open' && (
-                  <button onClick={() => handleAcceptTask(task.id)} className="w-full py-2.5 bg-[#3B6E5B] text-white rounded-xl text-xs font-bold">
-                    Accept Assignment →
-                  </button>
-                )}
-                {task.status === 'accepted' && (
-                  <button onClick={() => handleCompleteTask(task.id)} className="w-full py-2.5 bg-amber-500 text-slate-900 rounded-xl text-xs font-bold">
-                    ✓ Complete & Settle (MoMo {MOMO_PAYMENT_CODE})
-                  </button>
-                )}
-                {task.status === 'done' && (
-                  <div className="bg-emerald-50 text-emerald-800 p-2 rounded-xl text-xs font-bold text-center">
-                    ✓ Settled (Net Payout: RWF {task.netGuidePayout?.toLocaleString()})
+            <div className="space-y-3 pt-2">
+              <h3 className="font-bold text-sm text-slate-900">📋 Available Guiding & Consultant Jobs</h3>
+              {tasks.map((task) => (
+                <div key={task.id} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2.5 shadow-sm text-xs">
+                  <div className="flex justify-between items-start font-bold text-sm">
+                    <div>
+                      <span className="text-[10px] font-semibold text-[#3B6E5B] uppercase">{task.category || 'Guiding Job'}</span>
+                      <h4 className="text-slate-900">{task.title}</h4>
+                    </div>
+                    <span className="text-[#234E40] bg-emerald-50 px-2.5 py-1 rounded-lg shrink-0">{task.pay}</span>
                   </div>
-                )}
-              </div>
-            ))}
+                  <p className="text-slate-500">🏢 {task.agency} • 📍 {task.location} • 📅 {task.date}</p>
+                  
+                  {task.status === 'open' && (
+                    <button onClick={() => handleAcceptTask(task.id)} className="w-full py-2.5 bg-[#3B6E5B] text-white rounded-xl font-bold">
+                      Accept Assignment →
+                    </button>
+                  )}
+                  {task.status === 'accepted' && (
+                    <button onClick={() => handleCompleteTask(task.id)} className="w-full py-2.5 bg-amber-500 text-slate-900 rounded-xl font-bold">
+                      ✓ Complete & Settle (MoMo {MOMO_PAYMENT_CODE})
+                    </button>
+                  )}
+                  {task.status === 'done' && (
+                    <div className="bg-emerald-50 text-emerald-800 p-2 rounded-xl font-bold text-center">
+                      ✓ Settled (Net Payout: RWF {task.netGuidePayout?.toLocaleString()})
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* Agency / Tour Company Workspace */}
-        {activeTab === 'jobs' && (currentRole === 'agency' || currentRole === 'tour_company') && (
+        {/* Travel Agency Workspace: See Travel Consultants, Guides, Tourists & Live Availability */}
+        {activeTab === 'jobs' && currentRole === 'agency' && (
           <div className="space-y-4">
+            <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-4 rounded-2xl shadow-sm space-y-1">
+              <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Travel Agency Hub</span>
+              <h3 className="font-bold text-base pt-1">Explore Travel Consultants, Guides & Tourists</h3>
+              <p className="text-xs text-emerald-100">Review availability, qualifications, and post consultant/guiding assignments.</p>
+            </div>
+
             {matchingTravelerRequests.length > 0 && (
               <div className="space-y-2">
-                <h3 className="font-bold text-sm text-slate-900">🧳 Direct Traveler Requests</h3>
+                <h3 className="font-bold text-sm text-slate-900">🧳 Direct Traveler Expectations & Bookings</h3>
                 {matchingTravelerRequests.map((req) => (
                   <div key={req.id} className="bg-white p-4 rounded-2xl border-2 border-amber-300 space-y-2 text-xs">
                     <div className="flex justify-between font-bold">
@@ -1300,15 +1311,50 @@ export default function GuideLinkRwandaApp() {
               </div>
             )}
 
-            <form onSubmit={handlePostNewTask} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3 shadow-sm">
-              <h3 className="font-bold text-sm text-slate-900">📢 Post Guiding Assignment</h3>
+            <div className="space-y-3">
+              <h3 className="font-bold text-sm text-slate-900">👥 Available Consultants, Guides & Partners</h3>
+              {filteredProviders.filter(p => p.type === 'graduate').map((prov) => (
+                <div key={prov.id} className="bg-white p-4 rounded-2xl border space-y-2 shadow-sm text-xs">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center space-x-2.5">
+                      <div className="w-10 h-10 rounded-full bg-emerald-100 text-[#234E40] flex items-center justify-center font-bold text-sm">🎓</div>
+                      <div>
+                        <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">Travel / Tour Consultant & Guide</span>
+                        <h4 className="font-bold text-sm text-slate-900">{prov.name}</h4>
+                      </div>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${prov.isAvailable ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                      {prov.isAvailable ? '🟢 Available' : '🟡 Busy'}
+                    </span>
+                  </div>
+                  <p className="text-slate-700">{prov.headline}</p>
+                  <p className="text-slate-500">📍 {prov.location} • 💰 {prov.rate}</p>
+                  {prov.qualifications?.length > 0 && <p className="text-slate-600">🎓 <strong>Credential:</strong> {prov.qualifications[0]}</p>}
+                </div>
+              ))}
+            </div>
+
+            <form onSubmit={handlePostNewTask} className="bg-white p-4 rounded-2xl border space-y-3 shadow-sm text-xs">
+              <h3 className="font-bold text-sm text-slate-900">📢 Post Consultant or Guiding Assignment</h3>
+              <div>
+                <label className="font-bold text-slate-700">Job Category</label>
+                <select
+                  value={newTaskForm.category}
+                  onChange={(e) => setNewTaskForm({ ...newTaskForm, category: e.target.value })}
+                  className="w-full mt-1 p-2.5 border rounded-xl bg-white font-semibold"
+                >
+                  <option value="Consultant Job">Consultant Job</option>
+                  <option value="Guiding Job">Guiding Job</option>
+                  <option value="Tourism Service">Tourism Service</option>
+                </select>
+              </div>
               <input
                 type="text"
                 required
-                placeholder="Title (e.g. Akagera 2-Day Safari)"
+                placeholder="Title (e.g. Senior Itinerary Consultant)"
                 value={newTaskForm.title}
                 onChange={(e) => setNewTaskForm({ ...newTaskForm, title: e.target.value })}
-                className="w-full p-2.5 border rounded-xl text-xs"
+                className="w-full p-2.5 border rounded-xl"
               />
               <div className="grid grid-cols-2 gap-2">
                 <input
@@ -1316,7 +1362,7 @@ export default function GuideLinkRwandaApp() {
                   placeholder="Location"
                   value={newTaskForm.location}
                   onChange={(e) => setNewTaskForm({ ...newTaskForm, location: e.target.value })}
-                  className="p-2.5 border rounded-xl text-xs"
+                  className="p-2.5 border rounded-xl"
                 />
                 <input
                   type="number"
@@ -1324,7 +1370,7 @@ export default function GuideLinkRwandaApp() {
                   placeholder="Fee in RWF"
                   value={newTaskForm.rawPay}
                   onChange={(e) => setNewTaskForm({ ...newTaskForm, rawPay: e.target.value })}
-                  className="p-2.5 border rounded-xl text-xs"
+                  className="p-2.5 border rounded-xl"
                 />
               </div>
               <input
@@ -1332,9 +1378,114 @@ export default function GuideLinkRwandaApp() {
                 placeholder="Date & Duration"
                 value={newTaskForm.date}
                 onChange={(e) => setNewTaskForm({ ...newTaskForm, date: e.target.value })}
-                className="w-full p-2.5 border rounded-xl text-xs"
+                className="w-full p-2.5 border rounded-xl"
               />
-              <button type="submit" className="w-full py-2.5 bg-[#234E40] text-white rounded-xl font-bold text-xs shadow">
+              <button type="submit" className="w-full py-2.5 bg-[#234E40] text-white rounded-xl font-bold shadow">
+                + Publish Opportunity
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Tour Company Workspace: See Tour Consultants, Guides, Tourists, Graduates */}
+        {activeTab === 'jobs' && currentRole === 'tour_company' && (
+          <div className="space-y-4">
+            <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-4 rounded-2xl shadow-sm space-y-1">
+              <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Tour Company Hub</span>
+              <h3 className="font-bold text-base pt-1">Explore Tour Consultants, Guides, Tourists & Graduates</h3>
+              <p className="text-xs text-emerald-100">Review live availability, safari qualifications, and publish expedition gigs.</p>
+            </div>
+
+            {matchingTravelerRequests.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="font-bold text-sm text-slate-900">🧳 Direct Traveler Expectations & Requests</h3>
+                {matchingTravelerRequests.map((req) => (
+                  <div key={req.id} className="bg-white p-4 rounded-2xl border-2 border-amber-300 space-y-2 text-xs">
+                    <div className="flex justify-between font-bold">
+                      <span>{req.destination} ({req.guests} Guests)</span>
+                      <span>{req.status === 'confirmed' ? '✓ Confirmed' : '⏳ Pending'}</span>
+                    </div>
+                    <p className="text-slate-600">Traveler: {req.travelerName} ({req.travelerContact}) • {req.dates}</p>
+                    {req.status !== 'confirmed' && (
+                      <button onClick={() => handleConfirmTravelerRequest(req.id)} className="w-full py-2 bg-[#234E40] text-white rounded-xl font-bold">
+                        ✓ Confirm Traveler Booking
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <h3 className="font-bold text-sm text-slate-900">🚐 Available Tour Consultants, Guides & Graduates</h3>
+              {filteredProviders.filter(p => p.type === 'graduate' || p.type === 'tour_company').map((prov) => (
+                <div key={prov.id} className="bg-white p-4 rounded-2xl border space-y-2 shadow-sm text-xs">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center space-x-2.5">
+                      <div className="w-10 h-10 rounded-full bg-emerald-100 text-[#234E40] flex items-center justify-center font-bold text-sm">🚐</div>
+                      <div>
+                        <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">Tour Consultant & Safari Guide</span>
+                        <h4 className="font-bold text-sm text-slate-900">{prov.name}</h4>
+                      </div>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${prov.isAvailable ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                      {prov.isAvailable ? '🟢 Available' : '🟡 Busy'}
+                    </span>
+                  </div>
+                  <p className="text-slate-700">{prov.headline}</p>
+                  <p className="text-slate-500">📍 {prov.location} • 💰 {prov.rate}</p>
+                  {prov.qualifications?.length > 0 && <p className="text-slate-600">🎓 <strong>Credential:</strong> {prov.qualifications[0]}</p>}
+                </div>
+              ))}
+            </div>
+
+            <form onSubmit={handlePostNewTask} className="bg-white p-4 rounded-2xl border space-y-3 shadow-sm text-xs">
+              <h3 className="font-bold text-sm text-slate-900">📢 Post Tour Expedition or Guiding Job</h3>
+              <div>
+                <label className="font-bold text-slate-700">Job Category</label>
+                <select
+                  value={newTaskForm.category}
+                  onChange={(e) => setNewTaskForm({ ...newTaskForm, category: e.target.value })}
+                  className="w-full mt-1 p-2.5 border rounded-xl bg-white font-semibold"
+                >
+                  <option value="Guiding Job">Guiding Job</option>
+                  <option value="Consultant Job">Tour Consultant Job</option>
+                  <option value="Safari Expedition">Safari Expedition</option>
+                </select>
+              </div>
+              <input
+                type="text"
+                required
+                placeholder="Title (e.g. Akagera 3-Day Safari Escort)"
+                value={newTaskForm.title}
+                onChange={(e) => setNewTaskForm({ ...newTaskForm, title: e.target.value })}
+                className="w-full p-2.5 border rounded-xl"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  placeholder="Location"
+                  value={newTaskForm.location}
+                  onChange={(e) => setNewTaskForm({ ...newTaskForm, location: e.target.value })}
+                  className="p-2.5 border rounded-xl"
+                />
+                <input
+                  type="number"
+                  required
+                  placeholder="Fee in RWF"
+                  value={newTaskForm.rawPay}
+                  onChange={(e) => setNewTaskForm({ ...newTaskForm, rawPay: e.target.value })}
+                  className="p-2.5 border rounded-xl"
+                />
+              </div>
+              <input
+                type="text"
+                placeholder="Date & Duration"
+                value={newTaskForm.date}
+                onChange={(e) => setNewTaskForm({ ...newTaskForm, date: e.target.value })}
+                className="p-2.5 border rounded-xl"
+              />
+              <button type="submit" className="w-full py-2.5 bg-[#234E40] text-white rounded-xl font-bold shadow">
                 + Publish Assignment
               </button>
             </form>
