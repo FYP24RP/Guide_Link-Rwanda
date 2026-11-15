@@ -1726,9 +1726,10 @@ export default function GuideLinkRwandaApp() {
                   <div className="flex space-x-2 pt-1">
                     <button
                       onClick={() => { setActiveChatPeer(prov.name); setActiveTab('chat'); }}
-                      className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold"
+                      className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold flex items-center justify-center space-x-1"
                     >
-                      💬 Chat before Booking
+                      <span>💬</span>
+                      <span>Chat Before Booking</span>
                     </button>
                     <button
                       onClick={() => setBookingTarget(prov)}
