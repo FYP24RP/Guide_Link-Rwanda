@@ -15,27 +15,36 @@ export default function GuideLinkRwandaApp() {
 
   const MOMO_PAYMENT_CODE = '612771';
 
-  // Persistent Owner Profile
+  // Persistent Owner Profile (Updated with +250780558555, rutungurab5@gmail.com, and C.E.O title)
   const [ownerProfile, setOwnerProfile] = useState(() => {
-    const saved = localStorage.getItem('gl_owner_profile');
+    const saved = localStorage.getItem('gl_owner_profile_v2');
     return saved
       ? JSON.parse(saved)
       : {
           name: 'RUTUNGURA Bonheur',
-          title: 'Founder & Platform Administrator • GuideLink Rwanda',
-          contact: '+250780000000',
-          bio: 'Tourism Management Specialist & Creator of GuideLink Rwanda.',
+          title: 'C.E.O, Founder & Platform Administrator • GuideLink Rwanda',
+          contact: '+250780558555',
+          email: 'rutungurab5@gmail.com',
+          bio: 'C.E.O & Tourism Management Specialist • Creator of GuideLink Rwanda.',
           photo: ''
         };
   });
 
   // 3-Tier VIP System Configuration
   const [exemptAccounts, setExemptAccounts] = useState(() => {
-    const saved = localStorage.getItem('gl_exempt_users');
+    const saved = localStorage.getItem('gl_exempt_users_v2');
     return saved
       ? JSON.parse(saved)
       : [
-          { id: 'owner', name: 'RUTUNGURA Bonheur (Owner)', contact: '+250780000000', role: 'owner', tier: 'Administrator HQ', confirmed: true },
+          {
+            id: 'owner',
+            name: 'RUTUNGURA Bonheur (C.E.O)',
+            contact: '+250780558555',
+            email: 'rutungurab5@gmail.com',
+            role: 'owner',
+            tier: 'C.E.O & Administrator HQ',
+            confirmed: true
+          },
           { id: 'vip1', name: 'VIP Partner Tier 1 (Platinum)', contact: '+250781111111', role: 'graduate', tier: 'Tier 1 - Platinum Partner', confirmed: true },
           { id: 'vip2', name: 'VIP Partner Tier 2 (Gold)', contact: '+250782222222', role: 'agency', tier: 'Tier 2 - Gold Partner', confirmed: true },
           { id: 'vip3', name: 'VIP Partner Tier 3 (Silver)', contact: '+250783333333', role: 'tour_company', tier: 'Tier 3 - Silver Partner', confirmed: true }
@@ -54,14 +63,17 @@ export default function GuideLinkRwandaApp() {
 
   const [activeUser, setActiveUser] = useState(null);
 
-  // Separate Sign-In Form State
+  // Separate Sign-In Form State (With Password Security)
   const [signInContact, setSignInContact] = useState('');
+  const [signInPassword, setSignInPassword] = useState('');
 
-  // Separate Sign-Up Form State
+  // Separate Sign-Up Form State (With Password Creation)
   const [regStep, setRegStep] = useState('details');
   const [regForm, setRegForm] = useState({
     name: '',
     contact: '',
+    password: '',
+    confirmPassword: '',
     role: 'traveler',
     momoRef: ''
   });
@@ -131,8 +143,8 @@ export default function GuideLinkRwandaApp() {
         ];
   });
 
-  useEffect(() => { localStorage.setItem('gl_owner_profile', JSON.stringify(ownerProfile)); }, [ownerProfile]);
-  useEffect(() => { localStorage.setItem('gl_exempt_users', JSON.stringify(exemptAccounts)); }, [exemptAccounts]);
+  useEffect(() => { localStorage.setItem('gl_owner_profile_v2', JSON.stringify(ownerProfile)); }, [ownerProfile]);
+  useEffect(() => { localStorage.setItem('gl_exempt_users_v2', JSON.stringify(exemptAccounts)); }, [exemptAccounts]);
   useEffect(() => { localStorage.setItem('gl_registered_users', JSON.stringify(registeredUsers)); }, [registeredUsers]);
   useEffect(() => { localStorage.setItem('gl_user_profiles', JSON.stringify(userProfiles)); }, [userProfiles]);
   useEffect(() => { localStorage.setItem('gl_platform_settings', JSON.stringify(platformSettings)); }, [platformSettings]);
@@ -195,13 +207,13 @@ export default function GuideLinkRwandaApp() {
     setIsSaving(true);
     setTimeout(() => {
       if (!activeUser) {
-        localStorage.setItem('gl_owner_profile', JSON.stringify(profileData));
+        localStorage.setItem('gl_owner_profile_v2', JSON.stringify(profileData));
       } else {
         const key = normalizeContact(activeUser.contact || activeUser.name);
         setUserProfiles({ ...userProfiles, [key]: profileData });
       }
       setIsSaving(false);
-      alert('✓ Profile, services, and qualifications successfully saved!');
+      alert('✓ Profile & photo successfully saved!');
     }, 300);
   };
 
@@ -219,21 +231,25 @@ export default function GuideLinkRwandaApp() {
     setRegStep('details');
     setActiveUser(null);
     setSignInContact('');
+    setSignInPassword('');
   };
 
   const checkExemptUser = (contactInput) => {
     const cleanInput = normalizeContact(contactInput);
     return exemptAccounts.find(
-      (acc) => acc.confirmed && normalizeContact(acc.contact) === cleanInput
+      (acc) =>
+        acc.confirmed &&
+        (normalizeContact(acc.contact) === cleanInput ||
+          (acc.email && normalizeContact(acc.email) === cleanInput))
     );
   };
 
-  // 1. DEDICATED SIGN-IN HANDLER (For Already Registered Users)
+  // 1. DEDICATED SIGN-IN HANDLER (Requires Registered Contact + User Password)
   const handleSignInSubmit = (e) => {
     e.preventDefault();
     const cleanInput = normalizeContact(signInContact);
-    if (!cleanInput) {
-      alert('Please enter your registered Phone Number or Email.');
+    if (!cleanInput || !signInPassword) {
+      alert('Please enter your registered Phone/Email and your Password.');
       return;
     }
 
@@ -241,7 +257,22 @@ export default function GuideLinkRwandaApp() {
     const exemptMatch = checkExemptUser(signInContact);
     if (exemptMatch) {
       if (exemptMatch.id === 'owner') {
+        if (signInPassword === 'FYP$2026') {
+          setOwnerTab('pending');
+          setCurrentRole('owner');
+          setSignInContact('');
+          setSignInPassword('');
+          return;
+        }
         setShowOwnerPinModal(true);
+        return;
+      }
+      // VIP Partner login (uses their created password if set, or VIP access)
+      const vipUserRecord = registeredUsers.find(
+        (u) => normalizeContact(u.contact) === cleanInput
+      );
+      if (vipUserRecord && vipUserRecord.password && vipUserRecord.password !== signInPassword) {
+        alert('Incorrect password. Please try again.');
         return;
       }
       setActiveUser({
@@ -262,12 +293,18 @@ export default function GuideLinkRwandaApp() {
     );
 
     if (!existingUser) {
-      alert('Account not found. Please click "Create Account (Sign Up)" if you are a new user.');
+      alert('Account not found. Please click "Create Account (New Sign Up)" if you are a new user.');
+      return;
+    }
+
+    // Verify User Password
+    if (existingUser.password && existingUser.password !== signInPassword) {
+      alert('Access Denied: Incorrect password for this account.');
       return;
     }
 
     if (existingUser.status !== 'approved') {
-      alert('⏳ Your account payment is still pending Owner approval. Please check back shortly.');
+      alert('⏳ Your account payment is still pending C.E.O approval. Please check back shortly.');
       return;
     }
 
@@ -276,35 +313,47 @@ export default function GuideLinkRwandaApp() {
     setActiveTab('jobs');
   };
 
-  // 2. DEDICATED SIGN-UP HANDLER (For New Accounts Only)
+  // 2. DEDICATED SIGN-UP HANDLER (Creates Secure Password for New Account)
   const handleSignUpSubmit = (e) => {
     e.preventDefault();
-    if (!regForm.name.trim() || !regForm.contact.trim()) {
-      alert('Please enter your Full Name / Company Name and Contact.');
+    if (!regForm.name.trim() || !regForm.contact.trim() || !regForm.password.trim()) {
+      alert('Please fill in your Name, Contact, and create a Password.');
+      return;
+    }
+
+    if (regForm.password.length < 4) {
+      alert('Please choose a password with at least 4 characters.');
+      return;
+    }
+
+    if (regForm.password !== regForm.confirmPassword) {
+      alert('Passwords do not match. Please re-enter carefully.');
       return;
     }
 
     const cleanInput = normalizeContact(regForm.contact);
 
-    // Prevent duplicate sign-ups if already registered
+    // Prevent duplicate sign-ups
     const existingUser = registeredUsers.find(
       (u) => normalizeContact(u.contact) === cleanInput
     );
     const exemptMatch = checkExemptUser(regForm.contact);
 
     if (existingUser || exemptMatch) {
-      alert('This phone number or email is already registered! Please use the "Sign In" button instead.');
+      alert('This phone number or email is already registered! Please use "Sign In" instead.');
       setSignInContact(regForm.contact);
+      setSignInPassword('');
       setCurrentRole('signin');
       return;
     }
 
-    // Travelers sign up 100% FREE immediately
+    // Travelers sign up 100% FREE immediately with their secure password
     if (regForm.role === 'traveler') {
       const freeTraveler = {
         id: Date.now(),
         name: regForm.name.trim(),
         contact: regForm.contact.trim(),
+        password: regForm.password,
         role: 'traveler',
         feePaid: 0,
         momoCodeUsed: 'FREE_TRAVELER',
@@ -333,6 +382,7 @@ export default function GuideLinkRwandaApp() {
       id: Date.now(),
       name: regForm.name.trim(),
       contact: regForm.contact.trim(),
+      password: regForm.password,
       role: regForm.role,
       feePaid: 500,
       momoCodeUsed: MOMO_PAYMENT_CODE,
@@ -625,7 +675,7 @@ export default function GuideLinkRwandaApp() {
                 Connecting Tourism Graduates, Travel Agencies, Tour Companies, and Travelers across Rwanda.
               </p>
               <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-1.5">
-                Developed & Copyright © 2026 {ownerProfile.name}
+                Developed & Copyright © 2026 {ownerProfile.name} (C.E.O)
               </p>
             </div>
 
@@ -642,6 +692,7 @@ export default function GuideLinkRwandaApp() {
               <button
                 onClick={() => {
                   setSignInContact('');
+                  setSignInPassword('');
                   setCurrentRole('signin');
                 }}
                 className="w-full py-3.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow transition flex items-center justify-center space-x-2"
@@ -653,7 +704,7 @@ export default function GuideLinkRwandaApp() {
               {/* 2. NEW USER SIGN UP BUTTON */}
               <button
                 onClick={() => {
-                  setRegForm({ name: '', contact: '', role: 'traveler', momoRef: '' });
+                  setRegForm({ name: '', contact: '', password: '', confirmPassword: '', role: 'traveler', momoRef: '' });
                   setRegStep('details');
                   setCurrentRole('signup');
                 }}
@@ -672,8 +723,8 @@ export default function GuideLinkRwandaApp() {
                 }}
                 className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs shadow-sm transition flex items-center justify-center space-x-2"
               >
-                <span>🔐</span>
-                <span>Owner Login ({ownerProfile.name})</span>
+                <span>👑</span>
+                <span>C.E.O / Owner Login ({ownerProfile.name})</span>
               </button>
             </div>
           </div>
@@ -686,7 +737,7 @@ export default function GuideLinkRwandaApp() {
                 <div className="w-10 h-10 bg-slate-900 text-white rounded-full flex items-center justify-center mx-auto text-base">
                   🔐
                 </div>
-                <h3 className="font-bold text-base text-slate-900">Owner Authentication</h3>
+                <h3 className="font-bold text-base text-slate-900">C.E.O Authentication</h3>
                 <p className="text-xs text-slate-500">Enter private password to unlock Owner HQ.</p>
               </div>
               <input
@@ -723,12 +774,12 @@ export default function GuideLinkRwandaApp() {
     );
   }
 
-  // ---------------- DEDICATED SIGN-IN VIEW (EXISTING MEMBERS ONLY) ----------------
+  // ---------------- DEDICATED SIGN-IN VIEW (PASSWORD PROTECTED) ----------------
   if (currentRole === 'signin') {
     return (
       <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl border border-slate-200">
         <div className="bg-white px-6 py-4 border-b border-slate-200 flex justify-between items-center">
-          <h2 className="font-bold text-slate-900">Member Sign In</h2>
+          <h2 className="font-bold text-slate-900">Secure Member Sign In</h2>
           <button
             onClick={resetToWelcome}
             className="text-xs bg-slate-100 px-3 py-1.5 rounded-full font-semibold text-slate-600"
@@ -740,22 +791,34 @@ export default function GuideLinkRwandaApp() {
         <div className="p-6 flex-1">
           <form onSubmit={handleSignInSubmit} className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
             <div>
-              <span className="text-[11px] font-bold uppercase text-[#3B6E5B]">Welcome Back</span>
-              <h3 className="text-lg font-bold text-slate-900">Sign In to Your Workspace</h3>
+              <span className="text-[11px] font-bold uppercase text-[#3B6E5B]">Password Protected</span>
+              <h3 className="text-lg font-bold text-slate-900">Sign In to Your Dashboard</h3>
               <p className="text-xs text-slate-500 mt-1">
-                Enter your registered Phone Number or Email to access your dashboard directly.
+                Enter your registered Phone Number or Email and your personal Password.
               </p>
             </div>
 
             <div>
-              <label className="text-xs font-bold text-slate-700">Registered Phone Number or Email</label>
+              <label className="text-xs font-bold text-slate-700">Phone Number or Email</label>
               <input
                 type="text"
                 required
                 autoFocus
-                placeholder="e.g. +250788000000"
+                placeholder="e.g. +250780558555 or email"
                 value={signInContact}
                 onChange={(e) => setSignInContact(e.target.value)}
+                className="w-full mt-1 p-3 border border-slate-300 rounded-xl text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700">Account Password</label>
+              <input
+                type="password"
+                required
+                placeholder="Enter your password"
+                value={signInPassword}
+                onChange={(e) => setSignInPassword(e.target.value)}
                 className="w-full mt-1 p-3 border border-slate-300 rounded-xl text-sm"
               />
             </div>
@@ -764,12 +827,12 @@ export default function GuideLinkRwandaApp() {
               type="submit"
               className="w-full py-3.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow transition"
             >
-              Sign In Now →
+              Unlock Dashboard →
             </button>
 
             <div className="pt-2 border-t text-center">
               <p className="text-xs text-slate-500">
-                Don't have an account yet?{' '}
+                New to GuideLink Rwanda?{' '}
                 <button
                   type="button"
                   onClick={() => {
@@ -788,7 +851,7 @@ export default function GuideLinkRwandaApp() {
     );
   }
 
-  // ---------------- DEDICATED SIGN-UP VIEW (NEW ACCOUNTS ONLY) ----------------
+  // ---------------- DEDICATED SIGN-UP VIEW (CREATES USER PASSWORD) ----------------
   if (currentRole === 'signup') {
     return (
       <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl border border-slate-200">
@@ -804,7 +867,7 @@ export default function GuideLinkRwandaApp() {
 
         <div className="p-6 flex-1 overflow-y-auto">
           {regStep === 'details' && (
-            <form onSubmit={handleSignUpSubmit} className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
+            <form onSubmit={handleSignUpSubmit} className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3.5 shadow-sm">
               <div>
                 <span className="text-[11px] font-bold uppercase text-[#3B6E5B]">New Registration</span>
                 <h3 className="text-lg font-bold text-slate-900">Join GuideLink Rwanda</h3>
@@ -833,6 +896,30 @@ export default function GuideLinkRwandaApp() {
                   onChange={(e) => setRegForm({ ...regForm, contact: e.target.value })}
                   className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-sm"
                 />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs font-bold text-slate-700">Create Password</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••"
+                    value={regForm.password}
+                    onChange={(e) => setRegForm({ ...regForm, password: e.target.value })}
+                    className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-700">Confirm Password</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••"
+                    value={regForm.confirmPassword}
+                    onChange={(e) => setRegForm({ ...regForm, confirmPassword: e.target.value })}
+                    className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-sm"
+                  />
+                </div>
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-700">Select Account Category</label>
@@ -891,16 +978,16 @@ export default function GuideLinkRwandaApp() {
                 onClick={handleComplete500Payment}
                 className="w-full py-3 bg-[#234E40] text-white rounded-xl font-bold text-sm shadow"
               >
-                Submit Payment & Notify Owner
+                Submit Payment & Notify C.E.O
               </button>
             </div>
           )}
 
           {regStep === 'pending_approval' && (
             <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center space-y-4 shadow-sm">
-              <h3 className="text-lg font-bold text-slate-900">Payment Pending Owner Approval</h3>
+              <h3 className="text-lg font-bold text-slate-900">Payment Pending C.E.O Approval</h3>
               <p className="text-xs text-slate-600">
-                Your payment to MoMo Code <strong>{MOMO_PAYMENT_CODE}</strong> has been logged. Once confirmed, use <strong>Sign In</strong> on the home screen.
+                Your payment to MoMo Code <strong>{MOMO_PAYMENT_CODE}</strong> has been logged. Once confirmed, use <strong>Sign In</strong> with your password.
               </p>
               <button
                 onClick={resetToWelcome}
@@ -929,20 +1016,20 @@ export default function GuideLinkRwandaApp() {
         <div className="bg-[#234E40] text-white px-5 py-4 flex justify-between items-center sticky top-0 z-30">
           <div className="flex items-center space-x-3">
             {ownerProfile.photo ? (
-              <img src={ownerProfile.photo} alt="Owner" className="w-10 h-10 rounded-full object-cover border-2 border-amber-400" />
+              <img src={ownerProfile.photo} alt="C.E.O" className="w-11 h-11 rounded-full object-cover border-2 border-amber-400" />
             ) : (
-              <div className="w-10 h-10 bg-amber-400 text-slate-900 rounded-full flex items-center justify-center font-extrabold text-sm">👑</div>
+              <div className="w-11 h-11 bg-amber-400 text-slate-900 rounded-full flex items-center justify-center font-extrabold text-sm">👑</div>
             )}
             <div>
-              <h2 className="font-bold text-sm">{ownerProfile.name}</h2>
-              <p className="text-[11px] text-emerald-200">MoMo Code: {MOMO_PAYMENT_CODE}</p>
+              <h2 className="font-bold text-sm">{ownerProfile.name} <span className="text-[10px] bg-amber-400 text-slate-900 px-1.5 py-0.5 rounded font-extrabold ml-1">C.E.O</span></h2>
+              <p className="text-[11px] text-emerald-200">{ownerProfile.contact} • MoMo: {MOMO_PAYMENT_CODE}</p>
             </div>
           </div>
           <button onClick={resetToWelcome} className="text-xs bg-emerald-900 px-3 py-1.5 rounded-full font-semibold">Log Out</button>
         </div>
 
         {/* 5 OWNER ICONIC TABS */}
-        <div className="bg-white border-b border-slate-200 px-2 py-2.5 grid grid-cols-5 gap-1 text-center sticky top-[72px] z-20 shadow-sm">
+        <div className="bg-white border-b border-slate-200 px-2 py-2.5 grid grid-cols-5 gap-1 text-center sticky top-[76px] z-20 shadow-sm">
           <button onClick={() => setOwnerTab('pending')} className={`p-1.5 rounded-xl flex flex-col items-center relative ${ownerTab === 'pending' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
             <span className="text-base">⏳</span><span className="text-[9px]">Sign-Ups</span>
             {pendingCount > 0 && <span className="absolute top-1 right-2 bg-red-600 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center">{pendingCount}</span>}
@@ -1053,24 +1140,42 @@ export default function GuideLinkRwandaApp() {
 
           {ownerTab === 'owner_profile' && (
             <div className="bg-white p-5 rounded-2xl border space-y-4">
-              <h3 className="font-bold text-base text-slate-900">👑 Owner Profile & Photo</h3>
+              <h3 className="font-bold text-base text-slate-900">👑 C.E.O & Owner Profile</h3>
               <div className="flex flex-col items-center space-y-2">
                 {ownerProfile.photo ? (
-                  <img src={ownerProfile.photo} alt="Owner" className="w-24 h-24 rounded-full object-cover border-4 border-[#3B6E5B]" />
+                  <img src={ownerProfile.photo} alt="C.E.O" className="w-28 h-28 rounded-full object-cover border-4 border-[#3B6E5B] shadow-md" />
                 ) : (
-                  <div className="w-24 h-24 rounded-full bg-slate-200 flex items-center justify-center text-3xl">👑</div>
+                  <div className="w-28 h-28 rounded-full bg-slate-200 flex items-center justify-center text-3xl">👑</div>
                 )}
-                <label className="cursor-pointer bg-emerald-50 text-[#234E40] border px-3 py-1.5 rounded-xl text-xs font-bold">
-                  📷 Upload Owner Photo
+                <label className="cursor-pointer bg-[#234E40] text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-slate-800 transition">
+                  📷 Select & Upload C.E.O Photo
                   <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, (imgData) => setOwnerProfile({ ...ownerProfile, photo: imgData }))} />
                 </label>
               </div>
 
               <div className="space-y-3 text-xs">
-                <input type="text" value={ownerProfile.name} onChange={(e) => setOwnerProfile({ ...ownerProfile, name: e.target.value })} className="w-full p-2.5 border rounded-xl" />
-                <input type="text" value={ownerProfile.title} onChange={(e) => setOwnerProfile({ ...ownerProfile, title: e.target.value })} className="w-full p-2.5 border rounded-xl" />
-                <input type="text" value={ownerProfile.contact} onChange={(e) => setOwnerProfile({ ...ownerProfile, contact: e.target.value })} className="w-full p-2.5 border rounded-xl" />
-                <textarea rows="3" value={ownerProfile.bio} onChange={(e) => setOwnerProfile({ ...ownerProfile, bio: e.target.value })} className="w-full p-2.5 border rounded-xl" />
+                <div>
+                  <label className="font-bold text-slate-700">Full Name</label>
+                  <input type="text" value={ownerProfile.name} onChange={(e) => setOwnerProfile({ ...ownerProfile, name: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700">Executive Title</label>
+                  <input type="text" value={ownerProfile.title} onChange={(e) => setOwnerProfile({ ...ownerProfile, title: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="font-bold text-slate-700">Phone Number</label>
+                    <input type="text" value={ownerProfile.contact} onChange={(e) => setOwnerProfile({ ...ownerProfile, contact: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-700">Email Address</label>
+                    <input type="email" value={ownerProfile.email || 'rutungurab5@gmail.com'} onChange={(e) => setOwnerProfile({ ...ownerProfile, email: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
+                  </div>
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700">Executive Bio</label>
+                  <textarea rows="3" value={ownerProfile.bio} onChange={(e) => setOwnerProfile({ ...ownerProfile, bio: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
+                </div>
                 
                 <button
                   type="button"
@@ -1078,7 +1183,7 @@ export default function GuideLinkRwandaApp() {
                   onClick={() => handleSaveWithButton(ownerProfile)}
                   className="w-full py-3.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold text-sm shadow transition"
                 >
-                  {isSaving ? '⏳ Saving...' : '💾 Save Owner Profile'}
+                  {isSaving ? '⏳ Saving...' : '💾 Save C.E.O Profile & Photo'}
                 </button>
               </div>
             </div>
@@ -1412,7 +1517,6 @@ export default function GuideLinkRwandaApp() {
 
                   <p className="text-slate-700 font-medium">{prov.headline}</p>
 
-                  {/* Services Offered Tags */}
                   {prov.services && prov.services.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                       {prov.services.map((srv, idx) => (
@@ -1423,7 +1527,6 @@ export default function GuideLinkRwandaApp() {
                     </div>
                   )}
 
-                  {/* Qualifications & Experience Highlights */}
                   {((prov.qualifications && prov.qualifications.length > 0) || (prov.experience && prov.experience.length > 0)) && (
                     <div className="bg-slate-50 p-2.5 rounded-xl space-y-1 text-[11px] text-slate-600">
                       {prov.qualifications?.map((q, idx) => (
