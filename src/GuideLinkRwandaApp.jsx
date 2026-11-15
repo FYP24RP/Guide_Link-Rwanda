@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 
 // =========================================================================
-// FIREBASE CONFIGURATION (Pre-configured for your project)
+// FIREBASE CONFIGURATION
 // =========================================================================
 const FIREBASE_PROJECT_ID = 'guidelink-rwanda';
 const FIREBASE_API_KEY = 'AIzaSyDbSIDCFXNgPKifhV126frr-bl0tytXEA';
 
 const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
 
-// Lightweight Firestore REST API Helper (Zero npm install required for clean Vercel builds)
 const toFirestoreValue = (val) => {
   if (val === null || val === undefined) return { nullValue: null };
   if (typeof val === 'boolean') return { booleanValue: val };
@@ -97,7 +96,7 @@ const firestoreSaveDoc = async (collectionName, docId, dataObj) => {
 export default function GuideLinkRwandaApp() {
   const [currentRole, setCurrentRole] = useState('welcome');
   const [ownerTab, setOwnerTab] = useState('pending');
-  const [activeTab, setActiveTab] = useState('jobs');
+  const [activeTab, setActiveTab] = useState('jobs'); // 'jobs' | 'profile' | 'chat'
   const [showOwnerPinModal, setShowOwnerPinModal] = useState(false);
   const [ownerPinInput, setOwnerPinInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -105,6 +104,11 @@ export default function GuideLinkRwandaApp() {
   const [directoryFilter, setDirectoryFilter] = useState('all');
   const [bookingTarget, setBookingTarget] = useState(null);
   const [bookingDetails, setBookingDetails] = useState({ dates: '', guests: '2', notes: '' });
+
+  // Chat State
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [activeChatPeer, setActiveChatPeer] = useState('General Platform Chat');
 
   const MOMO_PAYMENT_CODE = '612771';
 
@@ -163,11 +167,12 @@ export default function GuideLinkRwandaApp() {
   const normalizeContact = (str) => (str || '').replace(/\s+/g, '').toLowerCase();
 
   const loadFirebaseData = async () => {
-    const [profilesDocs, vipDocs, tasksDocs, tripsDocs] = await Promise.all([
+    const [profilesDocs, vipDocs, tasksDocs, tripsDocs, chatDocs] = await Promise.all([
       firestoreGetCollection('profiles'),
       firestoreGetCollection('vipTiers'),
       firestoreGetCollection('tasks'),
-      firestoreGetCollection('tripRequests')
+      firestoreGetCollection('tripRequests'),
+      firestoreGetCollection('chats')
     ]);
 
     if (profilesDocs.length > 0) {
@@ -229,6 +234,11 @@ export default function GuideLinkRwandaApp() {
     if (tripsDocs.length > 0) {
       const sortedTrips = [...tripsDocs].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       setTripRequests(sortedTrips);
+    }
+
+    if (chatDocs.length > 0) {
+      const sortedChats = [...chatDocs].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+      setChatMessages(sortedChats);
     }
   };
 
@@ -679,6 +689,23 @@ export default function GuideLinkRwandaApp() {
     setBookingDetails({ dates: '', guests: '2', notes: '' });
     await firestoreSaveDoc('tripRequests', newId, newBooking);
     alert(`✓ Booking request sent to ${newBooking.targetProvider}!`);
+  };
+
+  const handleSendChatMessage = async (e) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+    const msgId = `chat-${Date.now()}`;
+    const newMsg = {
+      id: msgId,
+      sender: activeUser?.name || 'User',
+      role: getRoleDisplayLabel(currentRole),
+      peer: activeChatPeer,
+      text: chatInput.trim(),
+      createdAt: Date.now()
+    };
+    setChatMessages([...chatMessages, newMsg]);
+    setChatInput('');
+    await firestoreSaveDoc('chats', msgId, newMsg);
   };
 
   const buildLiveProviderDirectory = () => {
@@ -1281,24 +1308,50 @@ export default function GuideLinkRwandaApp() {
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl overflow-hidden border border-slate-200 relative">
-      <div className="bg-white px-5 py-3.5 border-b flex justify-between items-center sticky top-0 z-30">
-        <div className="flex items-center space-x-3">
-          {currentProf?.photo ? (
-            <img src={currentProf.photo} alt="Profile" className="w-10 h-10 rounded-full object-cover border-2 border-[#3B6E5B]" />
-          ) : (
-            <div className="w-10 h-10 rounded-full bg-[#3B6E5B] text-white flex items-center justify-center font-bold">
-              {(currentProf?.name || 'U').charAt(0)}
+      
+      {/* TOP HEADER & NAVIGATION BAR */}
+      <div className="bg-white border-b sticky top-0 z-30 shadow-sm">
+        <div className="px-5 py-3 flex justify-between items-center border-b border-slate-100">
+          <div className="flex items-center space-x-3">
+            {currentProf?.photo ? (
+              <img src={currentProf.photo} alt="Profile" className="w-10 h-10 rounded-full object-cover border-2 border-[#3B6E5B]" />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-[#3B6E5B] text-white flex items-center justify-center font-bold">
+                {(currentProf?.name || 'U').charAt(0)}
+              </div>
+            )}
+            <div>
+              <h2 className="font-bold text-sm leading-tight">{currentProf?.name}</h2>
+              <p className="text-[11px] text-slate-500 capitalize">{getRoleDisplayLabel(currentRole)}</p>
             </div>
-          )}
-          <div>
-            <h2 className="font-bold text-sm">{currentProf?.name}</h2>
-            <p className="text-[11px] text-slate-500 capitalize">{getRoleDisplayLabel(currentRole)}</p>
           </div>
+          <button onClick={resetToWelcome} className="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-full font-semibold transition">Sign Out</button>
         </div>
-        <button onClick={resetToWelcome} className="text-xs bg-slate-100 px-3 py-1.5 rounded-full font-semibold">Sign Out</button>
+
+        {/* TOP TABS NAVIGATION */}
+        <div className="grid grid-cols-3 gap-1 bg-slate-50 p-2 text-xs font-bold text-slate-600">
+          <button
+            onClick={() => setActiveTab('jobs')}
+            className={`py-2 rounded-xl transition text-center ${activeTab === 'jobs' ? 'bg-[#234E40] text-white shadow-sm' : 'hover:bg-slate-200'}`}
+          >
+            {currentRole === 'traveler' ? '🏠 Explore & Book' : '🏠 Workspace'}
+          </button>
+          <button
+            onClick={() => setActiveTab('profile')}
+            className={`py-2 rounded-xl transition text-center ${activeTab === 'profile' ? 'bg-[#234E40] text-white shadow-sm' : 'hover:bg-slate-200'}`}
+          >
+            👤 Profile & Services
+          </button>
+          <button
+            onClick={() => setActiveTab('chat')}
+            className={`py-2 rounded-xl transition text-center relative ${activeTab === 'chat' ? 'bg-[#234E40] text-white shadow-sm' : 'hover:bg-slate-200'}`}
+          >
+            💬 Chat Deals
+          </button>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto pb-24 p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-12">
         {isPartnerRole && currentProf && (
           <div className="bg-white p-3.5 rounded-2xl border border-slate-200 flex justify-between items-center shadow-sm">
             <div>
@@ -1355,18 +1408,22 @@ export default function GuideLinkRwandaApp() {
                     <p className="text-slate-500">📅 Dates: {req.dates}</p>
                     {req.notes && <p className="text-slate-500 italic bg-slate-50 p-2 rounded-lg">"{req.notes}"</p>}
 
-                    {req.status !== 'confirmed' ? (
+                    <div className="flex space-x-2 pt-1">
                       <button
-                        onClick={() => handleConfirmTravelerRequest(req.id)}
-                        className="w-full py-2.5 bg-[#234E40] text-white rounded-xl font-bold text-xs shadow transition"
+                        onClick={() => { setActiveChatPeer(req.travelerName); setActiveTab('chat'); }}
+                        className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold text-xs"
                       >
-                        ✓ Accept & Confirm Traveler Request
+                        💬 Chat with Traveler
                       </button>
-                    ) : (
-                      <div className="bg-emerald-50 text-emerald-800 p-2 rounded-xl font-bold text-center">
-                        ✓ Confirmed by {req.confirmedBy}
-                      </div>
-                    )}
+                      {req.status !== 'confirmed' && (
+                        <button
+                          onClick={() => handleConfirmTravelerRequest(req.id)}
+                          className="flex-1 py-2 bg-[#234E40] text-white rounded-xl font-bold text-xs shadow transition"
+                        >
+                          ✓ Confirm Deal
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))
               )}
@@ -1406,7 +1463,7 @@ export default function GuideLinkRwandaApp() {
           </div>
         )}
 
-        {/* Travel Agency Workspace: See Travel Consultants, Guides, Tourists & Live Availability */}
+        {/* Travel Agency Workspace */}
         {activeTab === 'jobs' && currentRole === 'agency' && (
           <div className="space-y-4">
             <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-4 rounded-2xl shadow-sm space-y-1">
@@ -1425,11 +1482,14 @@ export default function GuideLinkRwandaApp() {
                       <span>{req.status === 'confirmed' ? '✓ Confirmed' : '⏳ Pending'}</span>
                     </div>
                     <p className="text-slate-600">Traveler: {req.travelerName} ({req.travelerContact}) • {req.dates}</p>
-                    {req.status !== 'confirmed' && (
-                      <button onClick={() => handleConfirmTravelerRequest(req.id)} className="w-full py-2 bg-[#234E40] text-white rounded-xl font-bold">
-                        ✓ Confirm Traveler Booking
-                      </button>
-                    )}
+                    <div className="flex space-x-2 pt-1">
+                      <button onClick={() => { setActiveChatPeer(req.travelerName); setActiveTab('chat'); }} className="flex-1 py-2 bg-slate-100 rounded-xl font-bold">💬 Chat</button>
+                      {req.status !== 'confirmed' && (
+                        <button onClick={() => handleConfirmTravelerRequest(req.id)} className="flex-1 py-2 bg-[#234E40] text-white rounded-xl font-bold">
+                          ✓ Confirm Deal
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1453,7 +1513,9 @@ export default function GuideLinkRwandaApp() {
                   </div>
                   <p className="text-slate-700">{prov.headline}</p>
                   <p className="text-slate-500">📍 {prov.location} • 💰 {prov.rate}</p>
-                  {prov.qualifications?.length > 0 && <p className="text-slate-600">🎓 <strong>Credential:</strong> {prov.qualifications[0]}</p>}
+                  <button onClick={() => { setActiveChatPeer(prov.name); setActiveTab('chat'); }} className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold">
+                    💬 Chat with {prov.name} before booking
+                  </button>
                 </div>
               ))}
             </div>
@@ -1511,7 +1573,7 @@ export default function GuideLinkRwandaApp() {
           </div>
         )}
 
-        {/* Tour Company Workspace: See Tour Consultants, Guides, Tourists, Graduates */}
+        {/* Tour Company Workspace */}
         {activeTab === 'jobs' && currentRole === 'tour_company' && (
           <div className="space-y-4">
             <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-4 rounded-2xl shadow-sm space-y-1">
@@ -1530,11 +1592,14 @@ export default function GuideLinkRwandaApp() {
                       <span>{req.status === 'confirmed' ? '✓ Confirmed' : '⏳ Pending'}</span>
                     </div>
                     <p className="text-slate-600">Traveler: {req.travelerName} ({req.travelerContact}) • {req.dates}</p>
-                    {req.status !== 'confirmed' && (
-                      <button onClick={() => handleConfirmTravelerRequest(req.id)} className="w-full py-2 bg-[#234E40] text-white rounded-xl font-bold">
-                        ✓ Confirm Traveler Booking
-                      </button>
-                    )}
+                    <div className="flex space-x-2 pt-1">
+                      <button onClick={() => { setActiveChatPeer(req.travelerName); setActiveTab('chat'); }} className="flex-1 py-2 bg-slate-100 rounded-xl font-bold">💬 Chat</button>
+                      {req.status !== 'confirmed' && (
+                        <button onClick={() => handleConfirmTravelerRequest(req.id)} className="flex-1 py-2 bg-[#234E40] text-white rounded-xl font-bold">
+                          ✓ Confirm Deal
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1558,7 +1623,9 @@ export default function GuideLinkRwandaApp() {
                   </div>
                   <p className="text-slate-700">{prov.headline}</p>
                   <p className="text-slate-500">📍 {prov.location} • 💰 {prov.rate}</p>
-                  {prov.qualifications?.length > 0 && <p className="text-slate-600">🎓 <strong>Credential:</strong> {prov.qualifications[0]}</p>}
+                  <button onClick={() => { setActiveChatPeer(prov.name); setActiveTab('chat'); }} className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold">
+                    💬 Chat with {prov.name}
+                  </button>
                 </div>
               ))}
             </div>
@@ -1656,32 +1723,20 @@ export default function GuideLinkRwandaApp() {
 
                   <p className="text-slate-700 font-medium">{prov.headline}</p>
 
-                  {prov.services && prov.services.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {prov.services.map((srv, idx) => (
-                        <span key={idx} className="bg-emerald-50 text-[#234E40] border border-emerald-200 px-2 py-0.5 rounded-md text-[10px] font-semibold">
-                          ✓ {srv}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {((prov.qualifications && prov.qualifications.length > 0) || (prov.experience && prov.experience.length > 0)) && (
-                    <div className="bg-slate-50 p-2.5 rounded-xl space-y-1 text-[11px] text-slate-600">
-                      {prov.qualifications?.map((q, idx) => <p key={`q-${idx}`}>🎓 <strong>Credential:</strong> {q}</p>)}
-                      {prov.experience?.map((exp, idx) => <p key={`e-${idx}`}>💼 <strong>Experience:</strong> {exp}</p>)}
-                    </div>
-                  )}
-
-                  <div className="flex flex-wrap gap-2 text-[11px] text-slate-500">
-                    <span>📍 {prov.location}</span>
-                    <span>•</span>
-                    <span className="font-bold text-[#234E40]">{prov.rate}</span>
+                  <div className="flex space-x-2 pt-1">
+                    <button
+                      onClick={() => { setActiveChatPeer(prov.name); setActiveTab('chat'); }}
+                      className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold"
+                    >
+                      💬 Chat before Booking
+                    </button>
+                    <button
+                      onClick={() => setBookingTarget(prov)}
+                      className="flex-1 py-2 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold"
+                    >
+                      Book Now →
+                    </button>
                   </div>
-
-                  <button onClick={() => setBookingTarget(prov)} className="w-full py-2.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold text-xs">
-                    Book {prov.name} →
-                  </button>
                 </div>
               ))}
             </div>
@@ -1820,6 +1875,55 @@ export default function GuideLinkRwandaApp() {
             </div>
           </div>
         )}
+
+        {/* Live Chat Deals Tab */}
+        {activeTab === 'chat' && (
+          <div className="bg-white p-4 rounded-2xl border space-y-3 shadow-sm flex flex-col h-[420px]">
+            <div className="flex justify-between items-center border-b pb-2">
+              <div>
+                <h3 className="font-bold text-sm text-slate-900">💬 Live Deal Chat Room</h3>
+                <p className="text-[10px] text-slate-500">Conversing with: <strong className="text-[#234E40]">{activeChatPeer}</strong></p>
+              </div>
+              <input
+                type="text"
+                placeholder="Switch chat peer..."
+                value={activeChatPeer}
+                onChange={(e) => setActiveChatPeer(e.target.value)}
+                className="p-1.5 border rounded-lg text-[10px] w-32"
+              />
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-2.5 p-2 bg-slate-50 rounded-xl text-xs">
+              {chatMessages.length === 0 ? (
+                <div className="text-center text-slate-400 py-10">No messages yet. Start discussing your deal details below!</div>
+              ) : (
+                chatMessages.map((msg) => (
+                  <div key={msg.id} className={`p-2.5 rounded-xl max-w-[85%] ${msg.sender === currentProf?.name ? 'bg-[#234E40] text-white ml-auto' : 'bg-white border text-slate-800'}`}>
+                    <div className="flex justify-between text-[9px] opacity-75 mb-1 font-semibold">
+                      <span>{msg.sender} ({msg.role})</span>
+                      <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                    <p className="text-xs">{msg.text}</p>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <form onSubmit={handleSendChatMessage} className="flex space-x-2 pt-1">
+              <input
+                type="text"
+                required
+                placeholder="Discuss itinerary, dates, or payment terms..."
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                className="flex-1 p-2.5 border rounded-xl text-xs"
+              />
+              <button type="submit" className="px-4 py-2.5 bg-[#234E40] text-white rounded-xl font-bold text-xs">
+                Send
+              </button>
+            </form>
+          </div>
+        )}
       </div>
 
       {bookingTarget && (
@@ -1848,17 +1952,6 @@ export default function GuideLinkRwandaApp() {
           </form>
         </div>
       )}
-
-      <div className="bg-white border-t py-2.5 px-10 flex justify-around items-center text-xs font-bold text-slate-500 absolute bottom-0 w-full max-w-md z-20">
-        <button onClick={() => setActiveTab('jobs')} className={`flex flex-col items-center ${activeTab === 'jobs' ? 'text-[#234E40]' : ''}`}>
-          <span className="text-base">🏠</span>
-          <span>{currentRole === 'traveler' ? 'Explore & Book' : 'Workspace'}</span>
-        </button>
-        <button onClick={() => setActiveTab('profile')} className={`flex flex-col items-center ${activeTab === 'profile' ? 'text-[#234E40]' : ''}`}>
-          <span className="text-base">👤</span>
-          <span>{isPartnerRole ? 'Profile & Services' : 'My Profile'}</span>
-        </button>
-      </div>
     </div>
   );
 }
