@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 // =========================================================================
-// FIREBASE CONFIGURATION
+// FIREBASE CONFIGURATION (Existing Project & Collections Intact)
 // =========================================================================
 const FIREBASE_PROJECT_ID = 'guidelink-rwanda';
 const FIREBASE_API_KEY = 'AIzaSyDbSIDCFXNgPKifhV126frr-bl0tytXEA';
@@ -93,6 +93,54 @@ const firestoreSaveDoc = async (collectionName, docId, dataObj) => {
   }
 };
 
+const firestoreDeleteDoc = async (collectionName, docId) => {
+  try {
+    const url = `${FIRESTORE_BASE}/${collectionName}/${encodeURIComponent(docId)}?key=${FIREBASE_API_KEY}`;
+    const res = await fetch(url, { method: 'DELETE' });
+    return res.ok;
+  } catch (e) {
+    return false;
+  }
+};
+
+// =========================================================================
+// SUBSCRIPTION TIERS CONFIGURATION
+// =========================================================================
+const SUBSCRIPTION_PLANS = [
+  {
+    id: 'monthly',
+    name: 'Starter Monthly',
+    badge: 'Monthly',
+    durationLabel: '1 Month (30 Days)',
+    days: 30,
+    price: 15000
+  },
+  {
+    id: 'three_months',
+    name: 'Growth 3-Month',
+    badge: '3 Months',
+    durationLabel: '3 Months (90 Days)',
+    days: 90,
+    price: 20000
+  },
+  {
+    id: 'quarter_6m',
+    name: 'Quarter Subscription (6 Months)',
+    badge: 'Quarter • 6 Months',
+    durationLabel: '6 Months (180 Days)',
+    days: 180,
+    price: 60000
+  },
+  {
+    id: 'gold_platinum_year',
+    name: 'GOLD-PLATINUM',
+    badge: 'GOLD-PLATINUM • 1 Year',
+    durationLabel: '1 Year (365 Days)',
+    days: 365,
+    price: 100000
+  }
+];
+
 export default function GuideLinkRwandaApp() {
   const [currentRole, setCurrentRole] = useState('welcome');
   const [ownerTab, setOwnerTab] = useState('pending'); // 'pending' | 'users_mgmt' | 'overview' | 'vip' | 'deals' | 'owner_profile'
@@ -119,12 +167,18 @@ export default function GuideLinkRwandaApp() {
 
   // USSD & Payment Constants
   const MOMO_PAYMENT_CODE = '612771';
-  const MOMO_USSD_DISPLAY = `*182*8*1*${MOMO_PAYMENT_CODE}*500#`;
-  const MOMO_USSD_DIAL_URI = `tel:*182*8*1*${MOMO_PAYMENT_CODE}*500%23`;
+  const buildUssdDisplay = (amount) => `*182*8*1*${MOMO_PAYMENT_CODE}*${amount}#`;
+  const buildUssdDialUri = (amount) => `tel:*182*8*1*${MOMO_PAYMENT_CODE}*${amount}%23`;
 
   const [ussdTriggered, setUssdTriggered] = useState(false);
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [emailNotificationSent, setEmailNotificationSent] = useState(false);
+
+  // Expired Subscription Renewal State
+  const [expiredUserAccount, setExpiredUserAccount] = useState(null);
+  const [renewalPlanId, setRenewalPlanId] = useState('monthly');
+  const [renewalMomoRef, setRenewalMomoRef] = useState('');
+  const [renewalSubmitted, setRenewalSubmitted] = useState(false);
 
   const [ownerProfile, setOwnerProfile] = useState({
     name: 'RUTUNGURA Bonheur',
@@ -155,6 +209,7 @@ export default function GuideLinkRwandaApp() {
     password: '',
     confirmPassword: '',
     role: 'traveler',
+    subscriptionPlanId: 'monthly',
     momoRef: ''
   });
 
@@ -179,6 +234,19 @@ export default function GuideLinkRwandaApp() {
   ]);
 
   const normalizeContact = (str) => (str || '').replace(/\s+/g, '').toLowerCase();
+
+  const getPlanById = (planId) =>
+    SUBSCRIPTION_PLANS.find((p) => p.id === planId) || SUBSCRIPTION_PLANS[0];
+
+  // Checks if a non-traveler user's subscription end timestamp has passed
+  const isUserSubscriptionExpired = (user) => {
+    if (!user || user.role === 'traveler' || user.role === 'owner') return false;
+    if (user.status === 'expired') return true;
+    if (user.subscriptionExpiresAt && Number(user.subscriptionExpiresAt) > 0) {
+      return Date.now() > Number(user.subscriptionExpiresAt);
+    }
+    return false;
+  };
 
   // Generates a unique, symmetric room ID between two specific participants
   const getPrivateRoomId = (idA, idB) => {
@@ -228,9 +296,12 @@ export default function GuideLinkRwandaApp() {
             contact: p.contact,
             password: p.password,
             role: p.role,
-            feePaid: p.feePaid ?? 500,
+            feePaid: p.feePaid ?? 0,
             momoRef: p.momoRef || 'Cloud Reg',
-            status: p.status || 'approved'
+            status: p.status || 'approved',
+            subscriptionPlanId: p.subscriptionPlanId || 'monthly',
+            subscriptionPlanName: p.subscriptionPlanName || 'Starter Monthly',
+            subscriptionExpiresAt: p.subscriptionExpiresAt || 0
           });
           profs[cleanKey] = {
             name: p.name,
@@ -381,6 +452,8 @@ export default function GuideLinkRwandaApp() {
       password: user.password || '',
       role: user.role || 'traveler',
       status: user.status || 'approved',
+      subscriptionPlanId: user.subscriptionPlanId || 'monthly',
+      subscriptionExpiresAt: user.subscriptionExpiresAt || 0,
       isAvailable: existingProf.isAvailable !== false,
       headline: existingProf.headline || '',
       location: existingProf.location || 'Kigali, Rwanda',
@@ -394,7 +467,38 @@ export default function GuideLinkRwandaApp() {
     });
   };
 
-  // Save C.E.O edits to user's login credentials and all dashboard fields in Firebase
+  // Permanently Delete any User / Non-Compliant Sign-up from Firebase
+  const handleDeleteUserAccount = async (userId, userName) => {
+    const confirmed = window.confirm(
+      `⚠️ Are you sure you want to permanently DELETE "${userName}" from the system? This action cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    const targetUser = registeredUsers.find((u) => u.id === userId);
+    const updatedList = registeredUsers.filter((u) => u.id !== userId);
+    setRegisteredUsers(updatedList);
+
+    if (targetUser) {
+      const cleanKey = normalizeContact(targetUser.contact || targetUser.id);
+      const updatedProfs = { ...userProfiles };
+      delete updatedProfs[cleanKey];
+      setUserProfiles(updatedProfs);
+    }
+
+    if (selectedManagedUserId === userId) {
+      if (updatedList.length > 0) {
+        handleSelectUserForAdminEdit(updatedList[0]);
+      } else {
+        setSelectedManagedUserId('');
+        setOwnerUserEditForm(null);
+      }
+    }
+
+    await firestoreDeleteDoc('profiles', userId);
+    alert(`🗑️ User "${userName}" has been permanently deleted.`);
+  };
+
+  // Save C.E.O edits to user's login credentials, subscription & all dashboard fields in Firebase
   const handleOwnerSaveManagedUser = async (e) => {
     e.preventDefault();
     if (!ownerUserEditForm) return;
@@ -406,6 +510,7 @@ export default function GuideLinkRwandaApp() {
     setIsSaving(true);
     const { docId, oldKey, ...cleanFields } = ownerUserEditForm;
     const newCleanKey = normalizeContact(cleanFields.contact);
+    const chosenPlan = getPlanById(cleanFields.subscriptionPlanId);
 
     setRegisteredUsers(
       registeredUsers.map((u) =>
@@ -416,7 +521,10 @@ export default function GuideLinkRwandaApp() {
               contact: cleanFields.contact.trim(),
               password: cleanFields.password,
               role: cleanFields.role,
-              status: cleanFields.status
+              status: cleanFields.status,
+              subscriptionPlanId: chosenPlan.id,
+              subscriptionPlanName: chosenPlan.name,
+              subscriptionExpiresAt: cleanFields.subscriptionExpiresAt
             }
           : u
       )
@@ -449,6 +557,9 @@ export default function GuideLinkRwandaApp() {
       password: cleanFields.password,
       role: cleanFields.role,
       status: cleanFields.status,
+      subscriptionPlanId: chosenPlan.id,
+      subscriptionPlanName: chosenPlan.name,
+      subscriptionExpiresAt: cleanFields.subscriptionExpiresAt,
       isAvailable: cleanFields.isAvailable,
       headline: cleanFields.headline,
       location: cleanFields.location,
@@ -462,7 +573,7 @@ export default function GuideLinkRwandaApp() {
     });
 
     setIsSaving(false);
-    alert(`✓ Login info & all dashboard elements for ${cleanFields.name} updated in Firebase!`);
+    alert(`✓ Login info, subscription & all dashboard elements for ${cleanFields.name} updated in Firebase!`);
   };
 
   const handleImageUpload = (e, onSuccess) => {
@@ -479,6 +590,8 @@ export default function GuideLinkRwandaApp() {
     setRegStep('details');
     setUssdTriggered(false);
     setEmailNotificationSent(false);
+    setExpiredUserAccount(null);
+    setRenewalSubmitted(false);
     setActiveUser(null);
     setActiveChatPeer({ id: '', name: '', role: '' });
     setSignInContact('');
@@ -498,7 +611,7 @@ export default function GuideLinkRwandaApp() {
     );
   };
 
-  const handleSignInSubmit = (e) => {
+  const handleSignInSubmit = async (e) => {
     e.preventDefault();
     const cleanInput = normalizeContact(signInContact);
     if (!cleanInput || !signInPassword) {
@@ -536,17 +649,36 @@ export default function GuideLinkRwandaApp() {
     );
 
     if (!existingUser) {
-      alert('Account not found. Please click "Create Account (Sign Up)".');
-      return;
-    }
-
-    if (existingUser.status !== 'approved') {
-      alert('Access Denied: Your account access has been revoked or is pending C.E.O approval.');
+      alert('Account not found. Please click "Create Account (New Sign Up)".');
       return;
     }
 
     if (existingUser.password && existingUser.password !== signInPassword) {
       alert('Access Denied: Incorrect password.');
+      return;
+    }
+
+    // Automatic Subscription Expiration Check & Revocation
+    if (isUserSubscriptionExpired(existingUser)) {
+      if (existingUser.status === 'approved') {
+        setRegisteredUsers(
+          registeredUsers.map((u) =>
+            u.id === existingUser.id ? { ...u, status: 'expired' } : u
+          )
+        );
+        await firestoreSaveDoc('profiles', existingUser.id, { status: 'expired' });
+      }
+      setExpiredUserAccount(existingUser);
+      setRenewalPlanId(existingUser.subscriptionPlanId || 'monthly');
+      setRenewalMomoRef('');
+      setRenewalSubmitted(false);
+      setUssdTriggered(false);
+      setCurrentRole('renew_sub');
+      return;
+    }
+
+    if (existingUser.status !== 'approved') {
+      alert('Access Denied: Your account access is revoked or awaiting C.E.O payment confirmation.');
       return;
     }
 
@@ -586,6 +718,7 @@ export default function GuideLinkRwandaApp() {
       return;
     }
 
+    // Travelers get FREE instant access
     if (regForm.role === 'traveler') {
       const freeTraveler = {
         id: cleanInput,
@@ -594,7 +727,10 @@ export default function GuideLinkRwandaApp() {
         password: regForm.password,
         role: 'traveler',
         feePaid: 0,
-        status: 'approved'
+        status: 'approved',
+        subscriptionPlanId: 'free_traveler',
+        subscriptionPlanName: 'Free Traveler Access',
+        subscriptionExpiresAt: 0
       };
       setRegisteredUsers([freeTraveler, ...registeredUsers]);
       setActiveUser(freeTraveler);
@@ -602,24 +738,20 @@ export default function GuideLinkRwandaApp() {
       setActiveTab('jobs');
 
       await firestoreSaveDoc('profiles', cleanInput, {
-        name: freeTraveler.name,
-        contact: freeTraveler.contact,
-        password: freeTraveler.password,
-        role: 'traveler',
-        feePaid: 0,
-        status: 'approved',
+        ...freeTraveler,
         isAvailable: true
       });
       return;
     }
 
     setUssdTriggered(false);
-    setRegStep('pay_500');
+    setRegStep('pay_subscription');
   };
 
   // Dispatches real-time email notification to the C.E.O's email address
-  const sendRealTimeOwnerEmailNotification = async (registrantData) => {
+  const sendRealTimeOwnerEmailNotification = async (registrantData, isRenewal = false) => {
     const targetOwnerEmail = ownerProfile.email || 'rutungurab5@gmail.com';
+    const ussdUsed = buildUssdDisplay(registrantData.feePaid);
     try {
       const res = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(targetOwnerEmail)}`, {
         method: 'POST',
@@ -628,14 +760,16 @@ export default function GuideLinkRwandaApp() {
           Accept: 'application/json'
         },
         body: JSON.stringify({
-          _subject: `GuideLink Rwanda: New Partner Payment (${registrantData.name}) - 500 RWF`,
+          _subject: `GuideLink Rwanda: ${isRenewal ? 'Subscription Renewal' : 'New Partner Subscription'} (${registrantData.name}) - ${registrantData.subscriptionPlanName}`,
           _template: 'table',
           Platform: 'GuideLink Rwanda',
+          Transaction_Type: isRenewal ? 'Subscription Renewal' : 'New Account Subscription',
           Member_Name: registrantData.name,
           Account_Role: getRoleDisplayLabel(registrantData.role),
           Member_Contact: registrantData.contact,
-          USSD_Dialed: MOMO_USSD_DISPLAY,
-          Amount_Paid: '500 RWF',
+          Subscription_Plan: registrantData.subscriptionPlanName,
+          Amount_Paid: `${Number(registrantData.feePaid).toLocaleString()} RWF`,
+          USSD_Dialed: ussdUsed,
           MoMo_Transaction_Ref: registrantData.momoRef,
           Submitted_At: new Date().toLocaleString()
         })
@@ -646,22 +780,30 @@ export default function GuideLinkRwandaApp() {
     }
   };
 
-  const handleComplete500Payment = async () => {
+  const handleCompleteSubscriptionPayment = async () => {
+    const selectedPlan = getPlanById(regForm.subscriptionPlanId);
+    const ussdCode = buildUssdDisplay(selectedPlan.price);
+
     if (!regForm.momoRef.trim()) {
-      alert('Please enter your MoMo Transaction Reference / ID after dialing *182*8*1*612771*500#.');
+      alert(`Please enter your MoMo Transaction Reference / ID after dialing ${ussdCode}.`);
       return;
     }
 
     setIsSubmittingPayment(true);
     const cleanInput = normalizeContact(regForm.contact);
+    const expiresAt = Date.now() + selectedPlan.days * 24 * 60 * 60 * 1000;
+
     const newRegistrant = {
       id: cleanInput,
       name: regForm.name.trim(),
       contact: regForm.contact.trim(),
       password: regForm.password,
       role: regForm.role,
-      feePaid: 500,
-      momoCodeUsed: MOMO_USSD_DISPLAY,
+      feePaid: selectedPlan.price,
+      subscriptionPlanId: selectedPlan.id,
+      subscriptionPlanName: selectedPlan.name,
+      subscriptionExpiresAt: expiresAt,
+      momoCodeUsed: ussdCode,
       momoRef: regForm.momoRef.trim(),
       status: 'pending_approval'
     };
@@ -673,10 +815,55 @@ export default function GuideLinkRwandaApp() {
       isAvailable: true
     });
 
-    const notified = await sendRealTimeOwnerEmailNotification(newRegistrant);
+    const notified = await sendRealTimeOwnerEmailNotification(newRegistrant, false);
     setEmailNotificationSent(notified);
     setIsSubmittingPayment(false);
     setRegStep('pending_approval');
+  };
+
+  const handleCompleteRenewalPayment = async () => {
+    if (!expiredUserAccount) return;
+    const selectedPlan = getPlanById(renewalPlanId);
+    const ussdCode = buildUssdDisplay(selectedPlan.price);
+
+    if (!renewalMomoRef.trim()) {
+      alert(`Please enter your MoMo Transaction Reference / ID after dialing ${ussdCode}.`);
+      return;
+    }
+
+    setIsSubmittingPayment(true);
+    const newExpiresAt = Date.now() + selectedPlan.days * 24 * 60 * 60 * 1000;
+    const updatedFeePaid = Number(expiredUserAccount.feePaid || 0) + selectedPlan.price;
+
+    const renewedRecord = {
+      ...expiredUserAccount,
+      feePaid: updatedFeePaid,
+      subscriptionPlanId: selectedPlan.id,
+      subscriptionPlanName: selectedPlan.name,
+      subscriptionExpiresAt: newExpiresAt,
+      momoRef: renewalMomoRef.trim(),
+      status: 'pending_approval'
+    };
+
+    setRegisteredUsers(
+      registeredUsers.map((u) => (u.id === expiredUserAccount.id ? renewedRecord : u))
+    );
+
+    await firestoreSaveDoc('profiles', expiredUserAccount.id, {
+      feePaid: updatedFeePaid,
+      subscriptionPlanId: selectedPlan.id,
+      subscriptionPlanName: selectedPlan.name,
+      subscriptionExpiresAt: newExpiresAt,
+      momoRef: renewalMomoRef.trim(),
+      status: 'pending_approval'
+    });
+
+    await sendRealTimeOwnerEmailNotification(
+      { ...renewedRecord, feePaid: selectedPlan.price },
+      true
+    );
+    setIsSubmittingPayment(false);
+    setRenewalSubmitted(true);
   };
 
   const handleOwnerLogin = (e) => {
@@ -695,10 +882,28 @@ export default function GuideLinkRwandaApp() {
   const toggleUserAccessStatus = async (userId, userContact, currentStatus) => {
     const nextStatus = currentStatus === 'approved' ? 'revoked' : 'approved';
     const docId = userId || normalizeContact(userContact);
+    const targetUser = registeredUsers.find((u) => u.id === docId);
+
+    // If granting access to a partner whose subscription date had expired, extend from today
+    let updatedExpiry = targetUser?.subscriptionExpiresAt || 0;
+    if (nextStatus === 'approved' && targetUser && targetUser.role !== 'traveler') {
+      const plan = getPlanById(targetUser.subscriptionPlanId);
+      if (!updatedExpiry || Date.now() > Number(updatedExpiry)) {
+        updatedExpiry = Date.now() + plan.days * 24 * 60 * 60 * 1000;
+      }
+    }
+
     setRegisteredUsers(
-      registeredUsers.map((u) => (u.id === docId ? { ...u, status: nextStatus } : u))
+      registeredUsers.map((u) =>
+        u.id === docId
+          ? { ...u, status: nextStatus, subscriptionExpiresAt: updatedExpiry }
+          : u
+      )
     );
-    await firestoreSaveDoc('profiles', docId, { status: nextStatus });
+    await firestoreSaveDoc('profiles', docId, {
+      status: nextStatus,
+      subscriptionExpiresAt: updatedExpiry
+    });
     alert(`✓ User access has been successfully ${nextStatus === 'approved' ? 'GRANTED' : 'REVOKED'} in Firebase!`);
   };
 
@@ -950,14 +1155,18 @@ export default function GuideLinkRwandaApp() {
     });
 
     registeredUsers.forEach((u) => {
-      if (u.status === 'approved' && ['graduate', 'agency', 'tour_company'].includes(u.role)) {
+      if (
+        u.status === 'approved' &&
+        !isUserSubscriptionExpired(u) &&
+        ['graduate', 'agency', 'tour_company'].includes(u.role)
+      ) {
         const key = normalizeContact(u.contact);
         const prof = userProfiles[key] || {};
         dynamicProviders.push({
           id: `reg-${u.id}`,
           contactId: key,
           type: u.role,
-          categoryLabel: getRoleDisplayLabel(u.role),
+          categoryLabel: `${getRoleDisplayLabel(u.role)} • ${u.subscriptionPlanName || 'Verified'}`,
           name: prof.name || u.name,
           headline: prof.headline || `Verified ${getRoleDisplayLabel(u.role)}`,
           location: prof.location || 'Rwanda',
@@ -975,7 +1184,9 @@ export default function GuideLinkRwandaApp() {
     return [...dynamicProviders, ...defaultProviders];
   };
 
-  // Welcome View
+  // =========================================================================
+  // 1. WELCOME VIEW
+  // =========================================================================
   if (currentRole === 'welcome') {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl overflow-hidden border border-slate-200">
@@ -1023,7 +1234,15 @@ export default function GuideLinkRwandaApp() {
 
               <button
                 onClick={() => {
-                  setRegForm({ name: '', contact: '', password: '', confirmPassword: '', role: 'traveler', momoRef: '' });
+                  setRegForm({
+                    name: '',
+                    contact: '',
+                    password: '',
+                    confirmPassword: '',
+                    role: 'traveler',
+                    subscriptionPlanId: 'monthly',
+                    momoRef: ''
+                  });
                   setRegStep('details');
                   setUssdTriggered(false);
                   setEmailNotificationSent(false);
@@ -1051,7 +1270,7 @@ export default function GuideLinkRwandaApp() {
           </div>
         </div>
 
-        {/* Copyright Footer at the Bottom of Welcome Page */}
+        {/* Copyright Footer */}
         <footer className="px-6 py-4 bg-white border-t border-slate-200 text-center">
           <p className="text-[11px] font-medium text-slate-500">
             &copy; {new Date().getFullYear()} <strong className="text-slate-700">{ownerProfile.name}</strong>. All rights reserved.
@@ -1105,7 +1324,9 @@ export default function GuideLinkRwandaApp() {
     );
   }
 
-  // Sign In View
+  // =========================================================================
+  // 2. SIGN IN VIEW
+  // =========================================================================
   if (currentRole === 'signin') {
     return (
       <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl border border-slate-200">
@@ -1158,14 +1379,142 @@ export default function GuideLinkRwandaApp() {
     );
   }
 
-  // Sign Up View
+  // =========================================================================
+  // 3. EXPIRED SUBSCRIPTION RENEWAL LOCKOUT VIEW
+  // =========================================================================
+  if (currentRole === 'renew_sub' && expiredUserAccount) {
+    const selectedRenewalPlan = getPlanById(renewalPlanId);
+    const renewalUssdDisplay = buildUssdDisplay(selectedRenewalPlan.price);
+    const renewalUssdDialUri = buildUssdDialUri(selectedRenewalPlan.price);
+
+    return (
+      <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl border border-slate-200">
+        <div className="bg-red-700 text-white px-6 py-4 flex justify-between items-center">
+          <div>
+            <h2 className="font-bold text-sm">🔒 Subscription Expired — Access Locked</h2>
+            <p className="text-[11px] text-red-100">{expiredUserAccount.name} ({getRoleDisplayLabel(expiredUserAccount.role)})</p>
+          </div>
+          <button onClick={resetToWelcome} className="text-xs bg-red-900 px-3 py-1.5 rounded-full font-semibold">
+            ← Home
+          </button>
+        </div>
+
+        <div className="p-5 flex-1 overflow-y-auto space-y-4">
+          {!renewalSubmitted ? (
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
+              <div className="bg-red-50 border border-red-200 p-3.5 rounded-xl text-xs space-y-1">
+                <p className="font-bold text-red-900">Your previous subscription plan has ended.</p>
+                <p className="text-red-800">
+                  Account access is revoked until you subscribe to a new plan via MTN MoMo below.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-800 block">Choose New Subscription Plan:</label>
+                <div className="grid grid-cols-1 gap-2">
+                  {SUBSCRIPTION_PLANS.map((plan) => (
+                    <button
+                      key={plan.id}
+                      type="button"
+                      onClick={() => {
+                        setRenewalPlanId(plan.id);
+                        setUssdTriggered(false);
+                      }}
+                      className={`p-3 rounded-xl border-2 text-left flex justify-between items-center transition ${
+                        renewalPlanId === plan.id
+                          ? 'border-[#234E40] bg-emerald-50/70'
+                          : 'border-slate-200 bg-white hover:bg-slate-50'
+                      }`}
+                    >
+                      <div>
+                        <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                          plan.id === 'gold_platinum_year' ? 'bg-amber-400 text-slate-900' : 'bg-slate-200 text-slate-700'
+                        }`}>
+                          {plan.badge}
+                        </span>
+                        <p className="font-bold text-xs text-slate-900 mt-1">{plan.name}</p>
+                        <p className="text-[11px] text-slate-500">{plan.durationLabel}</p>
+                      </div>
+                      <span className="font-extrabold text-sm text-[#234E40]">
+                        {plan.price.toLocaleString()} RWF
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-300 p-4 rounded-2xl space-y-2 text-center">
+                <p className="text-[11px] font-bold text-slate-700">
+                  Tap to pay <strong>{selectedRenewalPlan.price.toLocaleString()} RWF</strong> automatically:
+                </p>
+                <a
+                  href={renewalUssdDialUri}
+                  onClick={() => setUssdTriggered(true)}
+                  className="block w-full py-3 px-4 bg-amber-400 hover:bg-amber-500 text-slate-950 rounded-xl font-extrabold text-sm tracking-wide shadow border-2 border-amber-500"
+                >
+                  📞 {renewalUssdDisplay}
+                </a>
+                {ussdTriggered && (
+                  <p className="text-[11px] font-bold text-emerald-800 bg-emerald-100 py-1 px-2 rounded-lg">
+                    ✓ Dialer launched! Enter MoMo PIN on your phone, then enter reference below.
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700">MoMo Transaction ID / Confirmation SMS Ref</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. MP261116.2051.B98765"
+                  value={renewalMomoRef}
+                  onChange={(e) => setRenewalMomoRef(e.target.value)}
+                  className="w-full mt-1 p-3 border border-slate-300 rounded-xl text-xs font-semibold"
+                />
+              </div>
+
+              <button
+                type="button"
+                disabled={isSubmittingPayment}
+                onClick={handleCompleteRenewalPayment}
+                className="w-full py-3.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow transition"
+              >
+                {isSubmittingPayment ? '⏳ Notifying C.E.O...' : '✓ Renewal Paid — Notify C.E.O to Unlock'}
+              </button>
+            </div>
+          ) : (
+            <div className="bg-white p-6 rounded-2xl border text-center space-y-4 shadow-sm">
+              <div className="w-12 h-12 bg-emerald-100 text-[#234E40] rounded-full flex items-center justify-center mx-auto text-xl font-bold">
+                ✓
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">Renewal Payment Submitted</h3>
+              <p className="text-xs text-slate-600">
+                Your renewal for <strong>{selectedRenewalPlan.name}</strong> ({selectedRenewalPlan.price.toLocaleString()} RWF) has been sent to C.E.O <strong>{ownerProfile.name}</strong> ({ownerProfile.email}). Once confirmed, sign in to access your dashboard.
+              </p>
+              <button onClick={resetToWelcome} className="w-full py-3 bg-[#3B6E5B] text-white rounded-xl font-bold text-xs">
+                Return to Home Screen
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // 4. SIGN UP VIEW (With 4 Subscription Plans for Non-Travelers)
+  // =========================================================================
   if (currentRole === 'signup') {
+    const selectedPlan = getPlanById(regForm.subscriptionPlanId);
+    const activeUssdDisplay = buildUssdDisplay(selectedPlan.price);
+    const activeUssdDialUri = buildUssdDialUri(selectedPlan.price);
+
     const manualMailtoHref = `mailto:${encodeURIComponent(
       ownerProfile.email || 'rutungurab5@gmail.com'
     )}?subject=${encodeURIComponent(
-      `GuideLink Rwanda Payment Alert: ${regForm.name} (${getRoleDisplayLabel(regForm.role)})`
+      `GuideLink Rwanda Subscription Alert: ${regForm.name} (${selectedPlan.name})`
     )}&body=${encodeURIComponent(
-      `Hello C.E.O ${ownerProfile.name},\n\nI have completed my 500 RWF registration payment via USSD ${MOMO_USSD_DISPLAY}.\n\n- Name: ${regForm.name}\n- Role: ${getRoleDisplayLabel(regForm.role)}\n- Contact: ${regForm.contact}\n- MoMo Reference: ${regForm.momoRef}\n\nPlease approve my GuideLink Rwanda account.`
+      `Hello C.E.O ${ownerProfile.name},\n\nI have completed my ${selectedPlan.price.toLocaleString()} RWF subscription payment via USSD ${activeUssdDisplay}.\n\n- Name: ${regForm.name}\n- Role: ${getRoleDisplayLabel(regForm.role)}\n- Plan: ${selectedPlan.name} (${selectedPlan.durationLabel})\n- Contact: ${regForm.contact}\n- MoMo Reference: ${regForm.momoRef}\n\nPlease approve my GuideLink Rwanda account.`
     )}`;
 
     return (
@@ -1177,14 +1526,14 @@ export default function GuideLinkRwandaApp() {
           </button>
         </div>
 
-        <div className="p-6 flex-1 overflow-y-auto">
+        <div className="p-5 flex-1 overflow-y-auto">
           {regStep === 'details' && (
             <form onSubmit={handleSignUpSubmit} className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3.5 shadow-sm">
               <div>
                 <span className="text-[11px] font-bold uppercase text-[#3B6E5B]">New Registration</span>
                 <h3 className="text-lg font-bold text-slate-900">Join GuideLink Rwanda</h3>
                 <p className="text-xs text-slate-500 mt-1">
-                  Travelers are <strong>FREE</strong>. Partners register via MoMo USSD <strong>{MOMO_USSD_DISPLAY}</strong> (500 RWF).
+                  Travelers join <strong>FREE</strong>. Tourism Graduates, Travel Agencies & Tour Companies select a subscription plan.
                 </p>
               </div>
               <div>
@@ -1238,7 +1587,7 @@ export default function GuideLinkRwandaApp() {
                 <select
                   value={regForm.role}
                   onChange={(e) => setRegForm({ ...regForm, role: e.target.value })}
-                  className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-sm bg-white"
+                  className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-sm bg-white font-semibold"
                 >
                   <option value="traveler">🧳 Traveler (FREE Instant Access)</option>
                   <option value="graduate">🎓 Tourism Graduate (Guide / Consultant)</option>
@@ -1246,31 +1595,81 @@ export default function GuideLinkRwandaApp() {
                   <option value="tour_company">🚐 Tour Company (Safari Operator)</option>
                 </select>
               </div>
+
+              {/* Subscription Plan Selector for All Roles Except Traveler */}
+              {regForm.role !== 'traveler' && (
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <label className="text-xs font-bold text-[#234E40] block">
+                    💳 Choose Your Subscription Plan:
+                  </label>
+                  <div className="grid grid-cols-1 gap-2">
+                    {SUBSCRIPTION_PLANS.map((plan) => (
+                      <button
+                        key={plan.id}
+                        type="button"
+                        onClick={() => setRegForm({ ...regForm, subscriptionPlanId: plan.id })}
+                        className={`p-3 rounded-xl border-2 text-left flex justify-between items-center transition ${
+                          regForm.subscriptionPlanId === plan.id
+                            ? 'border-[#234E40] bg-emerald-50/80 shadow-sm'
+                            : 'border-slate-200 bg-white hover:bg-slate-50'
+                        }`}
+                      >
+                        <div>
+                          <span
+                            className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                              plan.id === 'gold_platinum_year'
+                                ? 'bg-amber-400 text-slate-950'
+                                : 'bg-slate-200 text-slate-700'
+                            }`}
+                          >
+                            {plan.badge}
+                          </span>
+                          <p className="font-bold text-xs text-slate-900 mt-1">{plan.name}</p>
+                          <p className="text-[11px] text-slate-500">{plan.durationLabel}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-extrabold text-sm text-[#234E40]">
+                            {plan.price.toLocaleString()} RWF
+                          </span>
+                          {regForm.subscriptionPlanId === plan.id && (
+                            <p className="text-[10px] font-bold text-emerald-700">✓ Selected</p>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <button type="submit" className="w-full py-3 bg-[#3B6E5B] text-white rounded-xl font-bold text-sm shadow">
-                {regForm.role === 'traveler' ? 'Complete Free Sign Up →' : 'Proceed to MoMo Payment →'}
+                {regForm.role === 'traveler'
+                  ? 'Complete Free Sign Up →'
+                  : `Proceed to Pay ${selectedPlan.price.toLocaleString()} RWF (${selectedPlan.name}) →`}
               </button>
             </form>
           )}
 
-          {/* Final Step: One-Tap Real-Time USSD Dialer (*182*8*1*612771*500#) + C.E.O Email Alert */}
-          {regStep === 'pay_500' && (
+          {/* Final Step: One-Tap Real-Time USSD Dialer for Chosen Subscription Plan + C.E.O Email Alert */}
+          {regStep === 'pay_subscription' && (
             <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
               <div className="bg-amber-50 border border-amber-300 p-4 rounded-2xl space-y-2.5 text-center">
                 <span className="text-[10px] font-extrabold uppercase tracking-wider bg-amber-400 text-slate-900 px-2.5 py-0.5 rounded-full">
-                  Final Step • One-Tap MTN MoMo Pay
+                  {selectedPlan.name} • {selectedPlan.durationLabel}
                 </span>
-                <h3 className="text-base font-bold text-slate-900">Tap Below to Pay 500 RWF Automatically</h3>
+                <h3 className="text-base font-bold text-slate-900">
+                  Tap Below to Pay {selectedPlan.price.toLocaleString()} RWF Automatically
+                </h3>
                 <p className="text-[11px] text-slate-600">
-                  Clicking the code below automatically launches your phone dialer to complete the 500 RWF payment:
+                  Clicking the code below automatically launches your phone dialer to complete your subscription payment:
                 </p>
 
                 {/* Real-Time Interactive USSD Dialer Trigger */}
                 <a
-                  href={MOMO_USSD_DIAL_URI}
+                  href={activeUssdDialUri}
                   onClick={() => setUssdTriggered(true)}
                   className="block w-full py-3.5 px-4 bg-amber-400 hover:bg-amber-500 active:scale-[0.99] text-slate-950 rounded-xl font-extrabold text-base tracking-wide shadow-md transition border-2 border-amber-500"
                 >
-                  📞 {MOMO_USSD_DISPLAY}
+                  📞 {activeUssdDisplay}
                 </a>
 
                 <div className="flex justify-center space-x-2 pt-0.5">
@@ -1278,13 +1677,20 @@ export default function GuideLinkRwandaApp() {
                     type="button"
                     onClick={() => {
                       if (navigator.clipboard) {
-                        navigator.clipboard.writeText(MOMO_USSD_DISPLAY);
-                        alert(`✓ Copied ${MOMO_USSD_DISPLAY} to clipboard!`);
+                        navigator.clipboard.writeText(activeUssdDisplay);
+                        alert(`✓ Copied ${activeUssdDisplay} to clipboard!`);
                       }
                     }}
                     className="text-[11px] font-bold text-[#234E40] bg-white border border-slate-200 px-3 py-1 rounded-lg hover:bg-slate-50"
                   >
                     📋 Copy USSD Code
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRegStep('details')}
+                    className="text-[11px] font-bold text-slate-600 bg-white border border-slate-200 px-3 py-1 rounded-lg hover:bg-slate-50"
+                  >
+                    ↺ Change Plan
                   </button>
                 </div>
 
@@ -1310,7 +1716,7 @@ export default function GuideLinkRwandaApp() {
               <button
                 type="button"
                 disabled={isSubmittingPayment}
-                onClick={handleComplete500Payment}
+                onClick={handleCompleteSubscriptionPayment}
                 className="w-full py-3.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow transition"
               >
                 {isSubmittingPayment
@@ -1325,9 +1731,9 @@ export default function GuideLinkRwandaApp() {
               <div className="w-12 h-12 bg-emerald-100 text-[#234E40] rounded-full flex items-center justify-center mx-auto text-xl font-bold">
                 ✓
               </div>
-              <h3 className="text-lg font-bold text-slate-900">Payment Recorded & C.E.O Notified</h3>
+              <h3 className="text-lg font-bold text-slate-900">Subscription Recorded & C.E.O Notified</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Your payment via <strong>{MOMO_USSD_DISPLAY}</strong> (Ref: <strong>{regForm.momoRef}</strong>) is saved.
+                Your <strong>{selectedPlan.name}</strong> ({selectedPlan.price.toLocaleString()} RWF) payment via <strong>{activeUssdDisplay}</strong> (Ref: <strong>{regForm.momoRef}</strong>) is saved.
                 {emailNotificationSent
                   ? ` A real-time email notification has been sent to C.E.O ${ownerProfile.name} (${ownerProfile.email}).`
                   : ` C.E.O ${ownerProfile.name} (${ownerProfile.email}) has been alerted in Owner HQ.`}
@@ -1350,7 +1756,9 @@ export default function GuideLinkRwandaApp() {
     );
   }
 
-  // C.E.O Owner HQ View
+  // =========================================================================
+  // 5. C.E.O OWNER HQ VIEW
+  // =========================================================================
   if (currentRole === 'owner') {
     const totalRegFees = registeredUsers.reduce((sum, u) => sum + (u.feePaid || 0), 0);
     const totalDealCommissions = tasks
@@ -1376,7 +1784,7 @@ export default function GuideLinkRwandaApp() {
           <button onClick={resetToWelcome} className="text-xs bg-emerald-900 px-3 py-1.5 rounded-full font-semibold">Log Out</button>
         </div>
 
-        {/* 6 Owner Iconic Tabs (Including Users Management) */}
+        {/* 6 Owner Iconic Tabs */}
         <div className="bg-white border-b border-slate-200 px-1.5 py-2.5 grid grid-cols-6 gap-0.5 text-center sticky top-[76px] z-20 shadow-sm">
           <button onClick={() => setOwnerTab('pending')} className={`p-1.5 rounded-xl flex flex-col items-center relative ${ownerTab === 'pending' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
             <span className="text-sm">⏳</span><span className="text-[8px]">Sign-Ups</span>
@@ -1402,54 +1810,78 @@ export default function GuideLinkRwandaApp() {
         <div className="p-4 space-y-4 flex-1 overflow-y-auto pb-10">
           {ownerTab === 'pending' && (
             <div className="space-y-3">
-              <h3 className="font-bold text-sm text-slate-900">⏳ Member Sign-Ups, Approvals & Access Control</h3>
-              <p className="text-[11px] text-slate-500">Grant or revoke access for any user who complies or fails to comply with requirements.</p>
+              <h3 className="font-bold text-sm text-slate-900">⏳ Member Sign-Ups, Subscriptions & Access Control</h3>
+              <p className="text-[11px] text-slate-500">Approve, revoke, edit, or delete any user who didn&apos;t pay or failed to follow instructions.</p>
               {registeredUsers.length === 0 ? (
                 <div className="bg-white p-6 rounded-2xl border text-center text-xs text-slate-500">No sign-ups logged yet.</div>
               ) : (
-                registeredUsers.map((user) => (
-                  <div key={user.id} className="bg-white p-4 rounded-2xl border space-y-2.5 text-xs shadow-sm">
-                    <div className="flex justify-between items-center">
-                      <p className="font-bold text-sm">{user.name} <span className="text-slate-500 font-normal">({getRoleDisplayLabel(user.role)})</span></p>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${user.status === 'approved' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
-                        {user.status === 'approved' ? '🟢 Active Access' : '🔒 Revoked / Pending'}
-                      </span>
-                    </div>
-                    <p className="text-slate-500">{user.contact} • Ref: {user.momoRef} • Fee: {user.feePaid} RWF</p>
-                    
-                    <div className="flex space-x-2 pt-1">
-                      {user.status !== 'approved' ? (
-                        <button onClick={() => toggleUserAccessStatus(user.id, user.contact, user.status)} className="flex-1 py-2 bg-[#3B6E5B] text-white rounded-xl font-bold">
-                          ✓ Grant Access
-                        </button>
-                      ) : (
-                        <button onClick={() => toggleUserAccessStatus(user.id, user.contact, user.status)} className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold">
-                          ✕ Revoke Access
-                        </button>
+                registeredUsers.map((user) => {
+                  const expired = isUserSubscriptionExpired(user);
+                  return (
+                    <div key={user.id} className="bg-white p-4 rounded-2xl border space-y-2.5 text-xs shadow-sm">
+                      <div className="flex justify-between items-center">
+                        <p className="font-bold text-sm">{user.name} <span className="text-slate-500 font-normal">({getRoleDisplayLabel(user.role)})</span></p>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          expired
+                            ? 'bg-amber-100 text-amber-800'
+                            : user.status === 'approved'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {expired ? '⚠️ Expired' : user.status === 'approved' ? '🟢 Active' : '🔒 Revoked / Pending'}
+                        </span>
+                      </div>
+                      <p className="text-slate-500">{user.contact} • Ref: {user.momoRef} • Paid: {Number(user.feePaid || 0).toLocaleString()} RWF</p>
+                      {user.role !== 'traveler' && (
+                        <p className="text-[11px] font-semibold text-[#234E40]">
+                          Plan: {user.subscriptionPlanName || 'Starter Monthly'}
+                          {user.subscriptionExpiresAt > 0
+                            ? ` • Expires: ${new Date(user.subscriptionExpiresAt).toLocaleDateString()}`
+                            : ''}
+                        </p>
                       )}
-                      <button
-                        onClick={() => {
-                          handleSelectUserForAdminEdit(user);
-                          setOwnerTab('users_mgmt');
-                        }}
-                        className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold"
-                      >
-                        ✏️ Edit
-                      </button>
+                      
+                      <div className="flex space-x-1.5 pt-1">
+                        {user.status !== 'approved' || expired ? (
+                          <button onClick={() => toggleUserAccessStatus(user.id, user.contact, 'revoked')} className="flex-1 py-2 bg-[#3B6E5B] text-white rounded-xl font-bold">
+                            ✓ Grant Access
+                          </button>
+                        ) : (
+                          <button onClick={() => toggleUserAccessStatus(user.id, user.contact, user.status)} className="flex-1 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold">
+                            ✕ Revoke
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            handleSelectUserForAdminEdit(user);
+                            setOwnerTab('users_mgmt');
+                          }}
+                          className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold"
+                        >
+                          ✏️ Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteUserAccount(user.id, user.name)}
+                          title="Delete Non-Compliant / Unpaid User"
+                          className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold"
+                        >
+                          🗑️
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           )}
 
-          {/* C.E.O Users Management: Edit Login Info & All Dashboard Elements */}
+          {/* C.E.O Users Management: Edit Login Info, Subscription, Dashboard Elements & Delete User */}
           {ownerTab === 'users_mgmt' && (
             <div className="space-y-4">
               <div className="bg-gradient-to-r from-slate-900 to-[#234E40] text-white p-4 rounded-2xl shadow-sm space-y-1">
                 <span className="text-[10px] uppercase font-bold bg-amber-400 text-slate-900 px-2 py-0.5 rounded-full">C.E.O Master Control</span>
                 <h3 className="font-bold text-base pt-1">👥 Users Management & Dashboard Editor</h3>
-                <p className="text-xs text-emerald-100">Edit any user&apos;s login credentials, role, availability, services, degrees, or experience on their behalf.</p>
+                <p className="text-xs text-emerald-100">Edit any user&apos;s login info, subscription plan, dashboard elements, or delete non-compliant accounts.</p>
               </div>
 
               {registeredUsers.length === 0 ? (
@@ -1458,7 +1890,7 @@ export default function GuideLinkRwandaApp() {
                 </div>
               ) : (
                 <>
-                  <div className="bg-white p-4 rounded-2xl border space-y-2 shadow-sm text-xs">
+                  <div className="bg-white p-4 rounded-2xl border space-y-2.5 shadow-sm text-xs">
                     <label className="font-bold text-slate-700 block">Select User Account ({registeredUsers.length} Total)</label>
                     <select
                       value={selectedManagedUserId}
@@ -1468,19 +1900,31 @@ export default function GuideLinkRwandaApp() {
                       }}
                       className="w-full p-2.5 border rounded-xl bg-slate-50 font-semibold text-slate-900"
                     >
-                      <option value="">-- Choose a member to edit --</option>
+                      <option value="">-- Choose a member to edit or delete --</option>
                       {registeredUsers.map((u) => (
                         <option key={u.id} value={u.id}>
                           {u.name} ({getRoleDisplayLabel(u.role)}) • {u.contact}
                         </option>
                       ))}
                     </select>
+
+                    {/* Dedicated Delete Icon Button for Selected User */}
+                    {ownerUserEditForm && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteUserAccount(ownerUserEditForm.docId, ownerUserEditForm.name)}
+                        className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-xs flex items-center justify-center space-x-2 shadow-sm transition"
+                      >
+                        <span>🗑️</span>
+                        <span>Delete User ({ownerUserEditForm.name}) Permanently</span>
+                      </button>
+                    )}
                   </div>
 
                   {ownerUserEditForm && (
                     <form onSubmit={handleOwnerSaveManagedUser} className="bg-white p-4 rounded-2xl border space-y-4 shadow-sm text-xs">
                       <div className="border-b pb-2 flex justify-between items-center">
-                        <h4 className="font-bold text-sm text-[#234E40]">🔑 Login & Account Credentials</h4>
+                        <h4 className="font-bold text-sm text-[#234E40]">🔑 Login, Subscription & Account</h4>
                         <span className="text-[10px] font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-600">
                           ID: {ownerUserEditForm.docId}
                         </span>
@@ -1544,10 +1988,41 @@ export default function GuideLinkRwandaApp() {
                             >
                               <option value="approved">🟢 Approved (Active)</option>
                               <option value="pending_approval">⏳ Pending Approval</option>
+                              <option value="expired">⚠️ Expired (Needs Renewal)</option>
                               <option value="revoked">🔒 Revoked (Blocked)</option>
                             </select>
                           </div>
                         </div>
+
+                        {/* Subscription Plan Management */}
+                        {ownerUserEditForm.role !== 'traveler' && (
+                          <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl space-y-2">
+                            <label className="font-bold text-amber-950 block">💳 Partner Subscription Tier</label>
+                            <select
+                              value={ownerUserEditForm.subscriptionPlanId}
+                              onChange={(e) => {
+                                const plan = getPlanById(e.target.value);
+                                setOwnerUserEditForm({
+                                  ...ownerUserEditForm,
+                                  subscriptionPlanId: plan.id,
+                                  subscriptionExpiresAt: Date.now() + plan.days * 24 * 60 * 60 * 1000
+                                });
+                              }}
+                              className="w-full p-2 border rounded-xl bg-white font-semibold text-slate-900"
+                            >
+                              {SUBSCRIPTION_PLANS.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name} — {p.price.toLocaleString()} RWF ({p.durationLabel})
+                                </option>
+                              ))}
+                            </select>
+                            {ownerUserEditForm.subscriptionExpiresAt > 0 && (
+                              <p className="text-[11px] text-amber-900 font-medium">
+                                Active Until: <strong>{new Date(ownerUserEditForm.subscriptionExpiresAt).toLocaleDateString()}</strong>
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       <div className="border-t pt-3 space-y-3">
@@ -1752,7 +2227,7 @@ export default function GuideLinkRwandaApp() {
                 <span className="text-xs uppercase text-emerald-200 font-bold">Total Platform Revenue</span>
                 <div className="text-3xl font-extrabold">RWF {grandTotalRevenue.toLocaleString()}</div>
                 <p className="text-[11px] text-emerald-100">
-                  MoMo USSD: {MOMO_USSD_DISPLAY} • Sign-Ups: RWF {totalRegFees.toLocaleString()} • Commissions: RWF {totalDealCommissions.toLocaleString()}
+                  MoMo Code: {MOMO_PAYMENT_CODE} • Subscriptions: RWF {totalRegFees.toLocaleString()} • Commissions: RWF {totalDealCommissions.toLocaleString()}
                 </p>
               </div>
             </div>
@@ -1880,7 +2355,9 @@ export default function GuideLinkRwandaApp() {
     );
   }
 
-  // Role Dashboards & Workspaces
+  // =========================================================================
+  // 6. ROLE DASHBOARDS & WORKSPACES
+  // =========================================================================
   const currentProf = getCurrentProfile();
   const isPartnerRole = ['graduate', 'agency', 'tour_company'].includes(currentRole);
   const providerDirectory = buildLiveProviderDirectory();
@@ -1946,7 +2423,12 @@ export default function GuideLinkRwandaApp() {
             )}
             <div>
               <h2 className="font-bold text-sm leading-tight">{currentProf?.name}</h2>
-              <p className="text-[11px] text-slate-500 capitalize">{getRoleDisplayLabel(currentRole)}</p>
+              <p className="text-[11px] text-slate-500 capitalize">
+                {getRoleDisplayLabel(currentRole)}
+                {activeUser?.subscriptionPlanName && currentRole !== 'traveler'
+                  ? ` • ${activeUser.subscriptionPlanName}`
+                  : ''}
+              </p>
             </div>
           </div>
           <button onClick={resetToWelcome} className="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-full font-semibold transition">Sign Out</button>
@@ -1982,7 +2464,11 @@ export default function GuideLinkRwandaApp() {
               <p className="text-xs font-bold text-slate-900">
                 {currentProf.isAvailable !== false ? '🟢 Available for Bookings' : '🔴 Currently Busy'}
               </p>
-              <p className="text-[11px] text-slate-500">Live status visible across platform</p>
+              <p className="text-[11px] text-slate-500">
+                {activeUser?.subscriptionExpiresAt > 0
+                  ? `Plan valid until ${new Date(activeUser.subscriptionExpiresAt).toLocaleDateString()}`
+                  : 'Live status visible across platform'}
+              </p>
             </div>
             <button
               onClick={() => updateCurrentProfile({ isAvailable: currentProf.isAvailable === false })}
