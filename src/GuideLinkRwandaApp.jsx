@@ -117,7 +117,14 @@ export default function GuideLinkRwandaApp() {
   const [chatInput, setChatInput] = useState('');
   const [activeChatPeer, setActiveChatPeer] = useState({ id: '', name: '', role: '' });
 
+  // USSD & Payment Constants
   const MOMO_PAYMENT_CODE = '612771';
+  const MOMO_USSD_DISPLAY = `*182*8*1*${MOMO_PAYMENT_CODE}*500#`;
+  const MOMO_USSD_DIAL_URI = `tel:*182*8*1*${MOMO_PAYMENT_CODE}*500%23`;
+
+  const [ussdTriggered, setUssdTriggered] = useState(false);
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+  const [emailNotificationSent, setEmailNotificationSent] = useState(false);
 
   const [ownerProfile, setOwnerProfile] = useState({
     name: 'RUTUNGURA Bonheur',
@@ -400,7 +407,6 @@ export default function GuideLinkRwandaApp() {
     const { docId, oldKey, ...cleanFields } = ownerUserEditForm;
     const newCleanKey = normalizeContact(cleanFields.contact);
 
-    // Update registeredUsers state
     setRegisteredUsers(
       registeredUsers.map((u) =>
         u.id === docId
@@ -416,7 +422,6 @@ export default function GuideLinkRwandaApp() {
       )
     );
 
-    // Update userProfiles state (supporting contact change without losing data)
     const updatedProfiles = { ...userProfiles };
     if (oldKey && oldKey !== newCleanKey) {
       delete updatedProfiles[oldKey];
@@ -438,7 +443,6 @@ export default function GuideLinkRwandaApp() {
     };
     setUserProfiles(updatedProfiles);
 
-    // Persist all login + dashboard fields to Firestore without erasing unedited metadata
     await firestoreSaveDoc('profiles', docId, {
       name: cleanFields.name.trim(),
       contact: cleanFields.contact.trim(),
@@ -473,6 +477,8 @@ export default function GuideLinkRwandaApp() {
     setCurrentRole('welcome');
     setActiveTab('jobs');
     setRegStep('details');
+    setUssdTriggered(false);
+    setEmailNotificationSent(false);
     setActiveUser(null);
     setActiveChatPeer({ id: '', name: '', role: '' });
     setSignInContact('');
@@ -607,15 +613,46 @@ export default function GuideLinkRwandaApp() {
       return;
     }
 
+    setUssdTriggered(false);
     setRegStep('pay_500');
+  };
+
+  // Dispatches real-time email notification to the C.E.O's email address
+  const sendRealTimeOwnerEmailNotification = async (registrantData) => {
+    const targetOwnerEmail = ownerProfile.email || 'rutungurab5@gmail.com';
+    try {
+      const res = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(targetOwnerEmail)}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json'
+        },
+        body: JSON.stringify({
+          _subject: `GuideLink Rwanda: New Partner Payment (${registrantData.name}) - 500 RWF`,
+          _template: 'table',
+          Platform: 'GuideLink Rwanda',
+          Member_Name: registrantData.name,
+          Account_Role: getRoleDisplayLabel(registrantData.role),
+          Member_Contact: registrantData.contact,
+          USSD_Dialed: MOMO_USSD_DISPLAY,
+          Amount_Paid: '500 RWF',
+          MoMo_Transaction_Ref: registrantData.momoRef,
+          Submitted_At: new Date().toLocaleString()
+        })
+      });
+      return res.ok;
+    } catch (err) {
+      return false;
+    }
   };
 
   const handleComplete500Payment = async () => {
     if (!regForm.momoRef.trim()) {
-      alert('Please enter your MoMo Transaction Reference.');
+      alert('Please enter your MoMo Transaction Reference / ID after dialing *182*8*1*612771*500#.');
       return;
     }
 
+    setIsSubmittingPayment(true);
     const cleanInput = normalizeContact(regForm.contact);
     const newRegistrant = {
       id: cleanInput,
@@ -624,18 +661,22 @@ export default function GuideLinkRwandaApp() {
       password: regForm.password,
       role: regForm.role,
       feePaid: 500,
-      momoCodeUsed: MOMO_PAYMENT_CODE,
+      momoCodeUsed: MOMO_USSD_DISPLAY,
       momoRef: regForm.momoRef.trim(),
       status: 'pending_approval'
     };
 
     setRegisteredUsers([newRegistrant, ...registeredUsers]);
-    setRegStep('pending_approval');
 
     await firestoreSaveDoc('profiles', cleanInput, {
       ...newRegistrant,
       isAvailable: true
     });
+
+    const notified = await sendRealTimeOwnerEmailNotification(newRegistrant);
+    setEmailNotificationSent(notified);
+    setIsSubmittingPayment(false);
+    setRegStep('pending_approval');
   };
 
   const handleOwnerLogin = (e) => {
@@ -984,6 +1025,8 @@ export default function GuideLinkRwandaApp() {
                 onClick={() => {
                   setRegForm({ name: '', contact: '', password: '', confirmPassword: '', role: 'traveler', momoRef: '' });
                   setRegStep('details');
+                  setUssdTriggered(false);
+                  setEmailNotificationSent(false);
                   setCurrentRole('signup');
                 }}
                 className="w-full py-3 bg-emerald-50 hover:bg-emerald-100 text-[#234E40] border border-[#3B6E5B]/30 rounded-xl font-bold text-sm transition flex items-center justify-center space-x-2"
@@ -1117,6 +1160,14 @@ export default function GuideLinkRwandaApp() {
 
   // Sign Up View
   if (currentRole === 'signup') {
+    const manualMailtoHref = `mailto:${encodeURIComponent(
+      ownerProfile.email || 'rutungurab5@gmail.com'
+    )}?subject=${encodeURIComponent(
+      `GuideLink Rwanda Payment Alert: ${regForm.name} (${getRoleDisplayLabel(regForm.role)})`
+    )}&body=${encodeURIComponent(
+      `Hello C.E.O ${ownerProfile.name},\n\nI have completed my 500 RWF registration payment via USSD ${MOMO_USSD_DISPLAY}.\n\n- Name: ${regForm.name}\n- Role: ${getRoleDisplayLabel(regForm.role)}\n- Contact: ${regForm.contact}\n- MoMo Reference: ${regForm.momoRef}\n\nPlease approve my GuideLink Rwanda account.`
+    )}`;
+
     return (
       <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl border border-slate-200">
         <div className="bg-white px-6 py-4 border-b border-slate-200 flex justify-between items-center">
@@ -1133,7 +1184,7 @@ export default function GuideLinkRwandaApp() {
                 <span className="text-[11px] font-bold uppercase text-[#3B6E5B]">New Registration</span>
                 <h3 className="text-lg font-bold text-slate-900">Join GuideLink Rwanda</h3>
                 <p className="text-xs text-slate-500 mt-1">
-                  Travelers are <strong>FREE</strong>. Partners register via MoMo Code <strong>{MOMO_PAYMENT_CODE}</strong> (500 RWF).
+                  Travelers are <strong>FREE</strong>. Partners register via MoMo USSD <strong>{MOMO_USSD_DISPLAY}</strong> (500 RWF).
                 </p>
               </div>
               <div>
@@ -1196,42 +1247,100 @@ export default function GuideLinkRwandaApp() {
                 </select>
               </div>
               <button type="submit" className="w-full py-3 bg-[#3B6E5B] text-white rounded-xl font-bold text-sm shadow">
-                {regForm.role === 'traveler' ? 'Complete Free Sign Up →' : 'Proceed to MoMo Verification →'}
+                {regForm.role === 'traveler' ? 'Complete Free Sign Up →' : 'Proceed to MoMo Payment →'}
               </button>
             </form>
           )}
 
+          {/* Final Step: One-Tap Real-Time USSD Dialer (*182*8*1*612771*500#) + C.E.O Email Alert */}
           {regStep === 'pay_500' && (
             <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
-              <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-xl space-y-1">
-                <h3 className="text-lg font-bold text-slate-900">Pay 500 RWF via MoMo Code</h3>
-                <p className="text-xs text-slate-700">
-                  Send <strong>500 RWF</strong> to MoMo Code: <strong className="text-[#234E40] text-sm">{MOMO_PAYMENT_CODE}</strong>
+              <div className="bg-amber-50 border border-amber-300 p-4 rounded-2xl space-y-2.5 text-center">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider bg-amber-400 text-slate-900 px-2.5 py-0.5 rounded-full">
+                  Final Step • One-Tap MTN MoMo Pay
+                </span>
+                <h3 className="text-base font-bold text-slate-900">Tap Below to Pay 500 RWF Automatically</h3>
+                <p className="text-[11px] text-slate-600">
+                  Clicking the code below automatically launches your phone dialer to complete the 500 RWF payment:
                 </p>
+
+                {/* Real-Time Interactive USSD Dialer Trigger */}
+                <a
+                  href={MOMO_USSD_DIAL_URI}
+                  onClick={() => setUssdTriggered(true)}
+                  className="block w-full py-3.5 px-4 bg-amber-400 hover:bg-amber-500 active:scale-[0.99] text-slate-950 rounded-xl font-extrabold text-base tracking-wide shadow-md transition border-2 border-amber-500"
+                >
+                  📞 {MOMO_USSD_DISPLAY}
+                </a>
+
+                <div className="flex justify-center space-x-2 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (navigator.clipboard) {
+                        navigator.clipboard.writeText(MOMO_USSD_DISPLAY);
+                        alert(`✓ Copied ${MOMO_USSD_DISPLAY} to clipboard!`);
+                      }
+                    }}
+                    className="text-[11px] font-bold text-[#234E40] bg-white border border-slate-200 px-3 py-1 rounded-lg hover:bg-slate-50"
+                  >
+                    📋 Copy USSD Code
+                  </button>
+                </div>
+
+                {ussdTriggered && (
+                  <p className="text-[11px] font-bold text-emerald-800 bg-emerald-100 py-1.5 px-2.5 rounded-lg">
+                    ✓ Phone dialer launched! Enter your MoMo PIN on your phone, then confirm below.
+                  </p>
+                )}
               </div>
+
               <div>
-                <label className="text-xs font-bold text-slate-700">MoMo Transaction ID / Reference</label>
+                <label className="text-xs font-bold text-slate-700">MoMo Transaction ID / Confirmation SMS Ref</label>
                 <input
                   type="text"
                   required
+                  placeholder="e.g. MP261116.2051.A12345"
                   value={regForm.momoRef}
                   onChange={(e) => setRegForm({ ...regForm, momoRef: e.target.value })}
-                  className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-xs"
+                  className="w-full mt-1 p-3 border border-slate-300 rounded-xl text-xs font-semibold"
                 />
               </div>
-              <button onClick={handleComplete500Payment} className="w-full py-3 bg-[#234E40] text-white rounded-xl font-bold text-sm shadow">
-                Submit Payment & Notify C.E.O
+
+              <button
+                type="button"
+                disabled={isSubmittingPayment}
+                onClick={handleComplete500Payment}
+                className="w-full py-3.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow transition"
+              >
+                {isSubmittingPayment
+                  ? '⏳ Sending Real-Time Notification to C.E.O...'
+                  : '✓ Payment Completed — Notify C.E.O Email'}
               </button>
             </div>
           )}
 
           {regStep === 'pending_approval' && (
             <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center space-y-4 shadow-sm">
-              <h3 className="text-lg font-bold text-slate-900">Payment Pending C.E.O Approval</h3>
-              <p className="text-xs text-slate-600">
-                Payment logged for MoMo Code <strong>{MOMO_PAYMENT_CODE}</strong>. Once confirmed by C.E.O RUTUNGURA Bonheur, sign in with your password.
+              <div className="w-12 h-12 bg-emerald-100 text-[#234E40] rounded-full flex items-center justify-center mx-auto text-xl font-bold">
+                ✓
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">Payment Recorded & C.E.O Notified</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Your payment via <strong>{MOMO_USSD_DISPLAY}</strong> (Ref: <strong>{regForm.momoRef}</strong>) is saved.
+                {emailNotificationSent
+                  ? ` A real-time email notification has been sent to C.E.O ${ownerProfile.name} (${ownerProfile.email}).`
+                  : ` C.E.O ${ownerProfile.name} (${ownerProfile.email}) has been alerted in Owner HQ.`}
               </p>
-              <button onClick={resetToWelcome} className="w-full py-2.5 bg-[#3B6E5B] text-white rounded-xl font-bold text-xs">
+
+              <a
+                href={manualMailtoHref}
+                className="block w-full py-2.5 bg-amber-100 hover:bg-amber-200 text-amber-950 rounded-xl font-bold text-xs border border-amber-300 transition"
+              >
+                📧 Send Direct Email Copy to {ownerProfile.email}
+              </a>
+
+              <button onClick={resetToWelcome} className="w-full py-3 bg-[#3B6E5B] text-white rounded-xl font-bold text-xs shadow">
                 Return to Home Screen
               </button>
             </div>
@@ -1349,7 +1458,6 @@ export default function GuideLinkRwandaApp() {
                 </div>
               ) : (
                 <>
-                  {/* Select User to Manage */}
                   <div className="bg-white p-4 rounded-2xl border space-y-2 shadow-sm text-xs">
                     <label className="font-bold text-slate-700 block">Select User Account ({registeredUsers.length} Total)</label>
                     <select
@@ -1442,7 +1550,6 @@ export default function GuideLinkRwandaApp() {
                         </div>
                       </div>
 
-                      {/* Dashboard Elements Section */}
                       <div className="border-t pt-3 space-y-3">
                         <div className="flex justify-between items-center">
                           <h4 className="font-bold text-sm text-[#234E40]">🎛️ Dashboard Elements & Public Listing</h4>
@@ -1490,7 +1597,6 @@ export default function GuideLinkRwandaApp() {
                           </div>
                         </div>
 
-                        {/* Services Offered Editor */}
                         <div className="space-y-2 bg-slate-50 p-3 rounded-xl border">
                           <label className="font-bold text-[#234E40] block">🛠️ Services Offered</label>
                           <div className="flex space-x-2">
@@ -1537,7 +1643,6 @@ export default function GuideLinkRwandaApp() {
                           </div>
                         </div>
 
-                        {/* Qualifications & Degrees Editor */}
                         <div className="space-y-2 bg-slate-50 p-3 rounded-xl border">
                           <label className="font-bold text-[#234E40] block">🎓 Qualifications & Degrees</label>
                           <div className="flex space-x-2">
@@ -1582,7 +1687,6 @@ export default function GuideLinkRwandaApp() {
                           ))}
                         </div>
 
-                        {/* Experience Editor */}
                         <div className="space-y-2 bg-slate-50 p-3 rounded-xl border">
                           <label className="font-bold text-[#234E40] block">💼 Experience</label>
                           <div className="flex space-x-2">
@@ -1648,7 +1752,7 @@ export default function GuideLinkRwandaApp() {
                 <span className="text-xs uppercase text-emerald-200 font-bold">Total Platform Revenue</span>
                 <div className="text-3xl font-extrabold">RWF {grandTotalRevenue.toLocaleString()}</div>
                 <p className="text-[11px] text-emerald-100">
-                  MoMo Code: {MOMO_PAYMENT_CODE} • Sign-Ups: RWF {totalRegFees.toLocaleString()} • Commissions: RWF {totalDealCommissions.toLocaleString()}
+                  MoMo USSD: {MOMO_USSD_DISPLAY} • Sign-Ups: RWF {totalRegFees.toLocaleString()} • Commissions: RWF {totalDealCommissions.toLocaleString()}
                 </p>
               </div>
             </div>
@@ -1793,7 +1897,6 @@ export default function GuideLinkRwandaApp() {
   const myChatId = normalizeContact(activeUser?.contact || activeUser?.name || '');
   const activePeerId = normalizeContact(activeChatPeer.id);
 
-  // Only messages where THIS logged-in user is strictly one of the two participants
   const myPrivateMessages = chatMessages.filter((msg) => {
     if (Array.isArray(msg.participants)) {
       return msg.participants.includes(myChatId);
@@ -1801,7 +1904,6 @@ export default function GuideLinkRwandaApp() {
     return normalizeContact(msg.senderId) === myChatId || normalizeContact(msg.recipientId) === myChatId;
   });
 
-  // Active 1-on-1 room messages between me and activeChatPeer ONLY
   const activeRoomMessages = activePeerId
     ? myPrivateMessages.filter((msg) => {
         const msgSender = normalizeContact(msg.senderId || msg.sender);
@@ -1813,7 +1915,6 @@ export default function GuideLinkRwandaApp() {
       })
     : [];
 
-  // Build list of unique private threads this user is part of (never leaks other users' chats)
   const myPrivateConversations = [];
   const seenPeers = new Set();
   myPrivateMessages.forEach((msg) => {
@@ -1894,7 +1995,7 @@ export default function GuideLinkRwandaApp() {
           </div>
         )}
 
-        {/* Graduate Workspace: See Guiding Jobs, Consultant Jobs, Freelance Traveler Requests */}
+        {/* Graduate Workspace */}
         {activeTab === 'jobs' && currentRole === 'graduate' && (
           <div className="space-y-4">
             <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-4 rounded-2xl shadow-sm space-y-1">
@@ -2359,7 +2460,6 @@ export default function GuideLinkRwandaApp() {
                       <input type="text" value={currentProf.rateInfo || ''} onChange={(e) => updateCurrentProfile({ rateInfo: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
                     </div>
 
-                    {/* Services Offered */}
                     <div className="space-y-2 bg-slate-50 p-3 rounded-xl border">
                       <label className="font-bold text-[#234E40] block">🛠️ Services Offered</label>
                       <div className="flex space-x-2">
@@ -2376,7 +2476,6 @@ export default function GuideLinkRwandaApp() {
                       </div>
                     </div>
 
-                    {/* Qualifications & Degrees */}
                     <div className="space-y-2 bg-slate-50 p-3 rounded-xl border">
                       <label className="font-bold text-[#234E40] block">🎓 Qualifications & Degrees</label>
                       <div className="flex space-x-2">
@@ -2391,7 +2490,6 @@ export default function GuideLinkRwandaApp() {
                       ))}
                     </div>
 
-                    {/* Experience */}
                     <div className="space-y-2 bg-slate-50 p-3 rounded-xl border">
                       <label className="font-bold text-[#234E40] block">💼 Experience</label>
                       <div className="flex space-x-2">
@@ -2429,7 +2527,6 @@ export default function GuideLinkRwandaApp() {
                 </div>
               </div>
 
-              {/* Switch between active private threads */}
               {myPrivateConversations.length > 0 && (
                 <div className="flex items-center space-x-1.5 overflow-x-auto pb-1">
                   <span className="text-[10px] font-bold text-slate-400 shrink-0">My Chats:</span>
