@@ -104,16 +104,17 @@ const firestoreDeleteDoc = async (collectionName, docId) => {
 };
 
 // =========================================================================
-// SUBSCRIPTION TIERS CONFIGURATION
+// DEFAULT SUBSCRIPTION TIERS CONFIGURATION (Synced with Firebase)
 // =========================================================================
-const SUBSCRIPTION_PLANS = [
+const DEFAULT_SUBSCRIPTION_PLANS = [
   {
     id: 'monthly',
     name: 'Starter Monthly',
     badge: 'Monthly',
     durationLabel: '1 Month (30 Days)',
     days: 30,
-    price: 15000
+    price: 15000,
+    order: 1
   },
   {
     id: 'three_months',
@@ -121,7 +122,8 @@ const SUBSCRIPTION_PLANS = [
     badge: '3 Months',
     durationLabel: '3 Months (90 Days)',
     days: 90,
-    price: 20000
+    price: 20000,
+    order: 2
   },
   {
     id: 'quarter_6m',
@@ -129,7 +131,8 @@ const SUBSCRIPTION_PLANS = [
     badge: 'Quarter • 6 Months',
     durationLabel: '6 Months (180 Days)',
     days: 180,
-    price: 60000
+    price: 60000,
+    order: 3
   },
   {
     id: 'gold_platinum_year',
@@ -137,17 +140,25 @@ const SUBSCRIPTION_PLANS = [
     badge: 'GOLD-PLATINUM • 1 Year',
     durationLabel: '1 Year (365 Days)',
     days: 365,
-    price: 100000
+    price: 100000,
+    order: 4
   }
 ];
 
 export default function GuideLinkRwandaApp() {
   const [currentRole, setCurrentRole] = useState('welcome');
-  const [ownerTab, setOwnerTab] = useState('pending'); // 'pending' | 'users_mgmt' | 'overview' | 'vip' | 'deals' | 'owner_profile'
-  const [activeTab, setActiveTab] = useState('jobs'); // 'jobs' | 'profile' | 'chat'
+  const [ownerTab, setOwnerTab] = useState('pending'); // 'pending' | 'users_mgmt' | 'plans_mgmt' | 'overview' | 'vip' | 'deals' | 'owner_profile'
+  const [activeTab, setActiveTab] = useState('jobs'); // 'jobs' | 'search' | 'profile' | 'chat'
   const [showOwnerPinModal, setShowOwnerPinModal] = useState(false);
   const [ownerPinInput, setOwnerPinInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  // Dynamic Subscription Plans State (Editable by Owner)
+  const [subscriptionPlans, setSubscriptionPlans] = useState(DEFAULT_SUBSCRIPTION_PLANS);
+
+  // Universal Search State (Accessible on All User Dashboards)
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchRoleFilter, setSearchRoleFilter] = useState('all'); // 'all' | 'graduate' | 'agency' | 'tour_company'
 
   // Owner Users Management State
   const [selectedManagedUserId, setSelectedManagedUserId] = useState('');
@@ -236,7 +247,7 @@ export default function GuideLinkRwandaApp() {
   const normalizeContact = (str) => (str || '').replace(/\s+/g, '').toLowerCase();
 
   const getPlanById = (planId) =>
-    SUBSCRIPTION_PLANS.find((p) => p.id === planId) || SUBSCRIPTION_PLANS[0];
+    subscriptionPlans.find((p) => p.id === planId) || subscriptionPlans[0] || DEFAULT_SUBSCRIPTION_PLANS[0];
 
   // Checks if a non-traveler user's subscription end timestamp has passed
   const isUserSubscriptionExpired = (user) => {
@@ -267,13 +278,22 @@ export default function GuideLinkRwandaApp() {
   };
 
   const loadFirebaseData = async () => {
-    const [profilesDocs, vipDocs, tasksDocs, tripsDocs, chatDocs] = await Promise.all([
+    const [profilesDocs, vipDocs, tasksDocs, tripsDocs, chatDocs, plansDocs] = await Promise.all([
       firestoreGetCollection('profiles'),
       firestoreGetCollection('vipTiers'),
       firestoreGetCollection('tasks'),
       firestoreGetCollection('tripRequests'),
-      firestoreGetCollection('chats')
+      firestoreGetCollection('chats'),
+      firestoreGetCollection('subscriptionPlans')
     ]);
+
+    if (plansDocs.length > 0) {
+      const mergedPlans = DEFAULT_SUBSCRIPTION_PLANS.map((defPlan) => {
+        const cloudMatch = plansDocs.find((c) => c.id === defPlan.id);
+        return cloudMatch ? { ...defPlan, ...cloudMatch, price: Number(cloudMatch.price ?? defPlan.price), days: Number(cloudMatch.days ?? defPlan.days) } : defPlan;
+      }).sort((a, b) => (a.order || 0) - (b.order || 0));
+      setSubscriptionPlans(mergedPlans);
+    }
 
     if (profilesDocs.length > 0) {
       const users = [];
@@ -436,6 +456,24 @@ export default function GuideLinkRwandaApp() {
     alert('✓ Profile & updates successfully saved to Firebase Cloud!');
   };
 
+  // Save Owner Edits to Subscription Plan Names, Badges & Costs
+  const handleSaveSubscriptionPlans = async () => {
+    setIsSaving(true);
+    for (const plan of subscriptionPlans) {
+      await firestoreSaveDoc('subscriptionPlans', plan.id, {
+        id: plan.id,
+        name: plan.name.trim() || 'Subscription Plan',
+        badge: plan.badge.trim() || plan.name.trim(),
+        durationLabel: plan.durationLabel,
+        days: Number(plan.days) || 30,
+        price: Number(plan.price) || 15000,
+        order: plan.order || 1
+      });
+    }
+    setIsSaving(false);
+    alert('✓ Subscription plan names & costs saved to Firebase Cloud!');
+  };
+
   // Select a user in C.E.O Users Management to edit login info & all dashboard elements
   const handleSelectUserForAdminEdit = (user) => {
     const cleanKey = normalizeContact(user.contact || user.id);
@@ -587,6 +625,8 @@ export default function GuideLinkRwandaApp() {
   const resetToWelcome = () => {
     setCurrentRole('welcome');
     setActiveTab('jobs');
+    setSearchQuery('');
+    setSearchRoleFilter('all');
     setRegStep('details');
     setUssdTriggered(false);
     setEmailNotificationSent(false);
@@ -884,7 +924,6 @@ export default function GuideLinkRwandaApp() {
     const docId = userId || normalizeContact(userContact);
     const targetUser = registeredUsers.find((u) => u.id === docId);
 
-    // If granting access to a partner whose subscription date had expired, extend from today
     let updatedExpiry = targetUser?.subscriptionExpiresAt || 0;
     if (nextStatus === 'approved' && targetUser && targetUser.role !== 'traveler') {
       const plan = getPlanById(targetUser.subscriptionPlanId);
@@ -1046,7 +1085,7 @@ export default function GuideLinkRwandaApp() {
     const newId = `trip-${Date.now()}`;
     const newBooking = {
       id: newId,
-      travelerName: activeUser?.name || 'Traveler',
+      travelerName: activeUser?.name || 'Member',
       travelerContact: activeUser?.contact || '',
       preferredCategory: bookingTarget.type,
       targetProvider: `${bookingTarget.name} (${bookingTarget.categoryLabel})`,
@@ -1412,7 +1451,7 @@ export default function GuideLinkRwandaApp() {
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-800 block">Choose New Subscription Plan:</label>
                 <div className="grid grid-cols-1 gap-2">
-                  {SUBSCRIPTION_PLANS.map((plan) => (
+                  {subscriptionPlans.map((plan) => (
                     <button
                       key={plan.id}
                       type="button"
@@ -1436,7 +1475,7 @@ export default function GuideLinkRwandaApp() {
                         <p className="text-[11px] text-slate-500">{plan.durationLabel}</p>
                       </div>
                       <span className="font-extrabold text-sm text-[#234E40]">
-                        {plan.price.toLocaleString()} RWF
+                        {Number(plan.price).toLocaleString()} RWF
                       </span>
                     </button>
                   ))}
@@ -1445,7 +1484,7 @@ export default function GuideLinkRwandaApp() {
 
               <div className="bg-amber-50 border border-amber-300 p-4 rounded-2xl space-y-2 text-center">
                 <p className="text-[11px] font-bold text-slate-700">
-                  Tap to pay <strong>{selectedRenewalPlan.price.toLocaleString()} RWF</strong> automatically:
+                  Tap to pay <strong>{Number(selectedRenewalPlan.price).toLocaleString()} RWF</strong> automatically:
                 </p>
                 <a
                   href={renewalUssdDialUri}
@@ -1489,7 +1528,7 @@ export default function GuideLinkRwandaApp() {
               </div>
               <h3 className="text-lg font-bold text-slate-900">Renewal Payment Submitted</h3>
               <p className="text-xs text-slate-600">
-                Your renewal for <strong>{selectedRenewalPlan.name}</strong> ({selectedRenewalPlan.price.toLocaleString()} RWF) has been sent to C.E.O <strong>{ownerProfile.name}</strong> ({ownerProfile.email}). Once confirmed, sign in to access your dashboard.
+                Your renewal for <strong>{selectedRenewalPlan.name}</strong> ({Number(selectedRenewalPlan.price).toLocaleString()} RWF) has been sent to C.E.O <strong>{ownerProfile.name}</strong> ({ownerProfile.email}). Once confirmed, sign in to access your dashboard.
               </p>
               <button onClick={resetToWelcome} className="w-full py-3 bg-[#3B6E5B] text-white rounded-xl font-bold text-xs">
                 Return to Home Screen
@@ -1514,7 +1553,7 @@ export default function GuideLinkRwandaApp() {
     )}?subject=${encodeURIComponent(
       `GuideLink Rwanda Subscription Alert: ${regForm.name} (${selectedPlan.name})`
     )}&body=${encodeURIComponent(
-      `Hello C.E.O ${ownerProfile.name},\n\nI have completed my ${selectedPlan.price.toLocaleString()} RWF subscription payment via USSD ${activeUssdDisplay}.\n\n- Name: ${regForm.name}\n- Role: ${getRoleDisplayLabel(regForm.role)}\n- Plan: ${selectedPlan.name} (${selectedPlan.durationLabel})\n- Contact: ${regForm.contact}\n- MoMo Reference: ${regForm.momoRef}\n\nPlease approve my GuideLink Rwanda account.`
+      `Hello C.E.O ${ownerProfile.name},\n\nI have completed my ${Number(selectedPlan.price).toLocaleString()} RWF subscription payment via USSD ${activeUssdDisplay}.\n\n- Name: ${regForm.name}\n- Role: ${getRoleDisplayLabel(regForm.role)}\n- Plan: ${selectedPlan.name} (${selectedPlan.durationLabel})\n- Contact: ${regForm.contact}\n- MoMo Reference: ${regForm.momoRef}\n\nPlease approve my GuideLink Rwanda account.`
     )}`;
 
     return (
@@ -1603,7 +1642,7 @@ export default function GuideLinkRwandaApp() {
                     💳 Choose Your Subscription Plan:
                   </label>
                   <div className="grid grid-cols-1 gap-2">
-                    {SUBSCRIPTION_PLANS.map((plan) => (
+                    {subscriptionPlans.map((plan) => (
                       <button
                         key={plan.id}
                         type="button"
@@ -1629,7 +1668,7 @@ export default function GuideLinkRwandaApp() {
                         </div>
                         <div className="text-right">
                           <span className="font-extrabold text-sm text-[#234E40]">
-                            {plan.price.toLocaleString()} RWF
+                            {Number(plan.price).toLocaleString()} RWF
                           </span>
                           {regForm.subscriptionPlanId === plan.id && (
                             <p className="text-[10px] font-bold text-emerald-700">✓ Selected</p>
@@ -1644,7 +1683,7 @@ export default function GuideLinkRwandaApp() {
               <button type="submit" className="w-full py-3 bg-[#3B6E5B] text-white rounded-xl font-bold text-sm shadow">
                 {regForm.role === 'traveler'
                   ? 'Complete Free Sign Up →'
-                  : `Proceed to Pay ${selectedPlan.price.toLocaleString()} RWF (${selectedPlan.name}) →`}
+                  : `Proceed to Pay ${Number(selectedPlan.price).toLocaleString()} RWF (${selectedPlan.name}) →`}
               </button>
             </form>
           )}
@@ -1657,7 +1696,7 @@ export default function GuideLinkRwandaApp() {
                   {selectedPlan.name} • {selectedPlan.durationLabel}
                 </span>
                 <h3 className="text-base font-bold text-slate-900">
-                  Tap Below to Pay {selectedPlan.price.toLocaleString()} RWF Automatically
+                  Tap Below to Pay {Number(selectedPlan.price).toLocaleString()} RWF Automatically
                 </h3>
                 <p className="text-[11px] text-slate-600">
                   Clicking the code below automatically launches your phone dialer to complete your subscription payment:
@@ -1733,7 +1772,7 @@ export default function GuideLinkRwandaApp() {
               </div>
               <h3 className="text-lg font-bold text-slate-900">Subscription Recorded & C.E.O Notified</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Your <strong>{selectedPlan.name}</strong> ({selectedPlan.price.toLocaleString()} RWF) payment via <strong>{activeUssdDisplay}</strong> (Ref: <strong>{regForm.momoRef}</strong>) is saved.
+                Your <strong>{selectedPlan.name}</strong> ({Number(selectedPlan.price).toLocaleString()} RWF) payment via <strong>{activeUssdDisplay}</strong> (Ref: <strong>{regForm.momoRef}</strong>) is saved.
                 {emailNotificationSent
                   ? ` A real-time email notification has been sent to C.E.O ${ownerProfile.name} (${ownerProfile.email}).`
                   : ` C.E.O ${ownerProfile.name} (${ownerProfile.email}) has been alerted in Owner HQ.`}
@@ -1784,11 +1823,11 @@ export default function GuideLinkRwandaApp() {
           <button onClick={resetToWelcome} className="text-xs bg-emerald-900 px-3 py-1.5 rounded-full font-semibold">Log Out</button>
         </div>
 
-        {/* 6 Owner Iconic Tabs */}
-        <div className="bg-white border-b border-slate-200 px-1.5 py-2.5 grid grid-cols-6 gap-0.5 text-center sticky top-[76px] z-20 shadow-sm">
-          <button onClick={() => setOwnerTab('pending')} className={`p-1.5 rounded-xl flex flex-col items-center relative ${ownerTab === 'pending' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
+        {/* 7 Owner Iconic Tabs (Including Subscription Plans Editor) */}
+        <div className="bg-white border-b border-slate-200 px-1 py-2 grid grid-cols-7 gap-0.5 text-center sticky top-[76px] z-20 shadow-sm">
+          <button onClick={() => setOwnerTab('pending')} className={`p-1 rounded-xl flex flex-col items-center relative ${ownerTab === 'pending' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
             <span className="text-sm">⏳</span><span className="text-[8px]">Sign-Ups</span>
-            {pendingCount > 0 && <span className="absolute top-0.5 right-1 bg-red-600 text-white text-[8px] w-3.5 h-3.5 rounded-full flex items-center justify-center">{pendingCount}</span>}
+            {pendingCount > 0 && <span className="absolute top-0.5 right-0.5 bg-red-600 text-white text-[8px] w-3.5 h-3.5 rounded-full flex items-center justify-center">{pendingCount}</span>}
           </button>
           <button
             onClick={() => {
@@ -1797,14 +1836,17 @@ export default function GuideLinkRwandaApp() {
                 handleSelectUserForAdminEdit(registeredUsers[0]);
               }
             }}
-            className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'users_mgmt' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}
+            className={`p-1 rounded-xl flex flex-col items-center ${ownerTab === 'users_mgmt' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}
           >
-            <span className="text-sm">👥</span><span className="text-[8px]">Users Mgmt</span>
+            <span className="text-sm">👥</span><span className="text-[8px]">Users</span>
           </button>
-          <button onClick={() => setOwnerTab('overview')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'overview' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">📊</span><span className="text-[8px]">Revenue</span></button>
-          <button onClick={() => setOwnerTab('vip')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'vip' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">⭐</span><span className="text-[8px]">3-Tier VIP</span></button>
-          <button onClick={() => setOwnerTab('deals')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'deals' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">🎛️</span><span className="text-[8px]">Roles</span></button>
-          <button onClick={() => setOwnerTab('owner_profile')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'owner_profile' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">👤</span><span className="text-[8px]">My Profile</span></button>
+          <button onClick={() => setOwnerTab('plans_mgmt')} className={`p-1 rounded-xl flex flex-col items-center ${ownerTab === 'plans_mgmt' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
+            <span className="text-sm">💳</span><span className="text-[8px]">Plans</span>
+          </button>
+          <button onClick={() => setOwnerTab('overview')} className={`p-1 rounded-xl flex flex-col items-center ${ownerTab === 'overview' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">📊</span><span className="text-[8px]">Revenue</span></button>
+          <button onClick={() => setOwnerTab('vip')} className={`p-1 rounded-xl flex flex-col items-center ${ownerTab === 'vip' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">⭐</span><span className="text-[8px]">VIP</span></button>
+          <button onClick={() => setOwnerTab('deals')} className={`p-1 rounded-xl flex flex-col items-center ${ownerTab === 'deals' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">🎛️</span><span className="text-[8px]">Roles</span></button>
+          <button onClick={() => setOwnerTab('owner_profile')} className={`p-1 rounded-xl flex flex-col items-center ${ownerTab === 'owner_profile' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">👤</span><span className="text-[8px]">Profile</span></button>
         </div>
 
         <div className="p-4 space-y-4 flex-1 overflow-y-auto pb-10">
@@ -1872,6 +1914,86 @@ export default function GuideLinkRwandaApp() {
                   );
                 })
               )}
+            </div>
+          )}
+
+          {/* C.E.O Subscription Plans Editor (Edit Plan Names, Badges, Days & Costs in RWF) */}
+          {ownerTab === 'plans_mgmt' && (
+            <div className="space-y-4">
+              <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-4 rounded-2xl shadow-sm space-y-1">
+                <span className="text-[10px] uppercase font-bold bg-amber-400 text-slate-900 px-2 py-0.5 rounded-full">C.E.O Pricing Control</span>
+                <h3 className="font-bold text-base pt-1">💳 Edit Subscription Names & Costs</h3>
+                <p className="text-xs text-emerald-100">Customize subscription package names, badges, and prices in RWF. Changes update live across Sign-Ups and Renewals.</p>
+              </div>
+
+              <div className="space-y-3">
+                {subscriptionPlans.map((plan, index) => (
+                  <div key={plan.id} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2.5 text-xs shadow-sm">
+                    <div className="flex justify-between items-center border-b pb-1.5">
+                      <span className="font-extrabold text-[#234E40]">Tier #{index + 1} • {plan.durationLabel}</span>
+                      <span className="text-[10px] font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full">
+                        {Number(plan.price).toLocaleString()} RWF
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="font-bold text-slate-700">Subscription Plan Name</label>
+                      <input
+                        type="text"
+                        value={plan.name}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSubscriptionPlans(
+                            subscriptionPlans.map((p) => (p.id === plan.id ? { ...p, name: val } : p))
+                          );
+                        }}
+                        className="w-full mt-1 p-2.5 border rounded-xl font-semibold text-slate-900"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="font-bold text-slate-700">Cost (RWF)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={plan.price}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setSubscriptionPlans(
+                              subscriptionPlans.map((p) => (p.id === plan.id ? { ...p, price: val } : p))
+                            );
+                          }}
+                          className="w-full mt-1 p-2.5 border rounded-xl font-extrabold text-[#234E40]"
+                        />
+                      </div>
+                      <div>
+                        <label className="font-bold text-slate-700">Badge Tag</label>
+                        <input
+                          type="text"
+                          value={plan.badge}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setSubscriptionPlans(
+                              subscriptionPlans.map((p) => (p.id === plan.id ? { ...p, badge: val } : p))
+                            );
+                          }}
+                          className="w-full mt-1 p-2.5 border rounded-xl"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={handleSaveSubscriptionPlans}
+                className="w-full py-3.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow transition"
+              >
+                {isSaving ? '⏳ Saving Plans to Firebase...' : '💾 Save All Plan Names & Costs'}
+              </button>
             </div>
           )}
 
@@ -2010,9 +2132,9 @@ export default function GuideLinkRwandaApp() {
                               }}
                               className="w-full p-2 border rounded-xl bg-white font-semibold text-slate-900"
                             >
-                              {SUBSCRIPTION_PLANS.map((p) => (
+                              {subscriptionPlans.map((p) => (
                                 <option key={p.id} value={p.id}>
-                                  {p.name} — {p.price.toLocaleString()} RWF ({p.durationLabel})
+                                  {p.name} — {Number(p.price).toLocaleString()} RWF ({p.durationLabel})
                                 </option>
                               ))}
                             </select>
@@ -2356,7 +2478,7 @@ export default function GuideLinkRwandaApp() {
   }
 
   // =========================================================================
-  // 6. ROLE DASHBOARDS & WORKSPACES
+  // 6. ROLE DASHBOARDS & WORKSPACES (With Universal 🔍 Search Directory)
   // =========================================================================
   const currentProf = getCurrentProfile();
   const isPartnerRole = ['graduate', 'agency', 'tour_company'].includes(currentRole);
@@ -2364,6 +2486,22 @@ export default function GuideLinkRwandaApp() {
   const filteredProviders = providerDirectory.filter((item) => {
     if (directoryFilter === 'all') return true;
     return item.type === directoryFilter;
+  });
+
+  // Universal Search Results across Travel Agencies, Tour Companies & Graduates
+  const searchedProviders = providerDirectory.filter((item) => {
+    const matchesRole = searchRoleFilter === 'all' || item.type === searchRoleFilter;
+    if (!matchesRole) return false;
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      (item.name || '').toLowerCase().includes(q) ||
+      (item.headline || '').toLowerCase().includes(q) ||
+      (item.location || '').toLowerCase().includes(q) ||
+      (item.categoryLabel || '').toLowerCase().includes(q) ||
+      (item.services || []).some((s) => s.toLowerCase().includes(q)) ||
+      (item.qualifications || []).some((deg) => deg.toLowerCase().includes(q))
+    );
   });
 
   const matchingTravelerRequests = tripRequests.filter(
@@ -2410,7 +2548,7 @@ export default function GuideLinkRwandaApp() {
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl overflow-hidden border border-slate-200 relative">
       
-      {/* TOP HEADER & NAVIGATION BAR */}
+      {/* TOP HEADER & 4-ICON NAVIGATION BAR (Including Universal 🔍 Search) */}
       <div className="bg-white border-b sticky top-0 z-30 shadow-sm">
         <div className="px-5 py-3 flex justify-between items-center border-b border-slate-100">
           <div className="flex items-center space-x-3">
@@ -2431,28 +2569,47 @@ export default function GuideLinkRwandaApp() {
               </p>
             </div>
           </div>
-          <button onClick={resetToWelcome} className="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-full font-semibold transition">Sign Out</button>
+          <div className="flex items-center space-x-1.5">
+            <button
+              onClick={() => setActiveTab('search')}
+              title="Search Travel Agencies, Tour Companies & Graduates"
+              className={`p-2 rounded-full text-xs font-bold transition ${
+                activeTab === 'search'
+                  ? 'bg-[#234E40] text-white shadow-sm'
+                  : 'bg-emerald-50 text-[#234E40] hover:bg-emerald-100'
+              }`}
+            >
+              🔍
+            </button>
+            <button onClick={resetToWelcome} className="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-full font-semibold transition">Sign Out</button>
+          </div>
         </div>
 
-        {/* TOP TABS NAVIGATION */}
-        <div className="grid grid-cols-3 gap-1 bg-slate-50 p-2 text-xs font-bold text-slate-600">
+        {/* TOP 4 TABS NAVIGATION */}
+        <div className="grid grid-cols-4 gap-1 bg-slate-50 p-1.5 text-[11px] font-bold text-slate-600">
           <button
             onClick={() => setActiveTab('jobs')}
             className={`py-2 rounded-xl transition text-center ${activeTab === 'jobs' ? 'bg-[#234E40] text-white shadow-sm' : 'hover:bg-slate-200'}`}
           >
-            {currentRole === 'traveler' ? '🏠 Explore & Book' : '🏠 Workspace'}
+            {currentRole === 'traveler' ? '🏠 Explore' : '🏠 Work'}
+          </button>
+          <button
+            onClick={() => setActiveTab('search')}
+            className={`py-2 rounded-xl transition text-center ${activeTab === 'search' ? 'bg-[#234E40] text-white shadow-sm' : 'hover:bg-slate-200'}`}
+          >
+            🔍 Search
           </button>
           <button
             onClick={() => setActiveTab('profile')}
             className={`py-2 rounded-xl transition text-center ${activeTab === 'profile' ? 'bg-[#234E40] text-white shadow-sm' : 'hover:bg-slate-200'}`}
           >
-            👤 Profile & Services
+            👤 Profile
           </button>
           <button
             onClick={() => setActiveTab('chat')}
             className={`py-2 rounded-xl transition text-center relative ${activeTab === 'chat' ? 'bg-[#234E40] text-white shadow-sm' : 'hover:bg-slate-200'}`}
           >
-            🔒 Private Chat
+            🔒 Chat
           </button>
         </div>
       </div>
@@ -2478,6 +2635,134 @@ export default function GuideLinkRwandaApp() {
             >
               {currentProf.isAvailable !== false ? 'Active' : 'Offline'}
             </button>
+          </div>
+        )}
+
+        {/* UNIVERSAL SEARCH DIRECTORY TAB (Available for ALL Users to Search & Book) */}
+        {activeTab === 'search' && (
+          <div className="space-y-4">
+            <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-4 rounded-2xl shadow-sm space-y-1">
+              <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Global Partner Directory</span>
+              <h3 className="font-bold text-base pt-1">🔍 Search Agencies, Tour Companies & Graduates</h3>
+              <p className="text-xs text-emerald-100">Find any registered tourism partner in Rwanda by name, location, or service and book directly.</p>
+            </div>
+
+            <div className="bg-white p-3.5 rounded-2xl border border-slate-200 space-y-2.5 shadow-sm">
+              <div className="relative">
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Search name, city (e.g. Kigali, Musanze), or service..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-8 py-2.5 border border-slate-300 rounded-xl text-xs font-medium"
+                />
+                <span className="absolute left-3 top-2.5 text-sm">🔍</span>
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-2 text-xs text-slate-400 hover:text-slate-700 font-bold"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-4 gap-1 bg-slate-100 p-1 rounded-xl text-[10px] font-bold text-center">
+                <button
+                  type="button"
+                  onClick={() => setSearchRoleFilter('all')}
+                  className={`py-1.5 rounded-lg ${searchRoleFilter === 'all' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}
+                >
+                  All ({providerDirectory.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSearchRoleFilter('agency')}
+                  className={`py-1.5 rounded-lg ${searchRoleFilter === 'agency' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}
+                >
+                  Agencies
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSearchRoleFilter('tour_company')}
+                  className={`py-1.5 rounded-lg ${searchRoleFilter === 'tour_company' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}
+                >
+                  Tour Co.
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSearchRoleFilter('graduate')}
+                  className={`py-1.5 rounded-lg ${searchRoleFilter === 'graduate' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}
+                >
+                  Graduates
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {searchedProviders.length === 0 ? (
+                <div className="bg-white p-6 rounded-2xl border text-center text-xs text-slate-500 space-y-1">
+                  <p className="font-bold text-slate-700">No matching partners found</p>
+                  <p>Try clearing your search filter or searching another keyword.</p>
+                </div>
+              ) : (
+                searchedProviders.map((prov) => (
+                  <div key={prov.id} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2.5 shadow-sm text-xs">
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center space-x-2.5">
+                        {prov.photo ? (
+                          <img src={prov.photo} alt={prov.name} className="w-11 h-11 rounded-full object-cover border" />
+                        ) : (
+                          <div className="w-11 h-11 rounded-full bg-emerald-100 text-[#234E40] flex items-center justify-center font-bold text-base">
+                            {prov.type === 'graduate' ? '🎓' : prov.type === 'agency' ? '🏢' : '🚐'}
+                          </div>
+                        )}
+                        <div>
+                          <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">{prov.categoryLabel}</span>
+                          <h4 className="font-bold text-sm text-slate-900">{prov.name}</h4>
+                          <p className="text-[11px] text-slate-500">📍 {prov.location} • 💰 {prov.rate}</p>
+                        </div>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${prov.isAvailable ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                        {prov.isAvailable ? '🟢 Available' : '🟡 Busy'}
+                      </span>
+                    </div>
+
+                    <p className="text-slate-700 font-medium">{prov.headline}</p>
+
+                    {prov.services && prov.services.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {prov.services.map((srv, idx) => (
+                          <span key={idx} className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-semibold">
+                            ✓ {srv}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex space-x-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => openConfidentialChat(prov.contactId, prov.name, prov.categoryLabel)}
+                        className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold flex items-center justify-center space-x-1"
+                      >
+                        <span>🔒</span>
+                        <span>Private Chat</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBookingTarget(prov)}
+                        className="flex-1 py-2 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold shadow-sm"
+                      >
+                        📅 Book Now →
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         )}
 
@@ -2628,12 +2913,20 @@ export default function GuideLinkRwandaApp() {
                   </div>
                   <p className="text-slate-700">{prov.headline}</p>
                   <p className="text-slate-500">📍 {prov.location} • 💰 {prov.rate}</p>
-                  <button
-                    onClick={() => openConfidentialChat(prov.contactId, prov.name, prov.categoryLabel)}
-                    className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold"
-                  >
-                    🔒 Private Chat with {prov.name}
-                  </button>
+                  <div className="flex space-x-2 pt-1">
+                    <button
+                      onClick={() => openConfidentialChat(prov.contactId, prov.name, prov.categoryLabel)}
+                      className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold"
+                    >
+                      🔒 Private Chat
+                    </button>
+                    <button
+                      onClick={() => setBookingTarget(prov)}
+                      className="flex-1 py-2 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold"
+                    >
+                      Book Now →
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -2746,12 +3039,20 @@ export default function GuideLinkRwandaApp() {
                   </div>
                   <p className="text-slate-700">{prov.headline}</p>
                   <p className="text-slate-500">📍 {prov.location} • 💰 {prov.rate}</p>
-                  <button
-                    onClick={() => openConfidentialChat(prov.contactId, prov.name, prov.categoryLabel)}
-                    className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold"
-                  >
-                    🔒 Private Chat with {prov.name}
-                  </button>
+                  <div className="flex space-x-2 pt-1">
+                    <button
+                      onClick={() => openConfidentialChat(prov.contactId, prov.name, prov.categoryLabel)}
+                      className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold"
+                    >
+                      🔒 Private Chat
+                    </button>
+                    <button
+                      onClick={() => setBookingTarget(prov)}
+                      className="flex-1 py-2 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold"
+                    >
+                      Book Now →
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
