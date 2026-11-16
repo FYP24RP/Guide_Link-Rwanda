@@ -95,11 +95,18 @@ const firestoreSaveDoc = async (collectionName, docId, dataObj) => {
 
 export default function GuideLinkRwandaApp() {
   const [currentRole, setCurrentRole] = useState('welcome');
-  const [ownerTab, setOwnerTab] = useState('pending');
+  const [ownerTab, setOwnerTab] = useState('pending'); // 'pending' | 'users_mgmt' | 'overview' | 'vip' | 'deals' | 'owner_profile'
   const [activeTab, setActiveTab] = useState('jobs'); // 'jobs' | 'profile' | 'chat'
   const [showOwnerPinModal, setShowOwnerPinModal] = useState(false);
   const [ownerPinInput, setOwnerPinInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  // Owner Users Management State
+  const [selectedManagedUserId, setSelectedManagedUserId] = useState('');
+  const [ownerUserEditForm, setOwnerUserEditForm] = useState(null);
+  const [ownerNewServiceInput, setOwnerNewServiceInput] = useState('');
+  const [ownerNewDegreeInput, setOwnerNewDegreeInput] = useState('');
+  const [ownerNewExpInput, setOwnerNewExpInput] = useState('');
 
   const [directoryFilter, setDirectoryFilter] = useState('all');
   const [bookingTarget, setBookingTarget] = useState(null);
@@ -349,6 +356,109 @@ export default function GuideLinkRwandaApp() {
     await updateCurrentProfile(profileData);
     setIsSaving(false);
     alert('✓ Profile & updates successfully saved to Firebase Cloud!');
+  };
+
+  // Select a user in C.E.O Users Management to edit login info & all dashboard elements
+  const handleSelectUserForAdminEdit = (user) => {
+    const cleanKey = normalizeContact(user.contact || user.id);
+    const existingProf = userProfiles[cleanKey] || {};
+    setSelectedManagedUserId(user.id);
+    setOwnerNewServiceInput('');
+    setOwnerNewDegreeInput('');
+    setOwnerNewExpInput('');
+    setOwnerUserEditForm({
+      docId: user.id,
+      oldKey: cleanKey,
+      name: user.name || '',
+      contact: user.contact || '',
+      password: user.password || '',
+      role: user.role || 'traveler',
+      status: user.status || 'approved',
+      isAvailable: existingProf.isAvailable !== false,
+      headline: existingProf.headline || '',
+      location: existingProf.location || 'Kigali, Rwanda',
+      rateInfo: existingProf.rateInfo || '',
+      bio: existingProf.bio || '',
+      photo: existingProf.photo || '',
+      degrees: existingProf.degrees || [],
+      servicesOffered: existingProf.servicesOffered || [],
+      experiences: existingProf.experiences || [],
+      skills: existingProf.skills || ['English', 'Kinyarwanda']
+    });
+  };
+
+  // Save C.E.O edits to user's login credentials and all dashboard fields in Firebase
+  const handleOwnerSaveManagedUser = async (e) => {
+    e.preventDefault();
+    if (!ownerUserEditForm) return;
+    if (!ownerUserEditForm.name.trim() || !ownerUserEditForm.contact.trim() || !ownerUserEditForm.password.trim()) {
+      alert('Name, Contact, and Password cannot be empty.');
+      return;
+    }
+
+    setIsSaving(true);
+    const { docId, oldKey, ...cleanFields } = ownerUserEditForm;
+    const newCleanKey = normalizeContact(cleanFields.contact);
+
+    // Update registeredUsers state
+    setRegisteredUsers(
+      registeredUsers.map((u) =>
+        u.id === docId
+          ? {
+              ...u,
+              name: cleanFields.name.trim(),
+              contact: cleanFields.contact.trim(),
+              password: cleanFields.password,
+              role: cleanFields.role,
+              status: cleanFields.status
+            }
+          : u
+      )
+    );
+
+    // Update userProfiles state (supporting contact change without losing data)
+    const updatedProfiles = { ...userProfiles };
+    if (oldKey && oldKey !== newCleanKey) {
+      delete updatedProfiles[oldKey];
+    }
+    updatedProfiles[newCleanKey] = {
+      name: cleanFields.name.trim(),
+      contact: cleanFields.contact.trim(),
+      role: cleanFields.role,
+      photo: cleanFields.photo,
+      isAvailable: cleanFields.isAvailable,
+      headline: cleanFields.headline,
+      location: cleanFields.location,
+      rateInfo: cleanFields.rateInfo,
+      bio: cleanFields.bio,
+      degrees: cleanFields.degrees,
+      servicesOffered: cleanFields.servicesOffered,
+      experiences: cleanFields.experiences,
+      skills: cleanFields.skills
+    };
+    setUserProfiles(updatedProfiles);
+
+    // Persist all login + dashboard fields to Firestore without erasing unedited metadata
+    await firestoreSaveDoc('profiles', docId, {
+      name: cleanFields.name.trim(),
+      contact: cleanFields.contact.trim(),
+      password: cleanFields.password,
+      role: cleanFields.role,
+      status: cleanFields.status,
+      isAvailable: cleanFields.isAvailable,
+      headline: cleanFields.headline,
+      location: cleanFields.location,
+      rateInfo: cleanFields.rateInfo,
+      bio: cleanFields.bio,
+      photo: cleanFields.photo,
+      degrees: cleanFields.degrees,
+      servicesOffered: cleanFields.servicesOffered,
+      experiences: cleanFields.experiences,
+      skills: cleanFields.skills
+    });
+
+    setIsSaving(false);
+    alert(`✓ Login info & all dashboard elements for ${cleanFields.name} updated in Firebase!`);
   };
 
   const handleImageUpload = (e, onSuccess) => {
@@ -1157,16 +1267,27 @@ export default function GuideLinkRwandaApp() {
           <button onClick={resetToWelcome} className="text-xs bg-emerald-900 px-3 py-1.5 rounded-full font-semibold">Log Out</button>
         </div>
 
-        {/* 5 Owner Iconic Tabs */}
-        <div className="bg-white border-b border-slate-200 px-2 py-2.5 grid grid-cols-5 gap-1 text-center sticky top-[76px] z-20 shadow-sm">
+        {/* 6 Owner Iconic Tabs (Including Users Management) */}
+        <div className="bg-white border-b border-slate-200 px-1.5 py-2.5 grid grid-cols-6 gap-0.5 text-center sticky top-[76px] z-20 shadow-sm">
           <button onClick={() => setOwnerTab('pending')} className={`p-1.5 rounded-xl flex flex-col items-center relative ${ownerTab === 'pending' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
-            <span className="text-base">⏳</span><span className="text-[9px]">Sign-Ups</span>
-            {pendingCount > 0 && <span className="absolute top-1 right-2 bg-red-600 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center">{pendingCount}</span>}
+            <span className="text-sm">⏳</span><span className="text-[8px]">Sign-Ups</span>
+            {pendingCount > 0 && <span className="absolute top-0.5 right-1 bg-red-600 text-white text-[8px] w-3.5 h-3.5 rounded-full flex items-center justify-center">{pendingCount}</span>}
           </button>
-          <button onClick={() => setOwnerTab('overview')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'overview' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-base">📊</span><span className="text-[9px]">Revenue</span></button>
-          <button onClick={() => setOwnerTab('vip')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'vip' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-base">⭐</span><span className="text-[9px]">3-Tier VIP</span></button>
-          <button onClick={() => setOwnerTab('deals')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'deals' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-base">🎛️</span><span className="text-[9px]">Roles</span></button>
-          <button onClick={() => setOwnerTab('owner_profile')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'owner_profile' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-base">👤</span><span className="text-[9px]">My Profile</span></button>
+          <button
+            onClick={() => {
+              setOwnerTab('users_mgmt');
+              if (registeredUsers.length > 0 && !selectedManagedUserId) {
+                handleSelectUserForAdminEdit(registeredUsers[0]);
+              }
+            }}
+            className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'users_mgmt' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}
+          >
+            <span className="text-sm">👥</span><span className="text-[8px]">Users Mgmt</span>
+          </button>
+          <button onClick={() => setOwnerTab('overview')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'overview' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">📊</span><span className="text-[8px]">Revenue</span></button>
+          <button onClick={() => setOwnerTab('vip')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'vip' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">⭐</span><span className="text-[8px]">3-Tier VIP</span></button>
+          <button onClick={() => setOwnerTab('deals')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'deals' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">🎛️</span><span className="text-[8px]">Roles</span></button>
+          <button onClick={() => setOwnerTab('owner_profile')} className={`p-1.5 rounded-xl flex flex-col items-center ${ownerTab === 'owner_profile' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">👤</span><span className="text-[8px]">My Profile</span></button>
         </div>
 
         <div className="p-4 space-y-4 flex-1 overflow-y-auto pb-10">
@@ -1197,9 +1318,326 @@ export default function GuideLinkRwandaApp() {
                           ✕ Revoke Access
                         </button>
                       )}
+                      <button
+                        onClick={() => {
+                          handleSelectUserForAdminEdit(user);
+                          setOwnerTab('users_mgmt');
+                        }}
+                        className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold"
+                      >
+                        ✏️ Edit
+                      </button>
                     </div>
                   </div>
                 ))
+              )}
+            </div>
+          )}
+
+          {/* C.E.O Users Management: Edit Login Info & All Dashboard Elements */}
+          {ownerTab === 'users_mgmt' && (
+            <div className="space-y-4">
+              <div className="bg-gradient-to-r from-slate-900 to-[#234E40] text-white p-4 rounded-2xl shadow-sm space-y-1">
+                <span className="text-[10px] uppercase font-bold bg-amber-400 text-slate-900 px-2 py-0.5 rounded-full">C.E.O Master Control</span>
+                <h3 className="font-bold text-base pt-1">👥 Users Management & Dashboard Editor</h3>
+                <p className="text-xs text-emerald-100">Edit any user&apos;s login credentials, role, availability, services, degrees, or experience on their behalf.</p>
+              </div>
+
+              {registeredUsers.length === 0 ? (
+                <div className="bg-white p-6 rounded-2xl border text-center text-xs text-slate-500">
+                  No registered users found yet.
+                </div>
+              ) : (
+                <>
+                  {/* Select User to Manage */}
+                  <div className="bg-white p-4 rounded-2xl border space-y-2 shadow-sm text-xs">
+                    <label className="font-bold text-slate-700 block">Select User Account ({registeredUsers.length} Total)</label>
+                    <select
+                      value={selectedManagedUserId}
+                      onChange={(e) => {
+                        const found = registeredUsers.find((u) => u.id === e.target.value);
+                        if (found) handleSelectUserForAdminEdit(found);
+                      }}
+                      className="w-full p-2.5 border rounded-xl bg-slate-50 font-semibold text-slate-900"
+                    >
+                      <option value="">-- Choose a member to edit --</option>
+                      {registeredUsers.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.name} ({getRoleDisplayLabel(u.role)}) • {u.contact}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {ownerUserEditForm && (
+                    <form onSubmit={handleOwnerSaveManagedUser} className="bg-white p-4 rounded-2xl border space-y-4 shadow-sm text-xs">
+                      <div className="border-b pb-2 flex justify-between items-center">
+                        <h4 className="font-bold text-sm text-[#234E40]">🔑 Login & Account Credentials</h4>
+                        <span className="text-[10px] font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-600">
+                          ID: {ownerUserEditForm.docId}
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div>
+                          <label className="font-bold text-slate-700">Full Name / Company Name</label>
+                          <input
+                            type="text"
+                            required
+                            value={ownerUserEditForm.name}
+                            onChange={(e) => setOwnerUserEditForm({ ...ownerUserEditForm, name: e.target.value })}
+                            className="w-full mt-1 p-2.5 border rounded-xl"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="font-bold text-slate-700">Login Phone / Email</label>
+                            <input
+                              type="text"
+                              required
+                              value={ownerUserEditForm.contact}
+                              onChange={(e) => setOwnerUserEditForm({ ...ownerUserEditForm, contact: e.target.value })}
+                              className="w-full mt-1 p-2.5 border rounded-xl"
+                            />
+                          </div>
+                          <div>
+                            <label className="font-bold text-slate-700">Login Password</label>
+                            <input
+                              type="text"
+                              required
+                              value={ownerUserEditForm.password}
+                              onChange={(e) => setOwnerUserEditForm({ ...ownerUserEditForm, password: e.target.value })}
+                              className="w-full mt-1 p-2.5 border rounded-xl font-mono"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="font-bold text-slate-700">Account Role</label>
+                            <select
+                              value={ownerUserEditForm.role}
+                              onChange={(e) => setOwnerUserEditForm({ ...ownerUserEditForm, role: e.target.value })}
+                              className="w-full mt-1 p-2.5 border rounded-xl bg-white font-semibold"
+                            >
+                              <option value="traveler">🧳 Traveler</option>
+                              <option value="graduate">🎓 Tourism Graduate / Guide</option>
+                              <option value="agency">🏢 Travel Agency</option>
+                              <option value="tour_company">🚐 Tour Company</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="font-bold text-slate-700">Account Access Status</label>
+                            <select
+                              value={ownerUserEditForm.status}
+                              onChange={(e) => setOwnerUserEditForm({ ...ownerUserEditForm, status: e.target.value })}
+                              className="w-full mt-1 p-2.5 border rounded-xl bg-white font-semibold"
+                            >
+                              <option value="approved">🟢 Approved (Active)</option>
+                              <option value="pending_approval">⏳ Pending Approval</option>
+                              <option value="revoked">🔒 Revoked (Blocked)</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Dashboard Elements Section */}
+                      <div className="border-t pt-3 space-y-3">
+                        <div className="flex justify-between items-center">
+                          <h4 className="font-bold text-sm text-[#234E40]">🎛️ Dashboard Elements & Public Listing</h4>
+                          <button
+                            type="button"
+                            onClick={() => setOwnerUserEditForm({ ...ownerUserEditForm, isAvailable: !ownerUserEditForm.isAvailable })}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${
+                              ownerUserEditForm.isAvailable ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                            }`}
+                          >
+                            {ownerUserEditForm.isAvailable ? '🟢 Available' : '🟡 Busy'}
+                          </button>
+                        </div>
+
+                        <div>
+                          <label className="font-bold text-slate-700">Dashboard Headline / Tagline</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Certified Multilingual Safari Guide"
+                            value={ownerUserEditForm.headline}
+                            onChange={(e) => setOwnerUserEditForm({ ...ownerUserEditForm, headline: e.target.value })}
+                            className="w-full mt-1 p-2.5 border rounded-xl"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="font-bold text-slate-700">Location</label>
+                            <input
+                              type="text"
+                              value={ownerUserEditForm.location}
+                              onChange={(e) => setOwnerUserEditForm({ ...ownerUserEditForm, location: e.target.value })}
+                              className="w-full mt-1 p-2.5 border rounded-xl"
+                            />
+                          </div>
+                          <div>
+                            <label className="font-bold text-slate-700">Standard Rate / Pricing</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. RWF 40,000 / day"
+                              value={ownerUserEditForm.rateInfo}
+                              onChange={(e) => setOwnerUserEditForm({ ...ownerUserEditForm, rateInfo: e.target.value })}
+                              className="w-full mt-1 p-2.5 border rounded-xl"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Services Offered Editor */}
+                        <div className="space-y-2 bg-slate-50 p-3 rounded-xl border">
+                          <label className="font-bold text-[#234E40] block">🛠️ Services Offered</label>
+                          <div className="flex space-x-2">
+                            <input
+                              type="text"
+                              placeholder="Add service..."
+                              value={ownerNewServiceInput}
+                              onChange={(e) => setOwnerNewServiceInput(e.target.value)}
+                              className="flex-1 p-2 border rounded-xl bg-white"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!ownerNewServiceInput.trim()) return;
+                                setOwnerUserEditForm({
+                                  ...ownerUserEditForm,
+                                  servicesOffered: [...(ownerUserEditForm.servicesOffered || []), ownerNewServiceInput.trim()]
+                                });
+                                setOwnerNewServiceInput('');
+                              }}
+                              className="px-3 bg-[#234E40] text-white rounded-xl font-bold"
+                            >
+                              + Add
+                            </button>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            {(ownerUserEditForm.servicesOffered || []).map((srv, idx) => (
+                              <span key={idx} className="inline-flex items-center space-x-1 bg-white border text-[#234E40] px-2 py-1 rounded-lg">
+                                <span>✓ {srv}</span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setOwnerUserEditForm({
+                                      ...ownerUserEditForm,
+                                      servicesOffered: ownerUserEditForm.servicesOffered.filter((_, i) => i !== idx)
+                                    })
+                                  }
+                                  className="text-red-500 font-bold ml-1"
+                                >
+                                  ✕
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Qualifications & Degrees Editor */}
+                        <div className="space-y-2 bg-slate-50 p-3 rounded-xl border">
+                          <label className="font-bold text-[#234E40] block">🎓 Qualifications & Degrees</label>
+                          <div className="flex space-x-2">
+                            <input
+                              type="text"
+                              placeholder="Add degree/certificate..."
+                              value={ownerNewDegreeInput}
+                              onChange={(e) => setOwnerNewDegreeInput(e.target.value)}
+                              className="flex-1 p-2 border rounded-xl bg-white"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!ownerNewDegreeInput.trim()) return;
+                                setOwnerUserEditForm({
+                                  ...ownerUserEditForm,
+                                  degrees: [...(ownerUserEditForm.degrees || []), ownerNewDegreeInput.trim()]
+                                });
+                                setOwnerNewDegreeInput('');
+                              }}
+                              className="px-3 bg-[#3B6E5B] text-white rounded-xl font-bold"
+                            >
+                              + Add
+                            </button>
+                          </div>
+                          {(ownerUserEditForm.degrees || []).map((deg, idx) => (
+                            <div key={idx} className="flex justify-between items-center bg-white border p-2 rounded-xl mt-1">
+                              <span>🎓 {deg}</span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setOwnerUserEditForm({
+                                    ...ownerUserEditForm,
+                                    degrees: ownerUserEditForm.degrees.filter((_, i) => i !== idx)
+                                  })
+                                }
+                                className="text-red-500 font-bold"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Experience Editor */}
+                        <div className="space-y-2 bg-slate-50 p-3 rounded-xl border">
+                          <label className="font-bold text-[#234E40] block">💼 Experience</label>
+                          <div className="flex space-x-2">
+                            <input
+                              type="text"
+                              placeholder="Add experience..."
+                              value={ownerNewExpInput}
+                              onChange={(e) => setOwnerNewExpInput(e.target.value)}
+                              className="flex-1 p-2 border rounded-xl bg-white"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!ownerNewExpInput.trim()) return;
+                                setOwnerUserEditForm({
+                                  ...ownerUserEditForm,
+                                  experiences: [...(ownerUserEditForm.experiences || []), ownerNewExpInput.trim()]
+                                });
+                                setOwnerNewExpInput('');
+                              }}
+                              className="px-3 bg-[#3B6E5B] text-white rounded-xl font-bold"
+                            >
+                              + Add
+                            </button>
+                          </div>
+                          {(ownerUserEditForm.experiences || []).map((exp, idx) => (
+                            <div key={idx} className="flex justify-between items-center bg-white border p-2 rounded-xl mt-1">
+                              <span>💼 {exp}</span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setOwnerUserEditForm({
+                                    ...ownerUserEditForm,
+                                    experiences: ownerUserEditForm.experiences.filter((_, i) => i !== idx)
+                                  })
+                                }
+                                className="text-red-500 font-bold"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={isSaving}
+                        className="w-full py-3.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow transition"
+                      >
+                        {isSaving ? '⏳ Syncing to Cloud...' : '💾 Save All Changes to Firebase Cloud'}
+                      </button>
+                    </form>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -1491,7 +1929,7 @@ export default function GuideLinkRwandaApp() {
                     </div>
                     <p className="text-slate-600">👤 Traveler: <strong>{req.travelerName}</strong> ({req.travelerContact})</p>
                     <p className="text-slate-500">📅 Dates: {req.dates}</p>
-                    {req.notes && <p className="text-slate-500 italic bg-slate-50 p-2 rounded-lg">"{req.notes}"</p>}
+                    {req.notes && <p className="text-slate-500 italic bg-slate-50 p-2 rounded-lg">&quot;{req.notes}&quot;</p>}
 
                     <div className="flex space-x-2 pt-1">
                       <button
@@ -2028,7 +2466,7 @@ export default function GuideLinkRwandaApp() {
                 <div className="text-center text-slate-500 py-10 space-y-2 px-4">
                   <p className="font-bold text-slate-700">No Private Room Selected</p>
                   <p className="text-[11px]">
-                    Click <strong>"🔒 Private Chat"</strong> on any Guide, Travel Agency, Tour Company, or Traveler card to start a confidential 1-on-1 conversation.
+                    Click <strong>&quot;🔒 Private Chat&quot;</strong> on any Guide, Travel Agency, Tour Company, or Traveler card to start a confidential 1-on-1 conversation.
                   </p>
                 </div>
               ) : activeRoomMessages.length === 0 ? (
