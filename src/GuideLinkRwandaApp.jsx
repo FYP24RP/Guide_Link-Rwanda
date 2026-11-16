@@ -105,10 +105,10 @@ export default function GuideLinkRwandaApp() {
   const [bookingTarget, setBookingTarget] = useState(null);
   const [bookingDetails, setBookingDetails] = useState({ dates: '', guests: '2', notes: '' });
 
-  // Chat State
+  // Confidential 1-on-1 Chat State
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
-  const [activeChatPeer, setActiveChatPeer] = useState('General Platform Chat');
+  const [activeChatPeer, setActiveChatPeer] = useState({ id: '', name: '', role: '' });
 
   const MOMO_PAYMENT_CODE = '612771';
 
@@ -165,6 +165,24 @@ export default function GuideLinkRwandaApp() {
   ]);
 
   const normalizeContact = (str) => (str || '').replace(/\s+/g, '').toLowerCase();
+
+  // Generates a unique, symmetric room ID between two specific participants
+  const getPrivateRoomId = (idA, idB) => {
+    const cleanA = normalizeContact(idA);
+    const cleanB = normalizeContact(idB);
+    return [cleanA, cleanB].sort().join('__');
+  };
+
+  // Opens a confidential 1-on-1 chat with a specific person/provider
+  const openConfidentialChat = (peerId, peerName, peerRoleLabel = '') => {
+    const resolvedId = normalizeContact(peerId || peerName);
+    setActiveChatPeer({
+      id: resolvedId,
+      name: peerName,
+      role: peerRoleLabel
+    });
+    setActiveTab('chat');
+  };
 
   const loadFirebaseData = async () => {
     const [profilesDocs, vipDocs, tasksDocs, tripsDocs, chatDocs] = await Promise.all([
@@ -346,6 +364,7 @@ export default function GuideLinkRwandaApp() {
     setActiveTab('jobs');
     setRegStep('details');
     setActiveUser(null);
+    setActiveChatPeer({ id: '', name: '', role: '' });
     setSignInContact('');
     setSignInPassword('');
   };
@@ -691,18 +710,30 @@ export default function GuideLinkRwandaApp() {
     alert(`✓ Booking request sent to ${newBooking.targetProvider}!`);
   };
 
+  // Sends strictly confidential 1-on-1 message visible ONLY to sender & recipient
   const handleSendChatMessage = async (e) => {
     e.preventDefault();
-    if (!chatInput.trim()) return;
+    if (!chatInput.trim() || !activeChatPeer.id) return;
+
+    const myId = normalizeContact(activeUser?.contact || activeUser?.name || 'user');
+    const recipientId = normalizeContact(activeChatPeer.id);
+    const roomId = getPrivateRoomId(myId, recipientId);
+
     const msgId = `chat-${Date.now()}`;
     const newMsg = {
       id: msgId,
+      roomId,
+      senderId: myId,
       sender: activeUser?.name || 'User',
       role: getRoleDisplayLabel(currentRole),
-      peer: activeChatPeer,
+      recipientId,
+      recipientName: activeChatPeer.name,
+      participants: [myId, recipientId],
+      peer: activeChatPeer.name,
       text: chatInput.trim(),
       createdAt: Date.now()
     };
+
     setChatMessages([...chatMessages, newMsg]);
     setChatInput('');
     await firestoreSaveDoc('chats', msgId, newMsg);
@@ -712,6 +743,7 @@ export default function GuideLinkRwandaApp() {
     const defaultProviders = [
       {
         id: 'prov-g1',
+        contactId: 'prov-g1',
         type: 'graduate',
         categoryLabel: 'Tourism Graduate & Guide',
         name: 'Jean Bosco Habimana',
@@ -726,6 +758,7 @@ export default function GuideLinkRwandaApp() {
       },
       {
         id: 'prov-tc1',
+        contactId: 'prov-tc1',
         type: 'tour_company',
         categoryLabel: 'Tour Company',
         name: 'Cheetah Safaris Rwanda',
@@ -748,6 +781,7 @@ export default function GuideLinkRwandaApp() {
         const prof = userProfiles[key] || {};
         dynamicProviders.push({
           id: `vip-${acc.id}`,
+          contactId: key,
           type: acc.role,
           categoryLabel: `${getRoleDisplayLabel(acc.role)} (${acc.tier})`,
           name: prof.name || acc.name,
@@ -770,6 +804,7 @@ export default function GuideLinkRwandaApp() {
         const prof = userProfiles[key] || {};
         dynamicProviders.push({
           id: `reg-${u.id}`,
+          contactId: key,
           type: u.role,
           categoryLabel: getRoleDisplayLabel(u.role),
           name: prof.name || u.name,
@@ -862,6 +897,16 @@ export default function GuideLinkRwandaApp() {
             </div>
           </div>
         </div>
+
+        {/* Copyright Footer at the Bottom of Welcome Page */}
+        <footer className="px-6 py-4 bg-white border-t border-slate-200 text-center">
+          <p className="text-[11px] font-medium text-slate-500">
+            &copy; {new Date().getFullYear()} <strong className="text-slate-700">{ownerProfile.name}</strong>. All rights reserved.
+          </p>
+          <p className="text-[10px] text-slate-400 mt-0.5">
+            GuideLink Rwanda • Kigali, Rwanda
+          </p>
+        </footer>
 
         {showOwnerPinModal && (
           <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
@@ -1306,6 +1351,46 @@ export default function GuideLinkRwandaApp() {
     (req) => !req.preferredCategory || req.preferredCategory === currentRole
   );
 
+  // Confidential 1-on-1 Chat Filtering (Strict Privacy Isolation)
+  const myChatId = normalizeContact(activeUser?.contact || activeUser?.name || '');
+  const activePeerId = normalizeContact(activeChatPeer.id);
+
+  // Only messages where THIS logged-in user is strictly one of the two participants
+  const myPrivateMessages = chatMessages.filter((msg) => {
+    if (Array.isArray(msg.participants)) {
+      return msg.participants.includes(myChatId);
+    }
+    return normalizeContact(msg.senderId) === myChatId || normalizeContact(msg.recipientId) === myChatId;
+  });
+
+  // Active 1-on-1 room messages between me and activeChatPeer ONLY
+  const activeRoomMessages = activePeerId
+    ? myPrivateMessages.filter((msg) => {
+        const msgSender = normalizeContact(msg.senderId || msg.sender);
+        const msgRecipient = normalizeContact(msg.recipientId || msg.peer);
+        return (
+          (msgSender === myChatId && msgRecipient === activePeerId) ||
+          (msgSender === activePeerId && msgRecipient === myChatId)
+        );
+      })
+    : [];
+
+  // Build list of unique private threads this user is part of (never leaks other users' chats)
+  const myPrivateConversations = [];
+  const seenPeers = new Set();
+  myPrivateMessages.forEach((msg) => {
+    const msgSender = normalizeContact(msg.senderId || msg.sender);
+    const isMeSender = msgSender === myChatId;
+    const partnerId = isMeSender
+      ? normalizeContact(msg.recipientId || msg.peer)
+      : msgSender;
+    const partnerName = isMeSender ? (msg.recipientName || msg.peer) : msg.sender;
+    if (partnerId && !seenPeers.has(partnerId)) {
+      seenPeers.add(partnerId);
+      myPrivateConversations.push({ id: partnerId, name: partnerName });
+    }
+  });
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl overflow-hidden border border-slate-200 relative">
       
@@ -1346,7 +1431,7 @@ export default function GuideLinkRwandaApp() {
             onClick={() => setActiveTab('chat')}
             className={`py-2 rounded-xl transition text-center relative ${activeTab === 'chat' ? 'bg-[#234E40] text-white shadow-sm' : 'hover:bg-slate-200'}`}
           >
-            💬 Chat Deals
+            🔒 Private Chat
           </button>
         </div>
       </div>
@@ -1410,10 +1495,10 @@ export default function GuideLinkRwandaApp() {
 
                     <div className="flex space-x-2 pt-1">
                       <button
-                        onClick={() => { setActiveChatPeer(req.travelerName); setActiveTab('chat'); }}
+                        onClick={() => openConfidentialChat(req.travelerContact || req.travelerName, req.travelerName, 'Traveler')}
                         className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold text-xs"
                       >
-                        💬 Chat with Traveler
+                        🔒 Private Chat
                       </button>
                       {req.status !== 'confirmed' && (
                         <button
@@ -1483,7 +1568,12 @@ export default function GuideLinkRwandaApp() {
                     </div>
                     <p className="text-slate-600">Traveler: {req.travelerName} ({req.travelerContact}) • {req.dates}</p>
                     <div className="flex space-x-2 pt-1">
-                      <button onClick={() => { setActiveChatPeer(req.travelerName); setActiveTab('chat'); }} className="flex-1 py-2 bg-slate-100 rounded-xl font-bold">💬 Chat</button>
+                      <button
+                        onClick={() => openConfidentialChat(req.travelerContact || req.travelerName, req.travelerName, 'Traveler')}
+                        className="flex-1 py-2 bg-slate-100 rounded-xl font-bold"
+                      >
+                        🔒 Private Chat
+                      </button>
                       {req.status !== 'confirmed' && (
                         <button onClick={() => handleConfirmTravelerRequest(req.id)} className="flex-1 py-2 bg-[#234E40] text-white rounded-xl font-bold">
                           ✓ Confirm Deal
@@ -1513,8 +1603,11 @@ export default function GuideLinkRwandaApp() {
                   </div>
                   <p className="text-slate-700">{prov.headline}</p>
                   <p className="text-slate-500">📍 {prov.location} • 💰 {prov.rate}</p>
-                  <button onClick={() => { setActiveChatPeer(prov.name); setActiveTab('chat'); }} className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold">
-                    💬 Chat with {prov.name} before booking
+                  <button
+                    onClick={() => openConfidentialChat(prov.contactId, prov.name, prov.categoryLabel)}
+                    className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold"
+                  >
+                    🔒 Private Chat with {prov.name}
                   </button>
                 </div>
               ))}
@@ -1593,7 +1686,12 @@ export default function GuideLinkRwandaApp() {
                     </div>
                     <p className="text-slate-600">Traveler: {req.travelerName} ({req.travelerContact}) • {req.dates}</p>
                     <div className="flex space-x-2 pt-1">
-                      <button onClick={() => { setActiveChatPeer(req.travelerName); setActiveTab('chat'); }} className="flex-1 py-2 bg-slate-100 rounded-xl font-bold">💬 Chat</button>
+                      <button
+                        onClick={() => openConfidentialChat(req.travelerContact || req.travelerName, req.travelerName, 'Traveler')}
+                        className="flex-1 py-2 bg-slate-100 rounded-xl font-bold"
+                      >
+                        🔒 Private Chat
+                      </button>
                       {req.status !== 'confirmed' && (
                         <button onClick={() => handleConfirmTravelerRequest(req.id)} className="flex-1 py-2 bg-[#234E40] text-white rounded-xl font-bold">
                           ✓ Confirm Deal
@@ -1623,8 +1721,11 @@ export default function GuideLinkRwandaApp() {
                   </div>
                   <p className="text-slate-700">{prov.headline}</p>
                   <p className="text-slate-500">📍 {prov.location} • 💰 {prov.rate}</p>
-                  <button onClick={() => { setActiveChatPeer(prov.name); setActiveTab('chat'); }} className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold">
-                    💬 Chat with {prov.name}
+                  <button
+                    onClick={() => openConfidentialChat(prov.contactId, prov.name, prov.categoryLabel)}
+                    className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold"
+                  >
+                    🔒 Private Chat with {prov.name}
                   </button>
                 </div>
               ))}
@@ -1725,11 +1826,11 @@ export default function GuideLinkRwandaApp() {
 
                   <div className="flex space-x-2 pt-1">
                     <button
-                      onClick={() => { setActiveChatPeer(prov.name); setActiveTab('chat'); }}
+                      onClick={() => openConfidentialChat(prov.contactId, prov.name, prov.categoryLabel)}
                       className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold flex items-center justify-center space-x-1"
                     >
-                      <span>💬</span>
-                      <span>Chat Before Booking</span>
+                      <span>🔒</span>
+                      <span>Private Chat</span>
                     </button>
                     <button
                       onClick={() => setBookingTarget(prov)}
@@ -1877,52 +1978,100 @@ export default function GuideLinkRwandaApp() {
           </div>
         )}
 
-        {/* Live Chat Deals Tab */}
+        {/* Strictly Confidential 1-on-1 Private Chat Tab */}
         {activeTab === 'chat' && (
-          <div className="bg-white p-4 rounded-2xl border space-y-3 shadow-sm flex flex-col h-[420px]">
-            <div className="flex justify-between items-center border-b pb-2">
-              <div>
-                <h3 className="font-bold text-sm text-slate-900">💬 Live Deal Chat Room</h3>
-                <p className="text-[10px] text-slate-500">Conversing with: <strong className="text-[#234E40]">{activeChatPeer}</strong></p>
+          <div className="bg-white p-4 rounded-2xl border space-y-3 shadow-sm flex flex-col h-[440px]">
+            <div className="border-b pb-2.5 space-y-2">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900">🔒 Confidential 1-on-1 Chat</h3>
+                  <p className="text-[10px] text-emerald-700 font-medium">
+                    End-to-end role privacy: Only you and your chat partner see this thread.
+                  </p>
+                </div>
               </div>
-              <input
-                type="text"
-                placeholder="Switch chat peer..."
-                value={activeChatPeer}
-                onChange={(e) => setActiveChatPeer(e.target.value)}
-                className="p-1.5 border rounded-lg text-[10px] w-32"
-              />
-            </div>
 
-            <div className="flex-1 overflow-y-auto space-y-2.5 p-2 bg-slate-50 rounded-xl text-xs">
-              {chatMessages.length === 0 ? (
-                <div className="text-center text-slate-400 py-10">No messages yet. Start discussing your deal details below!</div>
-              ) : (
-                chatMessages.map((msg) => (
-                  <div key={msg.id} className={`p-2.5 rounded-xl max-w-[85%] ${msg.sender === currentProf?.name ? 'bg-[#234E40] text-white ml-auto' : 'bg-white border text-slate-800'}`}>
-                    <div className="flex justify-between text-[9px] opacity-75 mb-1 font-semibold">
-                      <span>{msg.sender} ({msg.role})</span>
-                      <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
-                    <p className="text-xs">{msg.text}</p>
-                  </div>
-                ))
+              {/* Switch between active private threads */}
+              {myPrivateConversations.length > 0 && (
+                <div className="flex items-center space-x-1.5 overflow-x-auto pb-1">
+                  <span className="text-[10px] font-bold text-slate-400 shrink-0">My Chats:</span>
+                  {myPrivateConversations.map((conv) => (
+                    <button
+                      key={conv.id}
+                      type="button"
+                      onClick={() => openConfidentialChat(conv.id, conv.name)}
+                      className={`px-2.5 py-1 rounded-full text-[10px] font-bold shrink-0 transition ${
+                        activePeerId === conv.id
+                          ? 'bg-[#234E40] text-white'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      {conv.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {activeChatPeer.name && (
+                <div className="bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl flex justify-between items-center text-[11px]">
+                  <span>
+                    Private Room with: <strong className="text-[#234E40]">{activeChatPeer.name}</strong>
+                    {activeChatPeer.role ? ` (${activeChatPeer.role})` : ''}
+                  </span>
+                  <span className="text-[10px] font-bold text-emerald-800">🔐 Private</span>
+                </div>
               )}
             </div>
 
-            <form onSubmit={handleSendChatMessage} className="flex space-x-2 pt-1">
-              <input
-                type="text"
-                required
-                placeholder="Discuss itinerary, dates, or payment terms..."
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                className="flex-1 p-2.5 border rounded-xl text-xs"
-              />
-              <button type="submit" className="px-4 py-2.5 bg-[#234E40] text-white rounded-xl font-bold text-xs">
-                Send
-              </button>
-            </form>
+            <div className="flex-1 overflow-y-auto space-y-2.5 p-2 bg-slate-50 rounded-xl text-xs">
+              {!activeChatPeer.id ? (
+                <div className="text-center text-slate-500 py-10 space-y-2 px-4">
+                  <p className="font-bold text-slate-700">No Private Room Selected</p>
+                  <p className="text-[11px]">
+                    Click <strong>"🔒 Private Chat"</strong> on any Guide, Travel Agency, Tour Company, or Traveler card to start a confidential 1-on-1 conversation.
+                  </p>
+                </div>
+              ) : activeRoomMessages.length === 0 ? (
+                <div className="text-center text-slate-400 py-10 space-y-1">
+                  <p className="font-semibold text-slate-600">Private conversation with {activeChatPeer.name}</p>
+                  <p className="text-[11px]">Third parties (such as agencies or other guides) cannot view this chat.</p>
+                </div>
+              ) : (
+                activeRoomMessages.map((msg) => {
+                  const isMine = normalizeContact(msg.senderId) === myChatId;
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`p-2.5 rounded-xl max-w-[85%] ${
+                        isMine ? 'bg-[#234E40] text-white ml-auto' : 'bg-white border text-slate-800'
+                      }`}
+                    >
+                      <div className="flex justify-between text-[9px] opacity-75 mb-1 font-semibold space-x-2">
+                        <span>{msg.sender} ({msg.role})</span>
+                        <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                      <p className="text-xs">{msg.text}</p>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {activeChatPeer.id && (
+              <form onSubmit={handleSendChatMessage} className="flex space-x-2 pt-1">
+                <input
+                  type="text"
+                  required
+                  placeholder={`Message ${activeChatPeer.name} privately...`}
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  className="flex-1 p-2.5 border rounded-xl text-xs"
+                />
+                <button type="submit" className="px-4 py-2.5 bg-[#234E40] text-white rounded-xl font-bold text-xs">
+                  Send
+                </button>
+              </form>
+            )}
           </div>
         )}
       </div>
