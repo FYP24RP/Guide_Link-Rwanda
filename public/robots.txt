@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://guidelink-rwanda.vercel.app/sitemap.xml
