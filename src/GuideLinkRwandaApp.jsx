@@ -145,13 +145,47 @@ const DEFAULT_SUBSCRIPTION_PLANS = [
   }
 ];
 
+const DEFAULT_APP_SERVER_CONFIG = {
+  appName: 'GuideLink Rwanda',
+  tagline: 'Turn your tourism degree into paid work.',
+  subtitle: 'Connecting Tourism Graduates, Travel Agencies, Tour Companies, and Travelers across Rwanda.',
+  footerLocation: 'Kigali, Rwanda',
+  momoCode: '612771',
+  commissionRatePercent: 10,
+  primaryColor: '#234E40',
+  secondaryColor: '#3B6E5B',
+  travelerFreeBadge: 'Travelers: FREE',
+  allowNewSignups: true,
+  maintenanceMode: false,
+  maintenanceMessage: 'Platform maintenance in progress. Please check back shortly.',
+  welcomeBannerText: '',
+  destinations: [
+    'Volcanoes National Park / Musanze',
+    'Nyungwe Forest & Lake Kivu (Rusizi / Karongi)',
+    'Akagera National Park Safari',
+    'Kigali City & Cultural Heritage Tour'
+  ],
+  announcements: [],
+  customFields: [],
+  customSections: []
+};
+
 export default function GuideLinkRwandaApp() {
   const [currentRole, setCurrentRole] = useState('welcome');
-  const [ownerTab, setOwnerTab] = useState('pending'); // 'pending' | 'users_mgmt' | 'plans_mgmt' | 'overview' | 'vip' | 'deals' | 'owner_profile'
+  const [ownerTab, setOwnerTab] = useState('pending'); // 'pending' | 'users_mgmt' | 'plans_mgmt' | 'app_server' | 'overview' | 'vip' | 'deals' | 'owner_profile'
   const [activeTab, setActiveTab] = useState('jobs'); // 'jobs' | 'search' | 'profile' | 'chat'
   const [showOwnerPinModal, setShowOwnerPinModal] = useState(false);
   const [ownerPinInput, setOwnerPinInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  // No-Code App Server CMS State (Live Cloud Config)
+  const [appConfig, setAppConfig] = useState(DEFAULT_APP_SERVER_CONFIG);
+  const [serverSubTab, setServerSubTab] = useState('branding'); // 'branding' | 'content' | 'fields' | 'controls'
+  const [newDestinationInput, setNewDestinationInput] = useState('');
+  const [newAnnouncementForm, setNewAnnouncementForm] = useState({ title: '', body: '', targetRole: 'all' });
+  const [newCustomFieldForm, setNewCustomFieldForm] = useState({ label: '', placeholder: '', targetRole: 'all', required: false });
+  const [newCustomSectionForm, setNewCustomSectionForm] = useState({ title: '', content: '', targetRole: 'all' });
+  const [customFieldValues, setCustomFieldValues] = useState({});
 
   // Dynamic Subscription Plans State (Editable by Owner)
   const [subscriptionPlans, setSubscriptionPlans] = useState(DEFAULT_SUBSCRIPTION_PLANS);
@@ -176,8 +210,8 @@ export default function GuideLinkRwandaApp() {
   const [chatInput, setChatInput] = useState('');
   const [activeChatPeer, setActiveChatPeer] = useState({ id: '', name: '', role: '' });
 
-  // USSD & Payment Constants
-  const MOMO_PAYMENT_CODE = '612771';
+  // Dynamic USSD & Payment Constants (Controlled by Owner App Server)
+  const MOMO_PAYMENT_CODE = appConfig.momoCode || '612771';
   const buildUssdDisplay = (amount) => `*182*8*1*${MOMO_PAYMENT_CODE}*${amount}#`;
   const buildUssdDialUri = (amount) => `tel:*182*8*1*${MOMO_PAYMENT_CODE}*${amount}%23`;
 
@@ -238,7 +272,6 @@ export default function GuideLinkRwandaApp() {
   });
 
   const [tripRequests, setTripRequests] = useState([]);
-  const [platformSettings] = useState({ commissionRatePercent: 10 });
   const [tasks, setTasks] = useState([
     { id: 'default-1', title: 'Half-day Kigali city tour & cultural heritage', agency: 'Cheetah Safaris / Partner Agency', location: 'Kigali', rawPay: 35000, pay: 'RWF 35,000', date: 'Sat 21 Nov, 09:00 to 13:00', status: 'open', assignedTo: null, paymentStatus: 'pending', category: 'Guiding Job' },
     { id: 'default-2', title: 'Nyungwe Canopy Walk & Tea Plantation Escort', agency: 'Rwanda Eco Tours', location: 'Nyungwe / Rusizi', rawPay: 65000, pay: 'RWF 65,000', date: 'Mon 23 Nov, Full Day', status: 'open', assignedTo: null, paymentStatus: 'pending', category: 'Consultant Job' }
@@ -278,14 +311,30 @@ export default function GuideLinkRwandaApp() {
   };
 
   const loadFirebaseData = async () => {
-    const [profilesDocs, vipDocs, tasksDocs, tripsDocs, chatDocs, plansDocs] = await Promise.all([
+    const [profilesDocs, vipDocs, tasksDocs, tripsDocs, chatDocs, plansDocs, configDocs] = await Promise.all([
       firestoreGetCollection('profiles'),
       firestoreGetCollection('vipTiers'),
       firestoreGetCollection('tasks'),
       firestoreGetCollection('tripRequests'),
       firestoreGetCollection('chats'),
-      firestoreGetCollection('subscriptionPlans')
+      firestoreGetCollection('subscriptionPlans'),
+      firestoreGetCollection('appConfig')
     ]);
+
+    if (configDocs.length > 0) {
+      const mainCfg = configDocs.find((d) => d.id === 'main') || configDocs[0];
+      if (mainCfg) {
+        setAppConfig((prev) => ({
+          ...prev,
+          ...mainCfg,
+          commissionRatePercent: Number(mainCfg.commissionRatePercent ?? prev.commissionRatePercent),
+          destinations: Array.isArray(mainCfg.destinations) && mainCfg.destinations.length > 0 ? mainCfg.destinations : prev.destinations,
+          announcements: Array.isArray(mainCfg.announcements) ? mainCfg.announcements : [],
+          customFields: Array.isArray(mainCfg.customFields) ? mainCfg.customFields : [],
+          customSections: Array.isArray(mainCfg.customSections) ? mainCfg.customSections : []
+        }));
+      }
+    }
 
     if (plansDocs.length > 0) {
       const mergedPlans = DEFAULT_SUBSCRIPTION_PLANS.map((defPlan) => {
@@ -336,7 +385,8 @@ export default function GuideLinkRwandaApp() {
             degrees: p.degrees || [],
             servicesOffered: p.servicesOffered || [],
             experiences: p.experiences || [],
-            skills: p.skills || ['English', 'Kinyarwanda']
+            skills: p.skills || ['English', 'Kinyarwanda'],
+            customData: p.customData || {}
           };
         }
       });
@@ -403,7 +453,8 @@ export default function GuideLinkRwandaApp() {
       degrees: [],
       servicesOffered: [],
       experiences: [],
-      skills: ['English', 'Kinyarwanda']
+      skills: ['English', 'Kinyarwanda'],
+      customData: {}
     };
   };
 
@@ -445,7 +496,8 @@ export default function GuideLinkRwandaApp() {
       degrees: updated.degrees,
       servicesOffered: updated.servicesOffered,
       experiences: updated.experiences,
-      skills: updated.skills
+      skills: updated.skills,
+      customData: updated.customData || {}
     });
   };
 
@@ -454,6 +506,32 @@ export default function GuideLinkRwandaApp() {
     await updateCurrentProfile(profileData);
     setIsSaving(false);
     alert('✓ Profile & updates successfully saved to Firebase Cloud!');
+  };
+
+  // Save Owner No-Code App Server Configuration to Firebase
+  const handleSaveAppServerConfig = async (customOverride = null) => {
+    setIsSaving(true);
+    const payload = customOverride || appConfig;
+    await firestoreSaveDoc('appConfig', 'main', {
+      appName: payload.appName || 'GuideLink Rwanda',
+      tagline: payload.tagline || '',
+      subtitle: payload.subtitle || '',
+      footerLocation: payload.footerLocation || 'Kigali, Rwanda',
+      momoCode: payload.momoCode || '612771',
+      commissionRatePercent: Number(payload.commissionRatePercent) || 10,
+      primaryColor: payload.primaryColor || '#234E40',
+      secondaryColor: payload.secondaryColor || '#3B6E5B',
+      travelerFreeBadge: payload.travelerFreeBadge || 'Travelers: FREE',
+      allowNewSignups: payload.allowNewSignups !== false,
+      maintenanceMode: Boolean(payload.maintenanceMode),
+      maintenanceMessage: payload.maintenanceMessage || '',
+      welcomeBannerText: payload.welcomeBannerText || '',
+      destinations: payload.destinations || [],
+      announcements: payload.announcements || [],
+      customFields: payload.customFields || [],
+      customSections: payload.customSections || []
+    });
+    setIsSaving(false);
   };
 
   // Save Owner Edits to Subscription Plan Names, Badges & Costs
@@ -672,6 +750,10 @@ export default function GuideLinkRwandaApp() {
         setShowOwnerPinModal(true);
         return;
       }
+      if (appConfig.maintenanceMode) {
+        alert(`⚠️ ${appConfig.maintenanceMessage}`);
+        return;
+      }
       setActiveUser({
         name: exemptMatch.name,
         contact: exemptMatch.contact,
@@ -681,6 +763,11 @@ export default function GuideLinkRwandaApp() {
       });
       setCurrentRole(exemptMatch.role);
       setActiveTab('jobs');
+      return;
+    }
+
+    if (appConfig.maintenanceMode) {
+      alert(`⚠️ ${appConfig.maintenanceMessage}`);
       return;
     }
 
@@ -729,6 +816,10 @@ export default function GuideLinkRwandaApp() {
 
   const handleSignUpSubmit = async (e) => {
     e.preventDefault();
+    if (!appConfig.allowNewSignups) {
+      alert('New registrations are temporarily paused by the Administrator.');
+      return;
+    }
     if (!regForm.name.trim() || !regForm.contact.trim() || !regForm.password.trim()) {
       alert('Please fill in your Name, Contact, and create a Password.');
       return;
@@ -800,9 +891,9 @@ export default function GuideLinkRwandaApp() {
           Accept: 'application/json'
         },
         body: JSON.stringify({
-          _subject: `GuideLink Rwanda: ${isRenewal ? 'Subscription Renewal' : 'New Partner Subscription'} (${registrantData.name}) - ${registrantData.subscriptionPlanName}`,
+          _subject: `${appConfig.appName}: ${isRenewal ? 'Subscription Renewal' : 'New Partner Subscription'} (${registrantData.name}) - ${registrantData.subscriptionPlanName}`,
           _template: 'table',
-          Platform: 'GuideLink Rwanda',
+          Platform: appConfig.appName,
           Transaction_Type: isRenewal ? 'Subscription Renewal' : 'New Account Subscription',
           Member_Name: registrantData.name,
           Account_Role: getRoleDisplayLabel(registrantData.role),
@@ -985,7 +1076,8 @@ export default function GuideLinkRwandaApp() {
     const existingTask = tasks.find((t) => String(t.id) === taskDocId);
     if (!existingTask) return;
 
-    const commission = Math.round((existingTask.rawPay * platformSettings.commissionRatePercent) / 100);
+    const commissionRate = Number(appConfig.commissionRatePercent) || 10;
+    const commission = Math.round((existingTask.rawPay * commissionRate) / 100);
     const updatedTask = {
       ...existingTask,
       status: 'done',
@@ -1058,7 +1150,7 @@ export default function GuideLinkRwandaApp() {
       travelerContact: activeUser?.contact || '',
       preferredCategory: tripRequestForm.preferredCategory,
       targetProvider: `Any Available ${categoryLabel}`,
-      destination: tripRequestForm.destination,
+      destination: tripRequestForm.destination || appConfig.destinations[0],
       dates: tripRequestForm.dates || 'Upcoming',
       guests: tripRequestForm.guests,
       notes: tripRequestForm.notes,
@@ -1070,7 +1162,7 @@ export default function GuideLinkRwandaApp() {
     setTripRequests([newTrip, ...tripRequests]);
     setTripRequestForm({
       preferredCategory: 'graduate',
-      destination: 'Volcanoes National Park / Musanze',
+      destination: appConfig.destinations[0] || 'Volcanoes National Park / Musanze',
       dates: '',
       guests: '2',
       notes: ''
@@ -1224,9 +1316,13 @@ export default function GuideLinkRwandaApp() {
   };
 
   // =========================================================================
-  // 1. WELCOME VIEW
+  // 1. WELCOME VIEW (Live Controlled by C.E.O App Server)
   // =========================================================================
   if (currentRole === 'welcome') {
+    const welcomeAnnouncements = (appConfig.announcements || []).filter(
+      (a) => a.targetRole === 'all' || a.targetRole === 'welcome'
+    );
+
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl overflow-hidden border border-slate-200">
         <div>
@@ -1235,27 +1331,57 @@ export default function GuideLinkRwandaApp() {
             <div className="h-28 flex items-end justify-center space-x-1">
               <div className="w-full h-16 bg-[#5A8F7B] rounded-t-full opacity-60"></div>
               <div className="absolute bottom-0 w-full h-12 bg-[#3B6E5B] rounded-t-full opacity-80"></div>
-              <div className="absolute bottom-0 w-3/4 h-8 bg-[#234E40] rounded-t-full"></div>
+              <div
+                className="absolute bottom-0 w-3/4 h-8 rounded-t-full"
+                style={{ backgroundColor: appConfig.primaryColor || '#234E40' }}
+              ></div>
             </div>
           </div>
 
-          <div className="p-6 space-y-5">
+          <div className="p-6 space-y-4">
+            {appConfig.maintenanceMode && (
+              <div className="bg-red-50 border border-red-300 p-3 rounded-xl text-xs text-red-900 font-semibold">
+                🚧 {appConfig.maintenanceMessage}
+              </div>
+            )}
+
+            {appConfig.welcomeBannerText && (
+              <div className="bg-amber-50 border border-amber-300 p-3 rounded-xl text-xs text-amber-950 font-semibold">
+                📢 {appConfig.welcomeBannerText}
+              </div>
+            )}
+
             <div>
-              <h1 className="text-3xl font-bold text-slate-900 tracking-tight">GuideLink Rwanda</h1>
-              <p className="text-lg font-medium text-[#234E40] mt-1">Turn your tourism degree into paid work.</p>
+              <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{appConfig.appName}</h1>
+              <p className="text-lg font-medium mt-1" style={{ color: appConfig.primaryColor || '#234E40' }}>
+                {appConfig.tagline}
+              </p>
               <p className="text-xs text-slate-600 mt-2">
-                Connecting Tourism Graduates, Travel Agencies, Tour Companies, and Travelers across Rwanda.
+                {appConfig.subtitle}
               </p>
               <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-1.5">
                 C.E.O: {ownerProfile.name} ({ownerProfile.contact})
               </p>
             </div>
 
+            {welcomeAnnouncements.length > 0 && (
+              <div className="space-y-2">
+                {welcomeAnnouncements.map((ann) => (
+                  <div key={ann.id} className="bg-emerald-50/80 border border-emerald-200 p-3 rounded-xl text-xs">
+                    <p className="font-bold text-[#234E40]">📌 {ann.title}</p>
+                    <p className="text-slate-700 mt-0.5">{ann.body}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-xs font-bold text-[#234E40] uppercase tracking-wider">Member Access</span>
+                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: appConfig.primaryColor || '#234E40' }}>
+                  Member Access
+                </span>
                 <span className="text-[11px] font-bold bg-emerald-100 text-[#234E40] px-2.5 py-0.5 rounded-full">
-                  Travelers: FREE
+                  {appConfig.travelerFreeBadge || 'Travelers: FREE'}
                 </span>
               </div>
 
@@ -1265,33 +1391,36 @@ export default function GuideLinkRwandaApp() {
                   setSignInPassword('');
                   setCurrentRole('signin');
                 }}
-                className="w-full py-3.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow transition flex items-center justify-center space-x-2"
+                style={{ backgroundColor: appConfig.primaryColor || '#234E40' }}
+                className="w-full py-3.5 hover:opacity-95 text-white rounded-xl font-bold text-sm shadow transition flex items-center justify-center space-x-2"
               >
                 <span>🔑</span>
                 <span>Sign In (Registered Members) →</span>
               </button>
 
-              <button
-                onClick={() => {
-                  setRegForm({
-                    name: '',
-                    contact: '',
-                    password: '',
-                    confirmPassword: '',
-                    role: 'traveler',
-                    subscriptionPlanId: 'monthly',
-                    momoRef: ''
-                  });
-                  setRegStep('details');
-                  setUssdTriggered(false);
-                  setEmailNotificationSent(false);
-                  setCurrentRole('signup');
-                }}
-                className="w-full py-3 bg-emerald-50 hover:bg-emerald-100 text-[#234E40] border border-[#3B6E5B]/30 rounded-xl font-bold text-sm transition flex items-center justify-center space-x-2"
-              >
-                <span>📝</span>
-                <span>Create Account (New Sign Up)</span>
-              </button>
+              {appConfig.allowNewSignups !== false && (
+                <button
+                  onClick={() => {
+                    setRegForm({
+                      name: '',
+                      contact: '',
+                      password: '',
+                      confirmPassword: '',
+                      role: 'traveler',
+                      subscriptionPlanId: 'monthly',
+                      momoRef: ''
+                    });
+                    setRegStep('details');
+                    setUssdTriggered(false);
+                    setEmailNotificationSent(false);
+                    setCurrentRole('signup');
+                  }}
+                  className="w-full py-3 bg-emerald-50 hover:bg-emerald-100 text-[#234E40] border border-[#3B6E5B]/30 rounded-xl font-bold text-sm transition flex items-center justify-center space-x-2"
+                >
+                  <span>📝</span>
+                  <span>Create Account (New Sign Up)</span>
+                </button>
+              )}
             </div>
 
             <div className="pt-1">
@@ -1315,7 +1444,7 @@ export default function GuideLinkRwandaApp() {
             &copy; {new Date().getFullYear()} <strong className="text-slate-700">{ownerProfile.name}</strong>. All rights reserved.
           </p>
           <p className="text-[10px] text-slate-400 mt-0.5">
-            GuideLink Rwanda • Kigali, Rwanda
+            {appConfig.appName} • {appConfig.footerLocation || 'Kigali, Rwanda'}
           </p>
         </footer>
 
@@ -1327,7 +1456,7 @@ export default function GuideLinkRwandaApp() {
                   🔐
                 </div>
                 <h3 className="font-bold text-base text-slate-900">C.E.O Authentication</h3>
-                <p className="text-xs text-slate-500">Enter private password to unlock Owner HQ.</p>
+                <p className="text-xs text-slate-500">Enter private password to unlock Owner HQ & App Server.</p>
               </div>
               <input
                 type="password"
@@ -1409,7 +1538,7 @@ export default function GuideLinkRwandaApp() {
               />
             </div>
 
-            <button type="submit" className="w-full py-3.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow transition">
+            <button type="submit" style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="w-full py-3.5 hover:opacity-95 text-white rounded-xl font-bold text-sm shadow transition">
               Unlock Dashboard →
             </button>
           </form>
@@ -1551,9 +1680,9 @@ export default function GuideLinkRwandaApp() {
     const manualMailtoHref = `mailto:${encodeURIComponent(
       ownerProfile.email || 'rutungurab5@gmail.com'
     )}?subject=${encodeURIComponent(
-      `GuideLink Rwanda Subscription Alert: ${regForm.name} (${selectedPlan.name})`
+      `${appConfig.appName} Subscription Alert: ${regForm.name} (${selectedPlan.name})`
     )}&body=${encodeURIComponent(
-      `Hello C.E.O ${ownerProfile.name},\n\nI have completed my ${Number(selectedPlan.price).toLocaleString()} RWF subscription payment via USSD ${activeUssdDisplay}.\n\n- Name: ${regForm.name}\n- Role: ${getRoleDisplayLabel(regForm.role)}\n- Plan: ${selectedPlan.name} (${selectedPlan.durationLabel})\n- Contact: ${regForm.contact}\n- MoMo Reference: ${regForm.momoRef}\n\nPlease approve my GuideLink Rwanda account.`
+      `Hello C.E.O ${ownerProfile.name},\n\nI have completed my ${Number(selectedPlan.price).toLocaleString()} RWF subscription payment via USSD ${activeUssdDisplay}.\n\n- Name: ${regForm.name}\n- Role: ${getRoleDisplayLabel(regForm.role)}\n- Plan: ${selectedPlan.name} (${selectedPlan.durationLabel})\n- Contact: ${regForm.contact}\n- MoMo Reference: ${regForm.momoRef}\n\nPlease approve my ${appConfig.appName} account.`
     )}`;
 
     return (
@@ -1570,7 +1699,7 @@ export default function GuideLinkRwandaApp() {
             <form onSubmit={handleSignUpSubmit} className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3.5 shadow-sm">
               <div>
                 <span className="text-[11px] font-bold uppercase text-[#3B6E5B]">New Registration</span>
-                <h3 className="text-lg font-bold text-slate-900">Join GuideLink Rwanda</h3>
+                <h3 className="text-lg font-bold text-slate-900">Join {appConfig.appName}</h3>
                 <p className="text-xs text-slate-500 mt-1">
                   Travelers join <strong>FREE</strong>. Tourism Graduates, Travel Agencies & Tour Companies select a subscription plan.
                 </p>
@@ -1680,7 +1809,7 @@ export default function GuideLinkRwandaApp() {
                 </div>
               )}
 
-              <button type="submit" className="w-full py-3 bg-[#3B6E5B] text-white rounded-xl font-bold text-sm shadow">
+              <button type="submit" style={{ backgroundColor: appConfig.secondaryColor || '#3B6E5B' }} className="w-full py-3 text-white rounded-xl font-bold text-sm shadow">
                 {regForm.role === 'traveler'
                   ? 'Complete Free Sign Up →'
                   : `Proceed to Pay ${Number(selectedPlan.price).toLocaleString()} RWF (${selectedPlan.name}) →`}
@@ -1796,7 +1925,7 @@ export default function GuideLinkRwandaApp() {
   }
 
   // =========================================================================
-  // 5. C.E.O OWNER HQ VIEW
+  // 5. C.E.O OWNER HQ VIEW (With No-Code App Server CMS 🖥️)
   // =========================================================================
   if (currentRole === 'owner') {
     const totalRegFees = registeredUsers.reduce((sum, u) => sum + (u.feePaid || 0), 0);
@@ -1808,7 +1937,7 @@ export default function GuideLinkRwandaApp() {
 
     return (
       <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans max-w-md mx-auto shadow-2xl border border-slate-200 relative">
-        <div className="bg-[#234E40] text-white px-5 py-4 flex justify-between items-center sticky top-0 z-30">
+        <div style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="text-white px-5 py-4 flex justify-between items-center sticky top-0 z-30">
           <div className="flex items-center space-x-3">
             {ownerProfile.photo ? (
               <img src={ownerProfile.photo} alt="C.E.O" className="w-11 h-11 rounded-full object-cover border-2 border-amber-400" />
@@ -1820,14 +1949,14 @@ export default function GuideLinkRwandaApp() {
               <p className="text-[11px] text-emerald-200">{ownerProfile.contact} • MoMo: {MOMO_PAYMENT_CODE}</p>
             </div>
           </div>
-          <button onClick={resetToWelcome} className="text-xs bg-emerald-900 px-3 py-1.5 rounded-full font-semibold">Log Out</button>
+          <button onClick={resetToWelcome} className="text-xs bg-black/30 px-3 py-1.5 rounded-full font-semibold">Log Out</button>
         </div>
 
-        {/* 7 Owner Iconic Tabs (Including Subscription Plans Editor) */}
-        <div className="bg-white border-b border-slate-200 px-1 py-2 grid grid-cols-7 gap-0.5 text-center sticky top-[76px] z-20 shadow-sm">
+        {/* 8 Owner Iconic Tabs (Including No-Code App Server 🖥️) */}
+        <div className="bg-white border-b border-slate-200 px-1 py-2 grid grid-cols-8 gap-0.5 text-center sticky top-[76px] z-20 shadow-sm">
           <button onClick={() => setOwnerTab('pending')} className={`p-1 rounded-xl flex flex-col items-center relative ${ownerTab === 'pending' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
-            <span className="text-sm">⏳</span><span className="text-[8px]">Sign-Ups</span>
-            {pendingCount > 0 && <span className="absolute top-0.5 right-0.5 bg-red-600 text-white text-[8px] w-3.5 h-3.5 rounded-full flex items-center justify-center">{pendingCount}</span>}
+            <span className="text-xs">⏳</span><span className="text-[7px]">SignUps</span>
+            {pendingCount > 0 && <span className="absolute top-0 right-0 bg-red-600 text-white text-[7px] w-3 h-3 rounded-full flex items-center justify-center">{pendingCount}</span>}
           </button>
           <button
             onClick={() => {
@@ -1838,18 +1967,583 @@ export default function GuideLinkRwandaApp() {
             }}
             className={`p-1 rounded-xl flex flex-col items-center ${ownerTab === 'users_mgmt' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}
           >
-            <span className="text-sm">👥</span><span className="text-[8px]">Users</span>
+            <span className="text-xs">👥</span><span className="text-[7px]">Users</span>
+          </button>
+          <button onClick={() => setOwnerTab('app_server')} className={`p-1 rounded-xl flex flex-col items-center ${ownerTab === 'app_server' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
+            <span className="text-xs">🖥️</span><span className="text-[7px]">Server</span>
           </button>
           <button onClick={() => setOwnerTab('plans_mgmt')} className={`p-1 rounded-xl flex flex-col items-center ${ownerTab === 'plans_mgmt' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
-            <span className="text-sm">💳</span><span className="text-[8px]">Plans</span>
+            <span className="text-xs">💳</span><span className="text-[7px]">Plans</span>
           </button>
-          <button onClick={() => setOwnerTab('overview')} className={`p-1 rounded-xl flex flex-col items-center ${ownerTab === 'overview' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">📊</span><span className="text-[8px]">Revenue</span></button>
-          <button onClick={() => setOwnerTab('vip')} className={`p-1 rounded-xl flex flex-col items-center ${ownerTab === 'vip' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">⭐</span><span className="text-[8px]">VIP</span></button>
-          <button onClick={() => setOwnerTab('deals')} className={`p-1 rounded-xl flex flex-col items-center ${ownerTab === 'deals' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">🎛️</span><span className="text-[8px]">Roles</span></button>
-          <button onClick={() => setOwnerTab('owner_profile')} className={`p-1 rounded-xl flex flex-col items-center ${ownerTab === 'owner_profile' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">👤</span><span className="text-[8px]">Profile</span></button>
+          <button onClick={() => setOwnerTab('overview')} className={`p-1 rounded-xl flex flex-col items-center ${ownerTab === 'overview' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-xs">📊</span><span className="text-[7px]">Money</span></button>
+          <button onClick={() => setOwnerTab('vip')} className={`p-1 rounded-xl flex flex-col items-center ${ownerTab === 'vip' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-xs">⭐</span><span className="text-[7px]">VIP</span></button>
+          <button onClick={() => setOwnerTab('deals')} className={`p-1 rounded-xl flex flex-col items-center ${ownerTab === 'deals' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-xs">🎛️</span><span className="text-[7px]">Roles</span></button>
+          <button onClick={() => setOwnerTab('owner_profile')} className={`p-1 rounded-xl flex flex-col items-center ${ownerTab === 'owner_profile' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-xs">👤</span><span className="text-[7px]">Me</span></button>
         </div>
 
         <div className="p-4 space-y-4 flex-1 overflow-y-auto pb-10">
+          {/* NO-CODE APP SERVER & LIVE CMS (🖥️ Server Tab) */}
+          {ownerTab === 'app_server' && (
+            <div className="space-y-4">
+              <div className="bg-gradient-to-r from-slate-950 via-[#234E40] to-[#3B6E5B] text-white p-4 rounded-2xl shadow-sm space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] uppercase font-bold bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full">
+                    No-Code App Server CMS
+                  </span>
+                  <span className="text-[10px] font-bold text-emerald-300">🟢 Cloud Synced</span>
+                </div>
+                <h3 className="font-bold text-base pt-1">🖥️ Live Web App Studio & Control Center</h3>
+                <p className="text-xs text-emerald-100">
+                  Edit branding, colors, MoMo USSD code, announcements, destinations, and custom sections/fields anytime without coding.
+                </p>
+              </div>
+
+              {/* App Server Sub-Navigation */}
+              <div className="grid grid-cols-4 gap-1 bg-white p-1.5 rounded-2xl border text-[10px] font-bold text-center shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setServerSubTab('branding')}
+                  className={`py-2 rounded-xl ${serverSubTab === 'branding' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}
+                >
+                  🎨 Branding
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setServerSubTab('content')}
+                  className={`py-2 rounded-xl ${serverSubTab === 'content' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}
+                >
+                  📢 Content
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setServerSubTab('fields')}
+                  className={`py-2 rounded-xl ${serverSubTab === 'fields' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}
+                >
+                  ➕ Add Blocks
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setServerSubTab('controls')}
+                  className={`py-2 rounded-xl ${serverSubTab === 'controls' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}
+                >
+                  ⚙️ Server
+                </button>
+              </div>
+
+              {/* Sub-Tab 1: Branding, Theme Colors & Payment Config */}
+              {serverSubTab === 'branding' && (
+                <div className="bg-white p-4 rounded-2xl border space-y-3 text-xs shadow-sm">
+                  <h4 className="font-bold text-sm text-[#234E40] border-b pb-1.5">🎨 App Identity, Colors & USSD Settings</h4>
+                  <div>
+                    <label className="font-bold text-slate-700">Platform / App Name</label>
+                    <input
+                      type="text"
+                      value={appConfig.appName}
+                      onChange={(e) => setAppConfig({ ...appConfig, appName: e.target.value })}
+                      className="w-full mt-1 p-2.5 border rounded-xl font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-700">Main Hero Tagline</label>
+                    <input
+                      type="text"
+                      value={appConfig.tagline}
+                      onChange={(e) => setAppConfig({ ...appConfig, tagline: e.target.value })}
+                      className="w-full mt-1 p-2.5 border rounded-xl"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-700">Platform Subtitle / Description</label>
+                    <textarea
+                      rows="2"
+                      value={appConfig.subtitle}
+                      onChange={(e) => setAppConfig({ ...appConfig, subtitle: e.target.value })}
+                      className="w-full mt-1 p-2.5 border rounded-xl"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="font-bold text-slate-700">MTN MoMo Merchant Code</label>
+                      <input
+                        type="text"
+                        value={appConfig.momoCode}
+                        onChange={(e) => setAppConfig({ ...appConfig, momoCode: e.target.value })}
+                        className="w-full mt-1 p-2.5 border rounded-xl font-mono font-bold text-[#234E40]"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700">Platform Commission (%)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={appConfig.commissionRatePercent}
+                        onChange={(e) => setAppConfig({ ...appConfig, commissionRatePercent: Number(e.target.value) })}
+                        className="w-full mt-1 p-2.5 border rounded-xl font-bold"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="font-bold text-slate-700">Primary Theme Color</label>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <input
+                          type="color"
+                          value={appConfig.primaryColor || '#234E40'}
+                          onChange={(e) => setAppConfig({ ...appConfig, primaryColor: e.target.value })}
+                          className="w-10 h-9 rounded border cursor-pointer"
+                        />
+                        <input
+                          type="text"
+                          value={appConfig.primaryColor || '#234E40'}
+                          onChange={(e) => setAppConfig({ ...appConfig, primaryColor: e.target.value })}
+                          className="flex-1 p-2 border rounded-xl font-mono text-[11px]"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700">Footer City / Location</label>
+                      <input
+                        type="text"
+                        value={appConfig.footerLocation}
+                        onChange={(e) => setAppConfig({ ...appConfig, footerLocation: e.target.value })}
+                        className="w-full mt-1 p-2.5 border rounded-xl"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-700">Welcome Top Promo / Alert Banner (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 🎉 New 2026 Gorilla Trekking Season Packages Live!"
+                      value={appConfig.welcomeBannerText || ''}
+                      onChange={(e) => setAppConfig({ ...appConfig, welcomeBannerText: e.target.value })}
+                      className="w-full mt-1 p-2.5 border rounded-xl"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    disabled={isSaving}
+                    onClick={async () => {
+                      await handleSaveAppServerConfig();
+                      alert('✓ App branding, theme & USSD settings published live!');
+                    }}
+                    className="w-full py-3.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow transition"
+                  >
+                    {isSaving ? '⏳ Publishing...' : '🚀 Publish Live App Changes'}
+                  </button>
+                </div>
+              )}
+
+              {/* Sub-Tab 2: Announcements & Destinations Manager */}
+              {serverSubTab === 'content' && (
+                <div className="space-y-4 text-xs">
+                  {/* Live Announcements Builder */}
+                  <div className="bg-white p-4 rounded-2xl border space-y-3 shadow-sm">
+                    <h4 className="font-bold text-sm text-[#234E40]">📢 Publish Live Announcements / Notices</h4>
+                    <input
+                      type="text"
+                      placeholder="Announcement Title (e.g. RDB Guide Licensing Update)"
+                      value={newAnnouncementForm.title}
+                      onChange={(e) => setNewAnnouncementForm({ ...newAnnouncementForm, title: e.target.value })}
+                      className="w-full p-2.5 border rounded-xl"
+                    />
+                    <textarea
+                      rows="2"
+                      placeholder="Message details visible on selected dashboards..."
+                      value={newAnnouncementForm.body}
+                      onChange={(e) => setNewAnnouncementForm({ ...newAnnouncementForm, body: e.target.value })}
+                      className="w-full p-2.5 border rounded-xl"
+                    />
+                    <div className="flex space-x-2">
+                      <select
+                        value={newAnnouncementForm.targetRole}
+                        onChange={(e) => setNewAnnouncementForm({ ...newAnnouncementForm, targetRole: e.target.value })}
+                        className="flex-1 p-2.5 border rounded-xl bg-white font-semibold"
+                      >
+                        <option value="all">All Screens & Dashboards</option>
+                        <option value="welcome">Welcome Home Screen Only</option>
+                        <option value="traveler">Travelers Dashboard</option>
+                        <option value="graduate">Tourism Graduates Dashboard</option>
+                        <option value="agency">Travel Agencies Dashboard</option>
+                        <option value="tour_company">Tour Companies Dashboard</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!newAnnouncementForm.title.trim() || !newAnnouncementForm.body.trim()) {
+                            alert('Please enter both an announcement title and message.');
+                            return;
+                          }
+                          const updated = {
+                            ...appConfig,
+                            announcements: [
+                              {
+                                id: `ann-${Date.now()}`,
+                                title: newAnnouncementForm.title.trim(),
+                                body: newAnnouncementForm.body.trim(),
+                                targetRole: newAnnouncementForm.targetRole
+                              },
+                              ...(appConfig.announcements || [])
+                            ]
+                          };
+                          setAppConfig(updated);
+                          setNewAnnouncementForm({ title: '', body: '', targetRole: 'all' });
+                          await handleSaveAppServerConfig(updated);
+                          alert('✓ Announcement published live!');
+                        }}
+                        className="px-4 bg-[#234E40] text-white rounded-xl font-bold"
+                      >
+                        + Post
+                      </button>
+                    </div>
+
+                    {(appConfig.announcements || []).map((ann) => (
+                      <div key={ann.id} className="bg-slate-50 border p-3 rounded-xl flex justify-between items-start">
+                        <div>
+                          <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">Target: {ann.targetRole}</span>
+                          <p className="font-bold text-slate-900">{ann.title}</p>
+                          <p className="text-slate-600 mt-0.5">{ann.body}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const updated = {
+                              ...appConfig,
+                              announcements: appConfig.announcements.filter((a) => a.id !== ann.id)
+                            };
+                            setAppConfig(updated);
+                            await handleSaveAppServerConfig(updated);
+                          }}
+                          className="text-red-600 font-bold px-2 py-1"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Destinations & Tour Packages List Editor */}
+                  <div className="bg-white p-4 rounded-2xl border space-y-3 shadow-sm">
+                    <h4 className="font-bold text-sm text-[#234E40]">🗺️ Manage Booking Destinations</h4>
+                    <div className="flex space-x-2">
+                      <input
+                        type="text"
+                        placeholder="Add new destination (e.g. Lake Kivu Gisenyi Beach)"
+                        value={newDestinationInput}
+                        onChange={(e) => setNewDestinationInput(e.target.value)}
+                        className="flex-1 p-2.5 border rounded-xl"
+                      />
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!newDestinationInput.trim()) return;
+                          const updated = {
+                            ...appConfig,
+                            destinations: [...(appConfig.destinations || []), newDestinationInput.trim()]
+                          };
+                          setAppConfig(updated);
+                          setNewDestinationInput('');
+                          await handleSaveAppServerConfig(updated);
+                          alert('✓ Destination added to Traveler booking options!');
+                        }}
+                        className="px-4 bg-[#3B6E5B] text-white rounded-xl font-bold"
+                      >
+                        + Add
+                      </button>
+                    </div>
+                    <div className="space-y-1.5">
+                      {(appConfig.destinations || []).map((dest, idx) => (
+                        <div key={idx} className="flex justify-between items-center bg-slate-50 border p-2.5 rounded-xl">
+                          <span className="font-medium text-slate-800">📍 {dest}</span>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const updated = {
+                                ...appConfig,
+                                destinations: appConfig.destinations.filter((_, i) => i !== idx)
+                              };
+                              setAppConfig(updated);
+                              await handleSaveAppServerConfig(updated);
+                            }}
+                            className="text-red-600 font-bold"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Sub-Tab 3: Add Custom Dashboard Sections & Custom Form Fields */}
+              {serverSubTab === 'fields' && (
+                <div className="space-y-4 text-xs">
+                  {/* Add Custom Dashboard Info Card / Block */}
+                  <div className="bg-white p-4 rounded-2xl border space-y-3 shadow-sm">
+                    <h4 className="font-bold text-sm text-[#234E40]">🧱 Add Custom Dashboard Section / Card</h4>
+                    <p className="text-[11px] text-slate-500">Add new information blocks, rules, or partner resources to any dashboard without coding.</p>
+                    <input
+                      type="text"
+                      placeholder="Section Title (e.g. National Park Entry Fee Guide)"
+                      value={newCustomSectionForm.title}
+                      onChange={(e) => setNewCustomSectionForm({ ...newCustomSectionForm, title: e.target.value })}
+                      className="w-full p-2.5 border rounded-xl"
+                    />
+                    <textarea
+                      rows="3"
+                      placeholder="Section content, instructions, or links..."
+                      value={newCustomSectionForm.content}
+                      onChange={(e) => setNewCustomSectionForm({ ...newCustomSectionForm, content: e.target.value })}
+                      className="w-full p-2.5 border rounded-xl"
+                    />
+                    <div className="flex space-x-2">
+                      <select
+                        value={newCustomSectionForm.targetRole}
+                        onChange={(e) => setNewCustomSectionForm({ ...newCustomSectionForm, targetRole: e.target.value })}
+                        className="flex-1 p-2.5 border rounded-xl bg-white font-semibold"
+                      >
+                        <option value="all">All User Dashboards</option>
+                        <option value="graduate">Tourism Graduates</option>
+                        <option value="agency">Travel Agencies</option>
+                        <option value="tour_company">Tour Companies</option>
+                        <option value="traveler">Travelers</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!newCustomSectionForm.title.trim() || !newCustomSectionForm.content.trim()) {
+                            alert('Please enter both a title and content for the new section.');
+                            return;
+                          }
+                          const updated = {
+                            ...appConfig,
+                            customSections: [
+                              ...(appConfig.customSections || []),
+                              {
+                                id: `sec-${Date.now()}`,
+                                title: newCustomSectionForm.title.trim(),
+                                content: newCustomSectionForm.content.trim(),
+                                targetRole: newCustomSectionForm.targetRole
+                              }
+                            ]
+                          };
+                          setAppConfig(updated);
+                          setNewCustomSectionForm({ title: '', content: '', targetRole: 'all' });
+                          await handleSaveAppServerConfig(updated);
+                          alert('✓ New dashboard section added live!');
+                        }}
+                        className="px-4 bg-[#234E40] text-white rounded-xl font-bold"
+                      >
+                        + Add Block
+                      </button>
+                    </div>
+
+                    {(appConfig.customSections || []).map((sec) => (
+                      <div key={sec.id} className="bg-slate-50 border p-3 rounded-xl flex justify-between items-start">
+                        <div>
+                          <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">Role: {sec.targetRole}</span>
+                          <p className="font-bold text-slate-900">{sec.title}</p>
+                          <p className="text-slate-600 mt-0.5">{sec.content}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const updated = {
+                              ...appConfig,
+                              customSections: appConfig.customSections.filter((s) => s.id !== sec.id)
+                            };
+                            setAppConfig(updated);
+                            await handleSaveAppServerConfig(updated);
+                          }}
+                          className="text-red-600 font-bold px-2 py-1"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Add Custom Profile Form Fields */}
+                  <div className="bg-white p-4 rounded-2xl border space-y-3 shadow-sm">
+                    <h4 className="font-bold text-sm text-[#234E40]">📝 Add Custom Profile Input Field</h4>
+                    <p className="text-[11px] text-slate-500">Add new fields (e.g. RDB License Number, Vehicle Plate, Passport ID) to user profiles.</p>
+                    <input
+                      type="text"
+                      placeholder="Field Label (e.g. RDB License Number)"
+                      value={newCustomFieldForm.label}
+                      onChange={(e) => setNewCustomFieldForm({ ...newCustomFieldForm, label: e.target.value })}
+                      className="w-full p-2.5 border rounded-xl"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Placeholder Example (e.g. RDB-2026-8841)"
+                      value={newCustomFieldForm.placeholder}
+                      onChange={(e) => setNewCustomFieldForm({ ...newCustomFieldForm, placeholder: e.target.value })}
+                      className="w-full p-2.5 border rounded-xl"
+                    />
+                    <div className="flex space-x-2">
+                      <select
+                        value={newCustomFieldForm.targetRole}
+                        onChange={(e) => setNewCustomFieldForm({ ...newCustomFieldForm, targetRole: e.target.value })}
+                        className="flex-1 p-2.5 border rounded-xl bg-white font-semibold"
+                      >
+                        <option value="all">All Roles</option>
+                        <option value="graduate">Tourism Graduates</option>
+                        <option value="agency">Travel Agencies</option>
+                        <option value="tour_company">Tour Companies</option>
+                        <option value="traveler">Travelers</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!newCustomFieldForm.label.trim()) {
+                            alert('Please enter a field label.');
+                            return;
+                          }
+                          const updated = {
+                            ...appConfig,
+                            customFields: [
+                              ...(appConfig.customFields || []),
+                              {
+                                id: `fld-${Date.now()}`,
+                                label: newCustomFieldForm.label.trim(),
+                                placeholder: newCustomFieldForm.placeholder.trim(),
+                                targetRole: newCustomFieldForm.targetRole
+                              }
+                            ]
+                          };
+                          setAppConfig(updated);
+                          setNewCustomFieldForm({ label: '', placeholder: '', targetRole: 'all', required: false });
+                          await handleSaveAppServerConfig(updated);
+                          alert('✓ Custom profile field added!');
+                        }}
+                        className="px-4 bg-[#3B6E5B] text-white rounded-xl font-bold"
+                      >
+                        + Add Field
+                      </button>
+                    </div>
+
+                    {(appConfig.customFields || []).map((fld) => (
+                      <div key={fld.id} className="bg-slate-50 border p-2.5 rounded-xl flex justify-between items-center">
+                        <div>
+                          <p className="font-bold text-slate-900">{fld.label}</p>
+                          <p className="text-[10px] text-slate-500">Role: {fld.targetRole} • Placeholder: {fld.placeholder || 'None'}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const updated = {
+                              ...appConfig,
+                              customFields: appConfig.customFields.filter((f) => f.id !== fld.id)
+                            };
+                            setAppConfig(updated);
+                            await handleSaveAppServerConfig(updated);
+                          }}
+                          className="text-red-600 font-bold"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Sub-Tab 4: Server Access Switches, Sync & Backup Export */}
+              {serverSubTab === 'controls' && (
+                <div className="bg-white p-4 rounded-2xl border space-y-4 text-xs shadow-sm">
+                  <h4 className="font-bold text-sm text-[#234E40] border-b pb-1.5">⚙️ Server Switches & Live Database Controls</h4>
+
+                  <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border">
+                    <div>
+                      <p className="font-bold text-slate-900">Allow New Member Sign-Ups</p>
+                      <p className="text-[11px] text-slate-500">Toggle public account registration on/off</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const updated = { ...appConfig, allowNewSignups: appConfig.allowNewSignups === false };
+                        setAppConfig(updated);
+                        await handleSaveAppServerConfig(updated);
+                      }}
+                      className={`px-3 py-1.5 rounded-xl font-bold ${
+                        appConfig.allowNewSignups !== false ? 'bg-emerald-600 text-white' : 'bg-slate-300 text-slate-700'
+                      }`}
+                    >
+                      {appConfig.allowNewSignups !== false ? '🟢 Enabled' : '🔒 Paused'}
+                    </button>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 rounded-xl border space-y-2">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="font-bold text-slate-900">Maintenance Mode Lock</p>
+                        <p className="text-[11px] text-slate-500">Temporarily pause member logins while editing</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const updated = { ...appConfig, maintenanceMode: !appConfig.maintenanceMode };
+                          setAppConfig(updated);
+                          await handleSaveAppServerConfig(updated);
+                        }}
+                        className={`px-3 py-1.5 rounded-xl font-bold ${
+                          appConfig.maintenanceMode ? 'bg-red-600 text-white' : 'bg-slate-200 text-slate-700'
+                        }`}
+                      >
+                        {appConfig.maintenanceMode ? '🚧 Active' : 'Off'}
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={appConfig.maintenanceMessage}
+                      onChange={(e) => setAppConfig({ ...appConfig, maintenanceMessage: e.target.value })}
+                      onBlur={() => handleSaveAppServerConfig()}
+                      className="w-full p-2 border rounded-xl bg-white text-[11px]"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await loadFirebaseData();
+                        alert('✓ Live Firebase data refreshed!');
+                      }}
+                      className="py-2.5 bg-emerald-50 border border-emerald-200 text-[#234E40] rounded-xl font-bold"
+                    >
+                      🔄 Sync Cloud Now
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const backup = {
+                          exportedAt: new Date().toISOString(),
+                          appConfig,
+                          subscriptionPlans,
+                          registeredUsers,
+                          tasks,
+                          tripRequests
+                        };
+                        const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `guidelink-rwanda-backup-${Date.now()}.json`;
+                        a.click();
+                      }}
+                      className="py-2.5 bg-slate-900 text-white rounded-xl font-bold"
+                    >
+                      📥 Export Backup
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {ownerTab === 'pending' && (
             <div className="space-y-3">
               <h3 className="font-bold text-sm text-slate-900">⏳ Member Sign-Ups, Subscriptions & Access Control</h3>
@@ -2478,7 +3172,7 @@ export default function GuideLinkRwandaApp() {
   }
 
   // =========================================================================
-  // 6. ROLE DASHBOARDS & WORKSPACES (With Universal 🔍 Search Directory)
+  // 6. ROLE DASHBOARDS & WORKSPACES (With Universal 🔍 Search & Live CMS Blocks)
   // =========================================================================
   const currentProf = getCurrentProfile();
   const isPartnerRole = ['graduate', 'agency', 'tour_company'].includes(currentRole);
@@ -2487,6 +3181,17 @@ export default function GuideLinkRwandaApp() {
     if (directoryFilter === 'all') return true;
     return item.type === directoryFilter;
   });
+
+  // Dynamic C.E.O App Server Announcements, Sections & Custom Fields for Current Role
+  const roleAnnouncements = (appConfig.announcements || []).filter(
+    (a) => a.targetRole === 'all' || a.targetRole === currentRole
+  );
+  const roleCustomSections = (appConfig.customSections || []).filter(
+    (s) => s.targetRole === 'all' || s.targetRole === currentRole
+  );
+  const roleCustomFields = (appConfig.customFields || []).filter(
+    (f) => f.targetRole === 'all' || f.targetRole === currentRole
+  );
 
   // Universal Search Results across Travel Agencies, Tour Companies & Graduates
   const searchedProviders = providerDirectory.filter((item) => {
@@ -2555,7 +3260,7 @@ export default function GuideLinkRwandaApp() {
             {currentProf?.photo ? (
               <img src={currentProf.photo} alt="Profile" className="w-10 h-10 rounded-full object-cover border-2 border-[#3B6E5B]" />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-[#3B6E5B] text-white flex items-center justify-center font-bold">
+              <div style={{ backgroundColor: appConfig.secondaryColor || '#3B6E5B' }} className="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold">
                 {(currentProf?.name || 'U').charAt(0)}
               </div>
             )}
@@ -2615,6 +3320,18 @@ export default function GuideLinkRwandaApp() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-12">
+        {/* Live Announcements Published from Owner App Server */}
+        {roleAnnouncements.length > 0 && (
+          <div className="space-y-2">
+            {roleAnnouncements.map((ann) => (
+              <div key={ann.id} className="bg-amber-50 border border-amber-300 p-3 rounded-2xl text-xs shadow-sm">
+                <p className="font-bold text-amber-950">📢 {ann.title}</p>
+                <p className="text-amber-900 mt-0.5">{ann.body}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
         {isPartnerRole && currentProf && (
           <div className="bg-white p-3.5 rounded-2xl border border-slate-200 flex justify-between items-center shadow-sm">
             <div>
@@ -2638,10 +3355,23 @@ export default function GuideLinkRwandaApp() {
           </div>
         )}
 
+        {/* Custom Dashboard Sections Added by C.E.O in App Server */}
+        {activeTab === 'jobs' && roleCustomSections.length > 0 && (
+          <div className="space-y-2.5">
+            {roleCustomSections.map((sec) => (
+              <div key={sec.id} className="bg-white p-4 rounded-2xl border border-emerald-200 shadow-sm text-xs space-y-1">
+                <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">📌 {appConfig.appName} Notice</span>
+                <h4 className="font-bold text-sm text-slate-900">{sec.title}</h4>
+                <p className="text-slate-600 leading-relaxed whitespace-pre-line">{sec.content}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* UNIVERSAL SEARCH DIRECTORY TAB (Available for ALL Users to Search & Book) */}
         {activeTab === 'search' && (
           <div className="space-y-4">
-            <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-4 rounded-2xl shadow-sm space-y-1">
+            <div style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="text-white p-4 rounded-2xl shadow-sm space-y-1">
               <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Global Partner Directory</span>
               <h3 className="font-bold text-base pt-1">🔍 Search Agencies, Tour Companies & Graduates</h3>
               <p className="text-xs text-emerald-100">Find any registered tourism partner in Rwanda by name, location, or service and book directly.</p>
@@ -2769,7 +3499,7 @@ export default function GuideLinkRwandaApp() {
         {/* Graduate Workspace */}
         {activeTab === 'jobs' && currentRole === 'graduate' && (
           <div className="space-y-4">
-            <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-4 rounded-2xl shadow-sm space-y-1">
+            <div style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="text-white p-4 rounded-2xl shadow-sm space-y-1">
               <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Graduate Opportunity Hub</span>
               <h3 className="font-bold text-base pt-1">Guiding Jobs, Consultant Roles & Freelance Travelers</h3>
               <p className="text-xs text-emerald-100">Review qualifications, tour schedules, and accept assignments suited for tourism professionals.</p>
@@ -2861,7 +3591,7 @@ export default function GuideLinkRwandaApp() {
         {/* Travel Agency Workspace */}
         {activeTab === 'jobs' && currentRole === 'agency' && (
           <div className="space-y-4">
-            <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-4 rounded-2xl shadow-sm space-y-1">
+            <div style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="text-white p-4 rounded-2xl shadow-sm space-y-1">
               <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Travel Agency Hub</span>
               <h3 className="font-bold text-base pt-1">Explore Travel Consultants, Guides & Tourists</h3>
               <p className="text-xs text-emerald-100">Review availability, qualifications, and post consultant/guiding assignments.</p>
@@ -2987,7 +3717,7 @@ export default function GuideLinkRwandaApp() {
         {/* Tour Company Workspace */}
         {activeTab === 'jobs' && currentRole === 'tour_company' && (
           <div className="space-y-4">
-            <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-4 rounded-2xl shadow-sm space-y-1">
+            <div style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="text-white p-4 rounded-2xl shadow-sm space-y-1">
               <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Tour Company Hub</span>
               <h3 className="font-bold text-base pt-1">Explore Tour Consultants, Guides, Tourists & Graduates</h3>
               <p className="text-xs text-emerald-100">Review live availability, safari qualifications, and publish expedition gigs.</p>
@@ -3113,7 +3843,7 @@ export default function GuideLinkRwandaApp() {
         {/* Traveler Dashboard */}
         {activeTab === 'jobs' && currentRole === 'traveler' && (
           <div className="space-y-4">
-            <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-4 rounded-2xl shadow-sm space-y-1">
+            <div style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="text-white p-4 rounded-2xl shadow-sm space-y-1">
               <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Free Traveler Account</span>
               <h3 className="font-bold text-base pt-1">Choose Your Travel Partner in Rwanda</h3>
               <p className="text-xs text-emerald-100">Browse live availability, graduate qualifications, and travel agency expectations.</p>
@@ -3190,10 +3920,9 @@ export default function GuideLinkRwandaApp() {
                   onChange={(e) => setTripRequestForm({ ...tripRequestForm, destination: e.target.value })}
                   className="w-full mt-1 p-2.5 border rounded-xl text-xs bg-white"
                 >
-                  <option>Volcanoes National Park / Musanze</option>
-                  <option>Nyungwe Forest & Lake Kivu (Rusizi / Karongi)</option>
-                  <option>Akagera National Park Safari</option>
-                  <option>Kigali City & Cultural Heritage Tour</option>
+                  {(appConfig.destinations || []).map((dest, idx) => (
+                    <option key={idx} value={dest}>{dest}</option>
+                  ))}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -3208,7 +3937,7 @@ export default function GuideLinkRwandaApp() {
           </div>
         )}
 
-        {/* Profile & Qualifications Workspace */}
+        {/* Profile & Qualifications Workspace (With Dynamic Custom Fields from App Server) */}
         {activeTab === 'profile' && currentProf && (
           <div className="space-y-4">
             <div className="bg-white p-5 rounded-2xl border space-y-4 shadow-sm">
@@ -3239,6 +3968,31 @@ export default function GuideLinkRwandaApp() {
                   <label className="font-bold text-slate-700">Location</label>
                   <input type="text" value={currentProf.location} onChange={(e) => updateCurrentProfile({ location: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
                 </div>
+
+                {/* Custom Profile Fields Added by C.E.O in No-Code App Server */}
+                {roleCustomFields.length > 0 && (
+                  <div className="space-y-2.5 pt-2 border-t border-slate-100">
+                    <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">Additional Verified Details</span>
+                    {roleCustomFields.map((fld) => (
+                      <div key={fld.id}>
+                        <label className="font-bold text-slate-700">{fld.label}</label>
+                        <input
+                          type="text"
+                          placeholder={fld.placeholder || ''}
+                          value={(currentProf.customData || {})[fld.id] ?? customFieldValues[fld.id] ?? ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setCustomFieldValues({ ...customFieldValues, [fld.id]: val });
+                            updateCurrentProfile({
+                              customData: { ...(currentProf.customData || {}), [fld.id]: val }
+                            });
+                          }}
+                          className="w-full mt-1 p-2.5 border rounded-xl"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {isPartnerRole && (
                   <div className="space-y-4 pt-3 border-t">
