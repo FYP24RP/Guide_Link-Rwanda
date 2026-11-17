@@ -151,7 +151,6 @@ const DEFAULT_APP_SERVER_CONFIG = {
   subtitle: 'Connecting Tourism Graduates, Travel Agencies, Tour Companies, and Travelers across Rwanda.',
   footerLocation: 'Kigali, Rwanda',
   momoCode: '612771',
-  commissionRatePercent: 10,
   primaryColor: '#234E40',
   secondaryColor: '#3B6E5B',
   travelerFreeBadge: 'Travelers: FREE',
@@ -166,6 +165,7 @@ const DEFAULT_APP_SERVER_CONFIG = {
     'Kigali City & Cultural Heritage Tour'
   ],
   announcements: [],
+  ads: [],
   customFields: [],
   customSections: [],
   customDashboards: [],
@@ -209,6 +209,22 @@ export default function GuideLinkRwandaApp() {
   const [newAnnouncementForm, setNewAnnouncementForm] = useState({ title: '', body: '', targetRole: 'all' });
   const [newCustomFieldForm, setNewCustomFieldForm] = useState({ label: '', placeholder: '', targetRole: 'all', required: false });
   const [newCustomSectionForm, setNewCustomSectionForm] = useState({ title: '', content: '', targetRole: 'all' });
+
+  // Owner Sponsored Ads Generator State
+  const [newAdForm, setNewAdForm] = useState({
+    advertiserId: '',
+    advertiserName: '',
+    advertiserRoleLabel: '',
+    advertiserContact: '',
+    headline: '',
+    description: '',
+    badge: 'Featured Partner',
+    ctaLabel: 'Book / Inquire',
+    imageUrl: '',
+    targetAudience: 'all', // 'all' | 'welcome' | 'traveler' | 'partners' | 'graduate' | 'logged_in'
+    adFeePaid: 0,
+    active: true
+  });
 
   // No-Code New Dashboard Builder State
   const [newDashboardForm, setNewDashboardForm] = useState({
@@ -379,9 +395,9 @@ export default function GuideLinkRwandaApp() {
         setAppConfig((prev) => ({
           ...prev,
           ...mainCfg,
-          commissionRatePercent: Number(mainCfg.commissionRatePercent ?? prev.commissionRatePercent),
           destinations: Array.isArray(mainCfg.destinations) && mainCfg.destinations.length > 0 ? mainCfg.destinations : prev.destinations,
           announcements: Array.isArray(mainCfg.announcements) ? mainCfg.announcements : [],
+          ads: Array.isArray(mainCfg.ads) ? mainCfg.ads : [],
           customFields: Array.isArray(mainCfg.customFields) ? mainCfg.customFields : [],
           customSections: Array.isArray(mainCfg.customSections) ? mainCfg.customSections : [],
           customDashboards: Array.isArray(mainCfg.customDashboards) ? mainCfg.customDashboards : [],
@@ -485,6 +501,29 @@ export default function GuideLinkRwandaApp() {
     return role;
   };
 
+  const getAudienceDisplayLabel = (aud) => {
+    if (aud === 'all') return 'Everyone (Welcome + All Dashboards)';
+    if (aud === 'welcome') return 'Welcome Home Screen Only';
+    if (aud === 'traveler') return 'Travelers Only';
+    if (aud === 'partners') return 'Agencies & Tour Companies Only';
+    if (aud === 'graduate') return 'Tourism Graduates / Guides Only';
+    if (aud === 'logged_in') return 'All Logged-In Members';
+    return aud;
+  };
+
+  const getVisibleAdsForContext = (contextRole) => {
+    return (appConfig.ads || []).filter((ad) => {
+      if (ad.active === false) return false;
+      if (!ad.targetAudience || ad.targetAudience === 'all') return true;
+      if (contextRole === 'welcome') return ad.targetAudience === 'welcome';
+      if (ad.targetAudience === 'logged_in') return true;
+      if (ad.targetAudience === 'partners') {
+        return ['agency', 'tour_company'].includes(contextRole);
+      }
+      return ad.targetAudience === contextRole;
+    });
+  };
+
   const getCurrentProfile = () => {
     if (!activeUser) return ownerProfile;
     const key = normalizeContact(activeUser.contact || activeUser.name);
@@ -564,7 +603,7 @@ export default function GuideLinkRwandaApp() {
     alert('✓ Profile & updates successfully saved to Firebase Cloud!');
   };
 
-  // Save Owner No-Code App Server Configuration to Firebase
+  // Save Owner No-Code App Server Configuration & Ads to Firebase
   const handleSaveAppServerConfig = async (customOverride = null) => {
     setIsSaving(true);
     const payload = customOverride || appConfig;
@@ -574,7 +613,6 @@ export default function GuideLinkRwandaApp() {
       subtitle: payload.subtitle || '',
       footerLocation: payload.footerLocation || 'Kigali, Rwanda',
       momoCode: payload.momoCode || '612771',
-      commissionRatePercent: Number(payload.commissionRatePercent) || 10,
       primaryColor: payload.primaryColor || '#234E40',
       secondaryColor: payload.secondaryColor || '#3B6E5B',
       travelerFreeBadge: payload.travelerFreeBadge || 'Travelers: FREE',
@@ -584,6 +622,7 @@ export default function GuideLinkRwandaApp() {
       welcomeBannerText: payload.welcomeBannerText || '',
       destinations: payload.destinations || [],
       announcements: payload.announcements || [],
+      ads: payload.ads || [],
       customFields: payload.customFields || [],
       customSections: payload.customSections || [],
       customDashboards: payload.customDashboards || [],
@@ -1123,25 +1162,24 @@ export default function GuideLinkRwandaApp() {
     alert('✓ Gig accepted and synced to Firebase!');
   };
 
+  // Zero commission fees: 100% of the job pay goes directly to the guide/graduate
   const handleCompleteTask = async (taskId) => {
     const taskDocId = String(taskId);
     const existingTask = tasks.find((t) => String(t.id) === taskDocId);
     if (!existingTask) return;
 
-    const commissionRate = Number(appConfig.commissionRatePercent) || 10;
-    const commission = Math.round((existingTask.rawPay * commissionRate) / 100);
     const updatedTask = {
       ...existingTask,
       status: 'done',
       paymentStatus: 'paid',
-      ownerCommission: commission,
-      netGuidePayout: existingTask.rawPay - commission,
+      ownerCommission: 0,
+      netGuidePayout: existingTask.rawPay,
       createdAt: existingTask.createdAt || Date.now()
     };
 
     setTasks(tasks.map((t) => (String(t.id) === taskDocId ? updatedTask : t)));
     await firestoreSaveDoc('tasks', taskDocId, updatedTask);
-    alert(`✓ Task completed! Commission routed to MoMo Code ${MOMO_PAYMENT_CODE}.`);
+    alert(`✓ Task completed! 100% payout (RWF ${Number(existingTask.rawPay).toLocaleString()}) settled with zero commission fees.`);
   };
 
   const handleConfirmTravelerRequest = async (reqId) => {
@@ -1366,6 +1404,156 @@ export default function GuideLinkRwandaApp() {
     return [...dynamicProviders, ...defaultProviders];
   };
 
+  // Eligible Paid Companies & Guides for Owner Ad Generator
+  const eligiblePaidAdvertisers = [
+    ...registeredUsers
+      .filter(
+        (u) =>
+          u.status === 'approved' &&
+          !isUserSubscriptionExpired(u) &&
+          ['graduate', 'agency', 'tour_company'].includes(u.role)
+      )
+      .map((u) => {
+        const key = normalizeContact(u.contact);
+        const prof = userProfiles[key] || {};
+        return {
+          id: `reg-${u.id}`,
+          name: prof.name || u.name,
+          contact: u.contact,
+          role: u.role,
+          roleLabel: `${getRoleDisplayLabel(u.role)} • ${u.subscriptionPlanName || 'Paid Plan'}`,
+          headline: prof.headline || '',
+          location: prof.location || 'Rwanda',
+          photo: prof.photo || ''
+        };
+      }),
+    ...exemptAccounts
+      .filter((acc) => acc.confirmed && ['graduate', 'agency', 'tour_company'].includes(acc.role))
+      .map((acc) => {
+        const key = normalizeContact(acc.contact);
+        const prof = userProfiles[key] || {};
+        return {
+          id: `vip-${acc.id}`,
+          name: prof.name || acc.name,
+          contact: acc.contact,
+          role: acc.role,
+          roleLabel: `${getRoleDisplayLabel(acc.role)} • ${acc.tier}`,
+          headline: prof.headline || '',
+          location: prof.location || 'Rwanda',
+          photo: prof.photo || ''
+        };
+      })
+  ];
+
+  // Reusable Sponsored Ad Strip Component (Shown based on Owner's Audience Settings)
+  const renderTargetedAdsStrip = (contextRole, isPublicWelcome = false) => {
+    const visibleAds = getVisibleAdsForContext(contextRole);
+    if (visibleAds.length === 0) return null;
+
+    return (
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-800 flex items-center space-x-1.5">
+            <span>📢</span>
+            <span>Sponsored Partner Spotlights</span>
+          </span>
+          <span className="text-[10px] font-semibold text-slate-400">Verified on {appConfig.appName}</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+          {visibleAds.map((ad) => (
+            <div
+              key={ad.id}
+              className="bg-gradient-to-br from-amber-50/90 via-white to-emerald-50/60 border border-amber-300/80 p-4 rounded-2xl shadow-sm flex flex-col justify-between space-y-3 text-xs"
+            >
+              <div className="space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center space-x-2.5">
+                    {ad.imageUrl ? (
+                      <img
+                        src={ad.imageUrl}
+                        alt={ad.advertiserName}
+                        className="w-11 h-11 rounded-xl object-cover border border-amber-300 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-11 h-11 rounded-xl bg-amber-400/30 text-amber-950 flex items-center justify-center font-extrabold text-base shrink-0">
+                        📢
+                      </div>
+                    )}
+                    <div>
+                      <span className="inline-block text-[9px] font-extrabold uppercase bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full">
+                        {ad.badge || 'Sponsored'}
+                      </span>
+                      <h4 className="font-extrabold text-sm text-slate-900 mt-0.5 leading-snug">
+                        {ad.headline}
+                      </h4>
+                      <p className="text-[11px] font-bold text-[#234E40]">
+                        {ad.advertiserName} {ad.advertiserRoleLabel ? `• ${ad.advertiserRoleLabel}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                {ad.description && (
+                  <p className="text-slate-700 leading-relaxed text-xs">{ad.description}</p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-amber-200/70 gap-2">
+                <span className="text-[11px] font-semibold text-slate-500 truncate">
+                  {ad.advertiserContact ? `📞 ${ad.advertiserContact}` : 'Verified Member'}
+                </span>
+                {isPublicWelcome ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSignInContact('');
+                      setSignInPassword('');
+                      setCurrentRole('signin');
+                    }}
+                    className="px-3 py-1.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-[11px] shrink-0 transition"
+                  >
+                    {ad.ctaLabel || 'Connect'} →
+                  </button>
+                ) : (
+                  <div className="flex space-x-1.5 shrink-0">
+                    {ad.advertiserContact && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          openConfidentialChat(
+                            ad.advertiserContact,
+                            ad.advertiserName,
+                            ad.advertiserRoleLabel || 'Sponsored Partner'
+                          )
+                        }
+                        className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold text-[11px]"
+                      >
+                        🔒 Chat
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setBookingTarget({
+                          type: 'agency',
+                          categoryLabel: ad.advertiserRoleLabel || 'Featured Partner',
+                          name: ad.advertiserName,
+                          location: 'Rwanda'
+                        })
+                      }
+                      className="px-3 py-1.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-[11px]"
+                    >
+                      {ad.ctaLabel || 'Book Now'} →
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   // =========================================================================
   // 1. FULL-BLEED WIDESCREEN WELCOME VIEW
   // =========================================================================
@@ -1395,7 +1583,7 @@ export default function GuideLinkRwandaApp() {
             </div>
           </div>
 
-          {/* Edge-to-Edge Widescreen Grid (No narrow portrait container) */}
+          {/* Edge-to-Edge Widescreen Grid */}
           <div className="w-full px-6 md:px-12 lg:px-16 py-8 md:py-12 space-y-6">
             {appConfig.maintenanceMode && (
               <div className="w-full bg-red-50 border border-red-300 p-4 rounded-2xl text-xs md:text-sm text-red-900 font-semibold">
@@ -1531,6 +1719,9 @@ export default function GuideLinkRwandaApp() {
                 </div>
               </div>
             </div>
+
+            {/* Public Welcome Sponsored Ads (Shown if Owner selected 'all' or 'welcome') */}
+            {renderTargetedAdsStrip('welcome', true)}
           </div>
         </div>
 
@@ -2160,10 +2351,8 @@ export default function GuideLinkRwandaApp() {
   // =========================================================================
   if (currentRole === 'owner') {
     const totalRegFees = registeredUsers.reduce((sum, u) => sum + (u.feePaid || 0), 0);
-    const totalDealCommissions = tasks
-      .filter((t) => t.paymentStatus === 'paid')
-      .reduce((sum, t) => sum + (t.ownerCommission || 0), 0);
-    const grandTotalRevenue = totalRegFees + totalDealCommissions;
+    const totalAdRevenue = (appConfig.ads || []).reduce((sum, ad) => sum + (Number(ad.adFeePaid) || 0), 0);
+    const grandTotalRevenue = totalRegFees + totalAdRevenue;
     const pendingCount = registeredUsers.filter((u) => u.status === 'pending_approval').length;
 
     return (
@@ -2183,10 +2372,10 @@ export default function GuideLinkRwandaApp() {
           <button onClick={resetToWelcome} className="text-xs bg-black/30 hover:bg-black/40 px-4 py-2 rounded-full font-semibold">Log Out</button>
         </div>
 
-        {/* Full-Width 8-Tab Navigation Bar */}
-        <div className="w-full bg-white border-b border-slate-200 sticky top-[76px] z-20 shadow-sm px-4 md:px-12 py-2">
-          <div className="w-full grid grid-cols-8 gap-1.5 text-center">
-            <button onClick={() => setOwnerTab('pending')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center relative ${ownerTab === 'pending' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
+        {/* Full-Width 9-Tab Navigation Bar (Includes New 📢 Ads Icon) */}
+        <div className="w-full bg-white border-b border-slate-200 sticky top-[76px] z-20 shadow-sm px-3 md:px-12 py-2">
+          <div className="w-full grid grid-cols-9 gap-1 text-center">
+            <button onClick={() => setOwnerTab('pending')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1 items-center relative ${ownerTab === 'pending' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
               <span className="text-sm">⏳</span><span className="text-[9px] md:text-xs">SignUps</span>
               {pendingCount > 0 && <span className="bg-red-600 text-white text-[8px] px-1.5 rounded-full">{pendingCount}</span>}
             </button>
@@ -2197,25 +2386,375 @@ export default function GuideLinkRwandaApp() {
                   handleSelectUserForAdminEdit(registeredUsers[0]);
                 }
               }}
-              className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center ${ownerTab === 'users_mgmt' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}
+              className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1 items-center ${ownerTab === 'users_mgmt' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}
             >
               <span className="text-sm">👥</span><span className="text-[9px] md:text-xs">Users</span>
             </button>
-            <button onClick={() => setOwnerTab('app_server')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center ${ownerTab === 'app_server' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
+            <button onClick={() => setOwnerTab('advertising')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1 items-center relative ${ownerTab === 'advertising' ? 'bg-amber-100 text-amber-950 font-bold' : 'text-slate-500'}`}>
+              <span className="text-sm">📢</span><span className="text-[9px] md:text-xs">Ads</span>
+              {(appConfig.ads || []).length > 0 && (
+                <span className="bg-[#234E40] text-white text-[8px] px-1.5 rounded-full">{(appConfig.ads || []).length}</span>
+              )}
+            </button>
+            <button onClick={() => setOwnerTab('app_server')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1 items-center ${ownerTab === 'app_server' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
               <span className="text-sm">🖥️</span><span className="text-[9px] md:text-xs">Server</span>
             </button>
-            <button onClick={() => setOwnerTab('plans_mgmt')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center ${ownerTab === 'plans_mgmt' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
+            <button onClick={() => setOwnerTab('plans_mgmt')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1 items-center ${ownerTab === 'plans_mgmt' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
               <span className="text-sm">💳</span><span className="text-[9px] md:text-xs">Plans</span>
             </button>
-            <button onClick={() => setOwnerTab('overview')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center ${ownerTab === 'overview' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">📊</span><span className="text-[9px] md:text-xs">Money</span></button>
-            <button onClick={() => setOwnerTab('vip')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center ${ownerTab === 'vip' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">⭐</span><span className="text-[9px] md:text-xs">VIP</span></button>
-            <button onClick={() => setOwnerTab('deals')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center ${ownerTab === 'deals' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">🎛️</span><span className="text-[9px] md:text-xs">Roles</span></button>
-            <button onClick={() => setOwnerTab('owner_profile')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center ${ownerTab === 'owner_profile' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">👤</span><span className="text-[9px] md:text-xs">Me</span></button>
+            <button onClick={() => setOwnerTab('overview')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1 items-center ${ownerTab === 'overview' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">📊</span><span className="text-[9px] md:text-xs">Money</span></button>
+            <button onClick={() => setOwnerTab('vip')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1 items-center ${ownerTab === 'vip' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">⭐</span><span className="text-[9px] md:text-xs">VIP</span></button>
+            <button onClick={() => setOwnerTab('deals')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1 items-center ${ownerTab === 'deals' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">🎛️</span><span className="text-[9px] md:text-xs">Roles</span></button>
+            <button onClick={() => setOwnerTab('owner_profile')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1 items-center ${ownerTab === 'owner_profile' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">👤</span><span className="text-[9px] md:text-xs">Me</span></button>
           </div>
         </div>
 
         {/* Full-Width Content Body */}
         <div className="w-full px-6 md:px-12 py-6 space-y-5 flex-1 pb-12">
+          {/* ================================================================= */}
+          {/* OWNER ADVERTISING STUDIO (📢 Ads Tab)                             */}
+          {/* ================================================================= */}
+          {ownerTab === 'advertising' && (
+            <div className="space-y-5">
+              <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-[#234E40] text-slate-950 p-6 rounded-2xl shadow-sm space-y-1">
+                <span className="text-[10px] uppercase font-extrabold bg-slate-950 text-amber-400 px-2.5 py-0.5 rounded-full">
+                  C.E.O Advertising Studio
+                </span>
+                <h3 className="font-extrabold text-lg md:text-xl pt-1 text-slate-950">
+                  📢 Sponsored Ads Generator for Paid Companies & Guides
+                </h3>
+                <p className="text-xs md:text-sm text-slate-900 font-medium">
+                  Generate spotlight ads for subscribed partners and choose the exact audience who can view each ad across the platform.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-xs">
+                {/* Left Column: Create New Ad Form */}
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!newAdForm.advertiserName.trim() || !newAdForm.headline.trim()) {
+                      alert('Please select or enter the Company/Guide Name and Ad Headline.');
+                      return;
+                    }
+                    const createdAd = {
+                      id: `ad-${Date.now()}`,
+                      advertiserId: newAdForm.advertiserId || '',
+                      advertiserName: newAdForm.advertiserName.trim(),
+                      advertiserRoleLabel: newAdForm.advertiserRoleLabel.trim(),
+                      advertiserContact: newAdForm.advertiserContact.trim(),
+                      headline: newAdForm.headline.trim(),
+                      description: newAdForm.description.trim(),
+                      badge: newAdForm.badge.trim() || 'Featured Partner',
+                      ctaLabel: newAdForm.ctaLabel.trim() || 'Book / Inquire',
+                      imageUrl: newAdForm.imageUrl || '',
+                      targetAudience: newAdForm.targetAudience || 'all',
+                      adFeePaid: Number(newAdForm.adFeePaid) || 0,
+                      active: true,
+                      createdAt: Date.now()
+                    };
+                    const updatedCfg = {
+                      ...appConfig,
+                      ads: [createdAd, ...(appConfig.ads || [])]
+                    };
+                    setAppConfig(updatedCfg);
+                    setNewAdForm({
+                      advertiserId: '',
+                      advertiserName: '',
+                      advertiserRoleLabel: '',
+                      advertiserContact: '',
+                      headline: '',
+                      description: '',
+                      badge: 'Featured Partner',
+                      ctaLabel: 'Book / Inquire',
+                      imageUrl: '',
+                      targetAudience: 'all',
+                      adFeePaid: 0,
+                      active: true
+                    });
+                    await handleSaveAppServerConfig(updatedCfg);
+                    alert(`✓ Sponsored Ad for "${createdAd.advertiserName}" published live!`);
+                  }}
+                  className="lg:col-span-5 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3.5"
+                >
+                  <h4 className="font-bold text-sm text-[#234E40] border-b pb-2">✨ Generate New Partner Ad</h4>
+
+                  <div>
+                    <label className="font-bold text-slate-700 block">
+                      1. Select Paid Company or Guide ({eligiblePaidAdvertisers.length} Active)
+                    </label>
+                    <select
+                      value={newAdForm.advertiserId}
+                      onChange={(e) => {
+                        const chosenId = e.target.value;
+                        const found = eligiblePaidAdvertisers.find((item) => item.id === chosenId);
+                        if (found) {
+                          setNewAdForm({
+                            ...newAdForm,
+                            advertiserId: found.id,
+                            advertiserName: found.name,
+                            advertiserRoleLabel: found.roleLabel,
+                            advertiserContact: found.contact,
+                            headline: found.headline || `${found.name} — Verified Rwanda Tours & Guiding`,
+                            imageUrl: found.photo || newAdForm.imageUrl
+                          });
+                        } else {
+                          setNewAdForm({ ...newAdForm, advertiserId: '' });
+                        }
+                      }}
+                      className="w-full mt-1 p-2.5 border rounded-xl bg-amber-50/50 font-semibold text-slate-900"
+                    >
+                      <option value="">-- Choose a Subscribed Company / Guide (or type below) --</option>
+                      {eligiblePaidAdvertisers.map((adv) => (
+                        <option key={adv.id} value={adv.id}>
+                          {adv.name} ({adv.roleLabel})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="font-bold text-slate-700">Advertiser Name</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Echo Travels Ltd."
+                        value={newAdForm.advertiserName}
+                        onChange={(e) => setNewAdForm({ ...newAdForm, advertiserName: e.target.value })}
+                        className="w-full mt-1 p-2.5 border rounded-xl font-semibold"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700">Contact / Phone</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. +250780558555"
+                        value={newAdForm.advertiserContact}
+                        onChange={(e) => setNewAdForm({ ...newAdForm, advertiserContact: e.target.value })}
+                        className="w-full mt-1 p-2.5 border rounded-xl"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-slate-700">2. Ad Headline / Promo Title</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. 20% Off Nyungwe Canopy & Gorilla Safaris!"
+                      value={newAdForm.headline}
+                      onChange={(e) => setNewAdForm({ ...newAdForm, headline: e.target.value })}
+                      className="w-full mt-1 p-2.5 border rounded-xl font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-slate-700">Short Ad Description</label>
+                    <textarea
+                      rows="2"
+                      placeholder="Highlight packages, 4x4 fleet, languages spoken, or special offers..."
+                      value={newAdForm.description}
+                      onChange={(e) => setNewAdForm({ ...newAdForm, description: e.target.value })}
+                      className="w-full mt-1 p-2.5 border rounded-xl"
+                    />
+                  </div>
+
+                  <div className="bg-emerald-50 border border-emerald-200 p-3.5 rounded-xl space-y-1.5">
+                    <label className="font-extrabold text-[#234E40] block">
+                      🎯 3. Owner Audience Control — Who Should See This Ad?
+                    </label>
+                    <select
+                      value={newAdForm.targetAudience}
+                      onChange={(e) => setNewAdForm({ ...newAdForm, targetAudience: e.target.value })}
+                      className="w-full p-2.5 border border-emerald-300 rounded-xl bg-white font-bold text-slate-900"
+                    >
+                      <option value="all">🌍 Everyone (Public Welcome Screen + All Dashboards)</option>
+                      <option value="welcome">🏠 Public Welcome Home Screen Only</option>
+                      <option value="traveler">🧳 Travelers Dashboard Only</option>
+                      <option value="partners">🏢 Travel Agencies & Tour Companies Only</option>
+                      <option value="graduate">🎓 Tourism Graduates / Guides Only</option>
+                      <option value="logged_in">🔐 All Logged-In Members Only</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="font-bold text-slate-700">Badge Tag</label>
+                      <input
+                        type="text"
+                        placeholder="Sponsored"
+                        value={newAdForm.badge}
+                        onChange={(e) => setNewAdForm({ ...newAdForm, badge: e.target.value })}
+                        className="w-full mt-1 p-2.5 border rounded-xl"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700">Button Text</label>
+                      <input
+                        type="text"
+                        placeholder="Book Now"
+                        value={newAdForm.ctaLabel}
+                        onChange={(e) => setNewAdForm({ ...newAdForm, ctaLabel: e.target.value })}
+                        className="w-full mt-1 p-2.5 border rounded-xl"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700">Ad Fee (RWF)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={newAdForm.adFeePaid}
+                        onChange={(e) => setNewAdForm({ ...newAdForm, adFeePaid: Number(e.target.value) })}
+                        className="w-full mt-1 p-2.5 border rounded-xl font-bold text-[#234E40]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border">
+                    <span className="font-bold text-slate-700">Ad Logo / Promo Image:</span>
+                    <label className="cursor-pointer bg-slate-900 text-white px-3 py-1.5 rounded-lg font-bold">
+                      📷 {newAdForm.imageUrl ? 'Change Image' : 'Upload Image'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleImageUpload(e, (imgData) => setNewAdForm({ ...newAdForm, imageUrl: imgData }))}
+                      />
+                    </label>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSaving}
+                    className="w-full py-3.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow transition"
+                  >
+                    {isSaving ? '⏳ Publishing Ad...' : '🚀 Generate & Publish Ad Live'}
+                  </button>
+                </form>
+
+                {/* Right Column: Manage Active & Targeted Ads */}
+                <div className="lg:col-span-7 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <h4 className="font-bold text-sm text-slate-900">
+                      📋 Active & Managed Campaigns ({(appConfig.ads || []).length})
+                    </h4>
+                    <span className="text-[11px] font-bold text-[#234E40]">
+                      Ad Revenue: RWF {totalAdRevenue.toLocaleString()}
+                    </span>
+                  </div>
+
+                  {(appConfig.ads || []).length === 0 ? (
+                    <div className="bg-white p-8 rounded-2xl border text-center text-slate-500 space-y-1">
+                      <p className="font-bold text-slate-700 text-sm">No Ads Published Yet</p>
+                      <p>Use the generator on the left to feature paid companies or guides and choose who sees them.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {(appConfig.ads || []).map((ad) => (
+                        <div
+                          key={ad.id}
+                          className={`bg-white p-4 rounded-2xl border-2 space-y-2.5 shadow-sm flex flex-col justify-between ${
+                            ad.active !== false ? 'border-amber-300' : 'border-slate-200 opacity-75'
+                          }`}
+                        >
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-start gap-2">
+                              <div className="flex items-center space-x-2.5">
+                                {ad.imageUrl ? (
+                                  <img src={ad.imageUrl} alt={ad.advertiserName} className="w-10 h-10 rounded-xl object-cover border" />
+                                ) : (
+                                  <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-900 flex items-center justify-center font-bold">
+                                    📢
+                                  </div>
+                                )}
+                                <div>
+                                  <span className="text-[10px] font-extrabold uppercase bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full">
+                                    {ad.badge}
+                                  </span>
+                                  <h5 className="font-bold text-sm text-slate-900 mt-0.5">{ad.headline}</h5>
+                                  <p className="text-[11px] font-semibold text-[#234E40]">{ad.advertiserName}</p>
+                                </div>
+                              </div>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
+                                  ad.active !== false ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
+                                }`}
+                              >
+                                {ad.active !== false ? '🟢 Live' : '⏸️ Paused'}
+                              </span>
+                            </div>
+
+                            {ad.description && <p className="text-slate-600">{ad.description}</p>}
+
+                            <div className="bg-slate-50 p-2.5 rounded-xl border space-y-1.5">
+                              <label className="text-[10px] font-bold text-slate-600 block">
+                                🎯 Visible To (Change Anytime):
+                              </label>
+                              <select
+                                value={ad.targetAudience || 'all'}
+                                onChange={async (e) => {
+                                  const nextAud = e.target.value;
+                                  const updatedAds = appConfig.ads.map((item) =>
+                                    item.id === ad.id ? { ...item, targetAudience: nextAud } : item
+                                  );
+                                  const updatedCfg = { ...appConfig, ads: updatedAds };
+                                  setAppConfig(updatedCfg);
+                                  await handleSaveAppServerConfig(updatedCfg);
+                                }}
+                                className="w-full p-1.5 border rounded-lg bg-white text-[11px] font-bold text-slate-900"
+                              >
+                                <option value="all">🌍 Everyone (Welcome + All Dashboards)</option>
+                                <option value="welcome">🏠 Public Welcome Home Screen Only</option>
+                                <option value="traveler">🧳 Travelers Dashboard Only</option>
+                                <option value="partners">🏢 Agencies & Tour Companies Only</option>
+                                <option value="graduate">🎓 Tourism Graduates / Guides Only</option>
+                                <option value="logged_in">🔐 All Logged-In Members Only</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="flex space-x-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const updatedAds = appConfig.ads.map((item) =>
+                                  item.id === ad.id ? { ...item, active: item.active === false } : item
+                                );
+                                const updatedCfg = { ...appConfig, ads: updatedAds };
+                                setAppConfig(updatedCfg);
+                                await handleSaveAppServerConfig(updatedCfg);
+                              }}
+                              className={`flex-1 py-2 rounded-xl font-bold ${
+                                ad.active !== false
+                                  ? 'bg-amber-100 text-amber-950 hover:bg-amber-200'
+                                  : 'bg-emerald-600 text-white'
+                              }`}
+                            >
+                              {ad.active !== false ? '⏸️ Pause Ad' : '▶️ Resume Live'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const updatedAds = appConfig.ads.filter((item) => item.id !== ad.id);
+                                const updatedCfg = { ...appConfig, ads: updatedAds };
+                                setAppConfig(updatedCfg);
+                                await handleSaveAppServerConfig(updatedCfg);
+                              }}
+                              className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* NO-CODE APP SERVER & LIVE CMS (🖥️ Server Tab) */}
           {ownerTab === 'app_server' && (
             <div className="space-y-4">
@@ -2271,7 +2810,7 @@ export default function GuideLinkRwandaApp() {
                 </button>
               </div>
 
-              {/* Sub-Tab 1: Branding, Theme Colors & Payment Config */}
+              {/* Sub-Tab 1: Branding, Theme Colors & Payment Config (Commission Fees Removed) */}
               {serverSubTab === 'branding' && (
                 <div className="bg-white p-6 rounded-2xl border space-y-4 text-xs shadow-sm w-full">
                   <h4 className="font-bold text-sm text-[#234E40] border-b pb-2">🎨 App Identity, Colors & USSD Settings</h4>
@@ -2304,7 +2843,7 @@ export default function GuideLinkRwandaApp() {
                       className="w-full mt-1 p-3 border rounded-xl"
                     />
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="font-bold text-slate-700">MTN MoMo Merchant Code</label>
                       <input
@@ -2312,17 +2851,6 @@ export default function GuideLinkRwandaApp() {
                         value={appConfig.momoCode}
                         onChange={(e) => setAppConfig({ ...appConfig, momoCode: e.target.value })}
                         className="w-full mt-1 p-3 border rounded-xl font-mono font-bold text-[#234E40]"
-                      />
-                    </div>
-                    <div>
-                      <label className="font-bold text-slate-700">Platform Commission (%)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={appConfig.commissionRatePercent}
-                        onChange={(e) => setAppConfig({ ...appConfig, commissionRatePercent: Number(e.target.value) })}
-                        className="w-full mt-1 p-3 border rounded-xl font-bold"
                       />
                     </div>
                     <div>
@@ -3629,10 +4157,10 @@ export default function GuideLinkRwandaApp() {
           {ownerTab === 'overview' && (
             <div className="space-y-4">
               <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-8 rounded-2xl text-center space-y-1">
-                <span className="text-xs uppercase text-emerald-200 font-bold">Total Platform Revenue</span>
+                <span className="text-xs uppercase text-emerald-200 font-bold">Total Platform Revenue (0% Commission Fees)</span>
                 <div className="text-4xl md:text-5xl font-extrabold">RWF {grandTotalRevenue.toLocaleString()}</div>
                 <p className="text-xs md:text-sm text-emerald-100">
-                  MoMo Code: {MOMO_PAYMENT_CODE} • Subscriptions: RWF {totalRegFees.toLocaleString()} • Commissions: RWF {totalDealCommissions.toLocaleString()}
+                  MoMo Code: {MOMO_PAYMENT_CODE} • Subscriptions: RWF {totalRegFees.toLocaleString()} • Sponsored Ads: RWF {totalAdRevenue.toLocaleString()}
                 </p>
               </div>
             </div>
@@ -3941,6 +4469,9 @@ export default function GuideLinkRwandaApp() {
 
       {/* EDGE-TO-EDGE WIDESCREEN CONTENT BODY */}
       <div className="w-full flex-1 px-6 md:px-12 py-6 space-y-5 pb-12">
+        {/* Owner-Targeted Sponsored Ads Banner for Current Role */}
+        {renderTargetedAdsStrip(currentRole, false)}
+
         {roleAnnouncements.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {roleAnnouncements.map((ann) => (
@@ -4224,9 +4755,9 @@ export default function GuideLinkRwandaApp() {
         {activeTab === 'jobs' && currentRole === 'graduate' && (
           <div className="space-y-5">
             <div style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="text-white p-6 rounded-2xl shadow-sm space-y-1">
-              <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Graduate Opportunity Hub</span>
+              <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Graduate Opportunity Hub • 0% Commission</span>
               <h3 className="font-bold text-base md:text-xl pt-1">Guiding Jobs, Consultant Roles & Freelance Travelers</h3>
-              <p className="text-xs md:text-sm text-emerald-100">Review qualifications, tour schedules, and accept assignments suited for tourism professionals.</p>
+              <p className="text-xs md:text-sm text-emerald-100">Review qualifications, tour schedules, and keep 100% of your earnings with zero commission fees.</p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -4303,12 +4834,12 @@ export default function GuideLinkRwandaApp() {
                         )}
                         {task.status === 'accepted' && (
                           <button onClick={() => handleCompleteTask(task.id)} className="w-full py-2.5 bg-amber-500 text-slate-900 rounded-xl font-bold">
-                            ✓ Complete & Settle (MoMo {MOMO_PAYMENT_CODE})
+                            ✓ Mark Completed (100% Payout)
                           </button>
                         )}
                         {task.status === 'done' && (
                           <div className="bg-emerald-50 text-emerald-800 p-2 rounded-xl font-bold text-center">
-                            ✓ Settled (Net Payout: RWF {task.netGuidePayout?.toLocaleString()})
+                            ✓ Settled (100% Payout: RWF {Number(task.netGuidePayout ?? task.rawPay).toLocaleString()})
                           </div>
                         )}
                       </div>
@@ -4718,7 +5249,7 @@ export default function GuideLinkRwandaApp() {
               <div className="space-y-3 text-xs">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <label className="font-bold text-slate-700">Name / Company Name</label>
+                    <label className="font-bold text-slate-700">Name / Brand</label>
                     <input type="text" value={currentProf.name} onChange={(e) => updateCurrentProfile({ name: e.target.value })} className="w-full mt-1 p-3 border rounded-xl" />
                   </div>
                   <div>
@@ -4727,216 +5258,255 @@ export default function GuideLinkRwandaApp() {
                   </div>
                 </div>
                 <div>
-                  <label className="font-bold text-slate-700">Headline / Tagline</label>
+                  <label className="font-bold text-slate-700">Professional Headline</label>
                   <input type="text" value={currentProf.headline} onChange={(e) => updateCurrentProfile({ headline: e.target.value })} className="w-full mt-1 p-3 border rounded-xl" />
                 </div>
 
                 {roleCustomFields.length > 0 && (
-                  <div className="space-y-2.5 pt-2 border-t border-slate-100">
-                    <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">Additional Verified Details</span>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {roleCustomFields.map((fld) => (
-                        <div key={fld.id}>
-                          <label className="font-bold text-slate-700">{fld.label}</label>
-                          <input
-                            type="text"
-                            placeholder={fld.placeholder || ''}
-                            value={(currentProf.customData || {})[fld.id] ?? customFieldValues[fld.id] ?? ''}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setCustomFieldValues({ ...customFieldValues, [fld.id]: val });
-                              updateCurrentProfile({
-                                customData: { ...(currentProf.customData || {}), [fld.id]: val }
-                              });
-                            }}
-                            className="w-full mt-1 p-2.5 border rounded-xl"
-                          />
-                        </div>
-                      ))}
-                    </div>
+                  <div className="space-y-2 pt-2 border-t">
+                    <label className="font-bold text-[#234E40] block">📌 Additional Platform Details</label>
+                    {roleCustomFields.map((fld) => (
+                      <div key={fld.id}>
+                        <label className="font-bold text-slate-700">{fld.label}</label>
+                        <input
+                          type="text"
+                          placeholder={fld.placeholder}
+                          value={customFieldValues[fld.id] ?? currentProf.customData?.[fld.id] ?? ''}
+                          onChange={(e) => {
+                            const nextVal = e.target.value;
+                            setCustomFieldValues({ ...customFieldValues, [fld.id]: nextVal });
+                            updateCurrentProfile({
+                              customData: { ...(currentProf.customData || {}), [fld.id]: nextVal }
+                            });
+                          }}
+                          className="w-full mt-1 p-3 border rounded-xl"
+                        />
+                      </div>
+                    ))}
                   </div>
                 )}
 
                 {isPartnerRole && (
-                  <div className="space-y-4 pt-3 border-t">
-                    <div>
-                      <label className="font-bold text-slate-700">💰 Standard Rate / Pricing</label>
-                      <input type="text" value={currentProf.rateInfo || ''} onChange={(e) => updateCurrentProfile({ rateInfo: e.target.value })} className="w-full mt-1 p-3 border rounded-xl" />
-                    </div>
-
-                    <div className="space-y-2 bg-slate-50 p-4 rounded-xl border">
-                      <label className="font-bold text-[#234E40] block">🛠️ Services Offered</label>
-                      <div className="flex space-x-2">
-                        <input type="text" placeholder="e.g. Gorilla Trekking Escort" value={newServiceInput} onChange={(e) => setNewServiceInput(e.target.value)} className="flex-1 p-2.5 border rounded-xl bg-white" />
-                        <button type="button" onClick={() => { if (!newServiceInput.trim()) return; updateCurrentProfile({ servicesOffered: [...(currentProf.servicesOffered || []), newServiceInput.trim()] }); setNewServiceInput(''); }} className="px-4 bg-[#234E40] text-white rounded-xl font-bold">+ Add</button>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5 pt-1">
-                        {(currentProf.servicesOffered || []).map((srv, idx) => (
-                          <span key={idx} className="inline-flex items-center space-x-1 bg-white border text-[#234E40] px-2.5 py-1 rounded-lg">
-                            <span>✓ {srv}</span>
-                            <button type="button" onClick={() => updateCurrentProfile({ servicesOffered: currentProf.servicesOffered.filter((_, i) => i !== idx) })} className="text-red-500 font-bold ml-1">✕</button>
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 bg-slate-50 p-4 rounded-xl border">
+                  <>
+                    <div className="space-y-2 pt-2 border-t">
                       <label className="font-bold text-[#234E40] block">🎓 Qualifications & Degrees</label>
                       <div className="flex space-x-2">
-                        <input type="text" placeholder="e.g. Advanced Diploma in Tours & Travel (RP Kitabi)" value={newDegreeInput} onChange={(e) => setNewDegreeInput(e.target.value)} className="flex-1 p-2.5 border rounded-xl bg-white" />
-                        <button type="button" onClick={() => { if (!newDegreeInput.trim()) return; updateCurrentProfile({ degrees: [...(currentProf.degrees || []), newDegreeInput.trim()] }); setNewDegreeInput(''); }} className="px-4 bg-[#3B6E5B] text-white rounded-xl font-bold">+ Add</button>
+                        <input
+                          type="text"
+                          placeholder="e.g. Advanced Diploma in Tours & Travel"
+                          value={newDegreeInput}
+                          onChange={(e) => setNewDegreeInput(e.target.value)}
+                          className="flex-1 p-2.5 border rounded-xl"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!newDegreeInput.trim()) return;
+                            updateCurrentProfile({ degrees: [...(currentProf.degrees || []), newDegreeInput.trim()] });
+                            setNewDegreeInput('');
+                          }}
+                          className="px-4 bg-[#3B6E5B] text-white rounded-xl font-bold"
+                        >
+                          + Add
+                        </button>
                       </div>
                       {(currentProf.degrees || []).map((deg, idx) => (
-                        <div key={idx} className="flex justify-between items-center bg-white border p-2.5 rounded-xl mt-1">
+                        <div key={idx} className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl">
                           <span>🎓 {deg}</span>
-                          <button type="button" onClick={() => updateCurrentProfile({ degrees: currentProf.degrees.filter((_, i) => i !== idx) })} className="text-red-500 font-bold">✕</button>
+                          <button onClick={() => updateCurrentProfile({ degrees: currentProf.degrees.filter((_, i) => i !== idx) })} className="text-red-500 font-bold">✕</button>
                         </div>
                       ))}
                     </div>
 
-                    <div className="space-y-2 bg-slate-50 p-4 rounded-xl border">
+                    <div className="space-y-2 pt-2 border-t">
+                      <label className="font-bold text-[#234E40] block">🛠️ Services Offered / Expectations</label>
+                      <div className="flex space-x-2">
+                        <input
+                          type="text"
+                          placeholder="e.g. Gorilla Trekking Escort, Flight Ticketing"
+                          value={newServiceInput}
+                          onChange={(e) => setNewServiceInput(e.target.value)}
+                          className="flex-1 p-2.5 border rounded-xl"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!newServiceInput.trim()) return;
+                            updateCurrentProfile({ servicesOffered: [...(currentProf.servicesOffered || []), newServiceInput.trim()] });
+                            setNewServiceInput('');
+                          }}
+                          className="px-4 bg-[#234E40] text-white rounded-xl font-bold"
+                        >
+                          + Add
+                        </button>
+                      </div>
+                      {(currentProf.servicesOffered || []).map((srv, idx) => (
+                        <div key={idx} className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl">
+                          <span>✓ {srv}</span>
+                          <button onClick={() => updateCurrentProfile({ servicesOffered: currentProf.servicesOffered.filter((_, i) => i !== idx) })} className="text-red-500 font-bold">✕</button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="space-y-2 pt-2 border-t">
                       <label className="font-bold text-[#234E40] block">💼 Experience</label>
                       <div className="flex space-x-2">
-                        <input type="text" placeholder="e.g. 4 Years Safari Guiding" value={newExperienceInput} onChange={(e) => setNewExperienceInput(e.target.value)} className="flex-1 p-2.5 border rounded-xl bg-white" />
-                        <button type="button" onClick={() => { if (!newExperienceInput.trim()) return; updateCurrentProfile({ experiences: [...(currentProf.experiences || []), newExperienceInput.trim()] }); setNewExperienceInput(''); }} className="px-4 bg-[#3B6E5B] text-white rounded-xl font-bold">+ Add</button>
+                        <input
+                          type="text"
+                          placeholder="e.g. 2 Years at Nyungwe Top View Hill Hotel"
+                          value={newExperienceInput}
+                          onChange={(e) => setNewExperienceInput(e.target.value)}
+                          className="flex-1 p-2.5 border rounded-xl"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!newExperienceInput.trim()) return;
+                            updateCurrentProfile({ experiences: [...(currentProf.experiences || []), newExperienceInput.trim()] });
+                            setNewExperienceInput('');
+                          }}
+                          className="px-4 bg-[#3B6E5B] text-white rounded-xl font-bold"
+                        >
+                          + Add
+                        </button>
                       </div>
                       {(currentProf.experiences || []).map((exp, idx) => (
-                        <div key={idx} className="flex justify-between items-center bg-white border p-2.5 rounded-xl mt-1">
+                        <div key={idx} className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl">
                           <span>💼 {exp}</span>
-                          <button type="button" onClick={() => updateCurrentProfile({ experiences: currentProf.experiences.filter((_, i) => i !== idx) })} className="text-red-500 font-bold">✕</button>
+                          <button onClick={() => updateCurrentProfile({ experiences: currentProf.experiences.filter((_, i) => i !== idx) })} className="text-red-500 font-bold">✕</button>
                         </div>
                       ))}
                     </div>
-                  </div>
+                  </>
                 )}
 
-                <button type="button" disabled={isSaving} onClick={() => handleSaveWithButton(currentProf)} className="w-full py-3.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold text-sm shadow transition">
-                  {isSaving ? '⏳ Saving...' : '💾 Save Profile to Firebase'}
-                </button>
+                <div className="pt-3 border-t">
+                  <button
+                    type="button"
+                    disabled={isSaving}
+                    onClick={() => handleSaveWithButton(currentProf)}
+                    className="w-full py-3.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow transition"
+                  >
+                    {isSaving ? '⏳ Saving...' : '💾 Save Profile & Qualifications'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Strictly Confidential 1-on-1 Private Chat Tab */}
+        {/* CONFIDENTIAL 1-ON-1 PRIVATE CHAT */}
         {activeTab === 'chat' && (
-          <div className="w-full bg-white p-6 rounded-2xl border space-y-3 shadow-sm flex flex-col h-[540px]">
-            <div className="border-b pb-2.5 space-y-2">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="font-bold text-sm md:text-base text-slate-900">🔒 Confidential 1-on-1 Chat</h3>
-                  <p className="text-[11px] text-emerald-700 font-medium">
-                    End-to-end role privacy: Only you and your chat partner see this thread.
-                  </p>
-                </div>
+          <div className="w-full max-w-4xl mx-auto space-y-3">
+            <div className="bg-slate-900 text-white p-4 rounded-2xl text-xs flex items-center space-x-2.5 shadow-sm">
+              <span className="text-base">🔒</span>
+              <div>
+                <p className="font-bold">Confidential 1-on-1 Direct Messaging</p>
+                <p className="text-[11px] text-slate-300">Private end-to-end conversations visible ONLY to you and your chosen recipient.</p>
               </div>
-
-              {myPrivateConversations.length > 0 && (
-                <div className="flex items-center space-x-1.5 overflow-x-auto pb-1">
-                  <span className="text-[10px] font-bold text-slate-400 shrink-0">My Chats:</span>
-                  {myPrivateConversations.map((conv) => (
-                    <button
-                      key={conv.id}
-                      type="button"
-                      onClick={() => openConfidentialChat(conv.id, conv.name)}
-                      className={`px-3 py-1 rounded-full text-xs font-bold shrink-0 transition ${
-                        activePeerId === conv.id
-                          ? 'bg-[#234E40] text-white'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                      }`}
-                    >
-                      {conv.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {activeChatPeer.name && (
-                <div className="bg-emerald-50 border border-emerald-200 px-3.5 py-2 rounded-xl flex justify-between items-center text-xs">
-                  <span>
-                    Private Room with: <strong className="text-[#234E40]">{activeChatPeer.name}</strong>
-                    {activeChatPeer.role ? ` (${activeChatPeer.role})` : ''}
-                  </span>
-                  <span className="text-[10px] font-bold text-emerald-800">🔐 Private</span>
-                </div>
-              )}
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-2.5 p-4 bg-slate-50 rounded-xl text-xs">
-              {!activeChatPeer.id ? (
-                <div className="text-center text-slate-500 py-16 space-y-2 px-4">
-                  <p className="font-bold text-slate-700 text-sm">No Private Room Selected</p>
-                  <p className="text-xs">
-                    Click <strong>&quot;🔒 Private Chat&quot;</strong> on any Guide, Travel Agency, Tour Company, or Traveler card to start a confidential 1-on-1 conversation.
-                  </p>
-                </div>
-              ) : activeRoomMessages.length === 0 ? (
-                <div className="text-center text-slate-400 py-16 space-y-1">
-                  <p className="font-semibold text-slate-600 text-sm">Private conversation with {activeChatPeer.name}</p>
-                  <p className="text-xs">Third parties (such as agencies or other guides) cannot view this chat.</p>
-                </div>
-              ) : (
-                activeRoomMessages.map((msg) => {
-                  const isMine = normalizeContact(msg.senderId) === myChatId;
-                  return (
-                    <div
-                      key={msg.id}
-                      className={`p-3 rounded-xl max-w-[70%] ${
-                        isMine ? 'bg-[#234E40] text-white ml-auto' : 'bg-white border text-slate-800'
-                      }`}
-                    >
-                      <div className="flex justify-between text-[10px] opacity-75 mb-1 font-semibold space-x-2">
-                        <span>{msg.sender} ({msg.role})</span>
-                        <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                      </div>
-                      <p className="text-xs md:text-sm">{msg.text}</p>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+            {myPrivateConversations.length > 0 && (
+              <div className="flex space-x-1.5 overflow-x-auto pb-1">
+                {myPrivateConversations.map((conv) => (
+                  <button
+                    key={conv.id}
+                    type="button"
+                    onClick={() => setActiveChatPeer({ id: conv.id, name: conv.name, role: '' })}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition ${
+                      activePeerId === conv.id
+                        ? 'bg-[#234E40] text-white shadow-sm'
+                        : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    💬 {conv.name}
+                  </button>
+                ))}
+              </div>
+            )}
 
-            {activeChatPeer.id && (
-              <form onSubmit={handleSendChatMessage} className="flex space-x-2 pt-1">
-                <input
-                  type="text"
-                  required
-                  placeholder={`Message ${activeChatPeer.name} privately...`}
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  className="flex-1 p-3.5 border rounded-xl text-xs md:text-sm"
-                />
-                <button type="submit" className="px-6 py-3.5 bg-[#234E40] text-white rounded-xl font-bold text-xs md:text-sm">
-                  Send
+            {!activePeerId ? (
+              <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center space-y-2.5 shadow-sm">
+                <div className="w-12 h-12 bg-emerald-50 text-[#234E40] rounded-full flex items-center justify-center mx-auto text-xl">
+                  🔒
+                </div>
+                <h4 className="font-bold text-sm text-slate-900">No Active Private Chat Selected</h4>
+                <p className="text-xs text-slate-500 leading-relaxed max-w-md mx-auto">
+                  To start a confidential conversation, tap <strong>&quot;🔒 Private Chat&quot;</strong> on any Travel Agency, Tour Company, Graduate, or Traveler request.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('jobs')}
+                  className="px-5 py-2.5 bg-[#3B6E5B] text-white rounded-xl text-xs font-bold"
+                >
+                  Browse Directory to Chat →
                 </button>
-              </form>
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl border border-slate-200 flex flex-col h-[500px] overflow-hidden shadow-sm">
+                <div className="p-3.5 bg-[#234E40] text-white flex justify-between items-center">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-emerald-200">🔒 Confidential Chat With</span>
+                    <h4 className="font-bold text-sm">{activeChatPeer.name}</h4>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveChatPeer({ id: '', name: '', role: '' })}
+                    className="text-[11px] bg-black/25 px-3 py-1 rounded-full"
+                  >
+                    Close
+                  </button>
+                </div>
+
+                <div className="flex-1 p-4 space-y-2.5 overflow-y-auto text-xs bg-slate-50">
+                  {activeRoomMessages.length === 0 ? (
+                    <div className="text-center text-slate-400 pt-12 space-y-1">
+                      <p className="font-semibold text-slate-500">Private Room Ready</p>
+                      <p className="text-[11px]">Send a message to {activeChatPeer.name}. Only you two can see this thread.</p>
+                    </div>
+                  ) : (
+                    activeRoomMessages.map((msg) => {
+                      const isMine = normalizeContact(msg.senderId || msg.sender) === myChatId;
+                      return (
+                        <div key={msg.id} className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
+                          <span className="text-[10px] text-slate-400 mb-0.5">{isMine ? 'You' : msg.sender}</span>
+                          <div className={`px-3.5 py-2 rounded-2xl max-w-[80%] ${isMine ? 'bg-[#234E40] text-white' : 'bg-white border text-slate-800'}`}>
+                            {msg.text}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <form onSubmit={handleSendChatMessage} className="p-3 border-t bg-white flex space-x-2">
+                  <input
+                    type="text"
+                    placeholder={`Message ${activeChatPeer.name} privately...`}
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    className="flex-1 p-2.5 border rounded-xl text-xs"
+                  />
+                  <button type="submit" className="px-5 bg-[#3B6E5B] text-white rounded-xl font-bold text-xs">Send</button>
+                </form>
+              </div>
             )}
           </div>
         )}
       </div>
 
+      {/* Direct Booking Modal */}
       {bookingTarget && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleDirectProviderBooking} className="bg-white rounded-2xl p-6 w-full max-w-md space-y-3.5 shadow-xl text-xs">
-            <div>
-              <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">{bookingTarget.categoryLabel}</span>
-              <h3 className="font-bold text-base text-slate-900">Book {bookingTarget.name}</h3>
-            </div>
-            <div>
-              <label className="font-bold text-slate-700">Travel Dates</label>
-              <input type="text" required placeholder="e.g. 12 Dec - 15 Dec 2026" value={bookingDetails.dates} onChange={(e) => setBookingDetails({ ...bookingDetails, dates: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
-            </div>
-            <div>
-              <label className="font-bold text-slate-700">Number of Travelers</label>
-              <input type="number" min="1" required value={bookingDetails.guests} onChange={(e) => setBookingDetails({ ...bookingDetails, guests: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
-            </div>
-            <div>
-              <label className="font-bold text-slate-700">Notes</label>
-              <textarea rows="2" value={bookingDetails.notes} onChange={(e) => setBookingDetails({ ...bookingDetails, notes: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
-            </div>
-            <div className="flex space-x-2 pt-1">
-              <button type="button" onClick={() => setBookingTarget(null)} className="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-semibold">Cancel</button>
-              <button type="submit" className="flex-1 py-2.5 bg-[#234E40] text-white rounded-xl font-bold">Confirm Request</button>
+          <form onSubmit={handleDirectProviderBooking} className="bg-white rounded-2xl p-6 w-full max-w-md space-y-3 text-xs shadow-xl">
+            <h3 className="font-bold text-base text-slate-900">Book {bookingTarget.name}</h3>
+            <p className="text-slate-500">{bookingTarget.categoryLabel} • {bookingTarget.location}</p>
+            <input type="text" required placeholder="Travel Dates" value={bookingDetails.dates} onChange={(e) => setBookingDetails({ ...bookingDetails, dates: e.target.value })} className="w-full p-2.5 border rounded-xl" />
+            <input type="number" min="1" placeholder="Guests" value={bookingDetails.guests} onChange={(e) => setBookingDetails({ ...bookingDetails, guests: e.target.value })} className="w-full p-2.5 border rounded-xl" />
+            <textarea rows="2" placeholder="Trip requirements..." value={bookingDetails.notes} onChange={(e) => setBookingDetails({ ...bookingDetails, notes: e.target.value })} className="w-full p-2.5 border rounded-xl" />
+            <div className="flex space-x-2 pt-2">
+              <button type="button" onClick={() => setBookingTarget(null)} className="flex-1 py-2.5 bg-slate-100 rounded-xl font-bold">Cancel</button>
+              <button type="submit" className="flex-1 py-2.5 bg-[#234E40] text-white rounded-xl font-bold">Confirm Booking</button>
             </div>
           </form>
         </div>
