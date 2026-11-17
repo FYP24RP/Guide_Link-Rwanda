@@ -173,6 +173,27 @@ const DEFAULT_APP_SERVER_CONFIG = {
 };
 
 export default function GuideLinkRwandaApp() {
+  // Force full-bleed widescreen viewport (overrides Vite/CRA default #root portrait constraints)
+  useEffect(() => {
+    const styleId = 'guidelink-fullscreen-override';
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.innerHTML = `
+        html, body, #root {
+          width: 100% !important;
+          max-width: 100% !important;
+          min-height: 100vh !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          display: block !important;
+          overflow-x: hidden !important;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
+
   const [currentRole, setCurrentRole] = useState('welcome');
   const [ownerTab, setOwnerTab] = useState('pending');
   const [activeTab, setActiveTab] = useState('jobs');
@@ -1346,7 +1367,7 @@ export default function GuideLinkRwandaApp() {
   };
 
   // =========================================================================
-  // 1. FULL-SCREEN WELCOME VIEW (Responsive Desktop/Laptop + Mobile Full Screen)
+  // 1. FULL-BLEED WIDESCREEN WELCOME VIEW
   // =========================================================================
   if (currentRole === 'welcome') {
     const welcomeAnnouncements = (appConfig.announcements || []).filter(
@@ -1357,57 +1378,59 @@ export default function GuideLinkRwandaApp() {
     );
 
     return (
-      <div className="min-h-screen w-full bg-slate-50 flex flex-col justify-between font-sans overflow-x-hidden">
+      <div className="min-h-screen w-screen bg-slate-50 flex flex-col justify-between font-sans overflow-x-hidden">
         <div className="w-full">
-          {/* Full-Width Responsive Hero Header */}
-          <div className="bg-[#E2ECE9] w-full px-6 py-8 md:py-12 text-center relative overflow-hidden">
-            <div className="max-w-7xl mx-auto relative">
-              <div className="absolute -top-2 right-2 md:right-10 w-14 h-14 md:w-20 md:h-20 bg-amber-400 rounded-full shadow-md"></div>
-              <div className="h-24 md:h-32 flex items-end justify-center space-x-1">
-                <div className="w-full h-16 md:h-24 bg-[#5A8F7B] rounded-t-full opacity-60"></div>
-                <div className="absolute bottom-0 w-full h-12 md:h-16 bg-[#3B6E5B] rounded-t-full opacity-80"></div>
+          {/* Full-Bleed Widescreen Hero Banner */}
+          <div className="bg-[#E2ECE9] w-full px-6 md:px-12 py-8 md:py-12 relative overflow-hidden">
+            <div className="w-full relative">
+              <div className="absolute -top-2 right-4 md:right-12 w-16 h-16 md:w-24 md:h-24 bg-amber-400 rounded-full shadow-md"></div>
+              <div className="h-24 md:h-36 flex items-end justify-center space-x-1">
+                <div className="w-full h-16 md:h-28 bg-[#5A8F7B] rounded-t-full opacity-60"></div>
+                <div className="absolute bottom-0 w-full h-12 md:h-20 bg-[#3B6E5B] rounded-t-full opacity-80"></div>
                 <div
-                  className="absolute bottom-0 w-3/4 h-8 md:h-10 rounded-t-full"
+                  className="absolute bottom-0 w-4/5 h-8 md:h-12 rounded-t-full"
                   style={{ backgroundColor: appConfig.primaryColor || '#234E40' }}
                 ></div>
               </div>
             </div>
           </div>
 
-          {/* Full-Screen Desktop/Mobile Responsive Content Container */}
-          <div className="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 py-6 md:py-10 space-y-6">
+          {/* Edge-to-Edge Widescreen Grid (No narrow portrait container) */}
+          <div className="w-full px-6 md:px-12 lg:px-16 py-8 md:py-12 space-y-6">
             {appConfig.maintenanceMode && (
-              <div className="bg-red-50 border border-red-300 p-4 rounded-2xl text-xs md:text-sm text-red-900 font-semibold">
+              <div className="w-full bg-red-50 border border-red-300 p-4 rounded-2xl text-xs md:text-sm text-red-900 font-semibold">
                 🚧 {appConfig.maintenanceMessage}
               </div>
             )}
 
             {appConfig.welcomeBannerText && (
-              <div className="bg-amber-50 border border-amber-300 p-4 rounded-2xl text-xs md:text-sm text-amber-950 font-semibold">
+              <div className="w-full bg-amber-50 border border-amber-300 p-4 rounded-2xl text-xs md:text-sm text-amber-950 font-semibold">
                 📢 {appConfig.welcomeBannerText}
               </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-start">
-              {/* Left Column on Laptop/Desktop: Brand Hero & Announcements */}
-              <div className="lg:col-span-7 space-y-4">
+            <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+              {/* Left Widescreen Column: Brand Hero, Announcements & Custom Dashboards */}
+              <div className="lg:col-span-7 xl:col-span-8 space-y-5">
                 <div>
-                  <h1 className="text-3xl md:text-5xl font-bold text-slate-900 tracking-tight">{appConfig.appName}</h1>
-                  <p className="text-lg md:text-2xl font-medium mt-2" style={{ color: appConfig.primaryColor || '#234E40' }}>
+                  <h1 className="text-3xl md:text-5xl xl:text-6xl font-extrabold text-slate-900 tracking-tight">
+                    {appConfig.appName}
+                  </h1>
+                  <p className="text-lg md:text-2xl xl:text-3xl font-semibold mt-2" style={{ color: appConfig.primaryColor || '#234E40' }}>
                     {appConfig.tagline}
                   </p>
-                  <p className="text-xs md:text-base text-slate-600 mt-3 leading-relaxed">
+                  <p className="text-sm md:text-base text-slate-600 mt-3 leading-relaxed max-w-3xl">
                     {appConfig.subtitle}
                   </p>
-                  <p className="text-[11px] md:text-xs font-semibold text-slate-400 uppercase tracking-wider mt-3">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-4">
                     C.E.O: {ownerProfile.name} ({ownerProfile.contact})
                   </p>
                 </div>
 
                 {welcomeAnnouncements.length > 0 && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
                     {welcomeAnnouncements.map((ann) => (
-                      <div key={ann.id} className="bg-emerald-50/80 border border-emerald-200 p-4 rounded-2xl text-xs">
+                      <div key={ann.id} className="bg-emerald-50/80 border border-emerald-200 p-4 rounded-2xl text-xs md:text-sm">
                         <p className="font-bold text-[#234E40]">📌 {ann.title}</p>
                         <p className="text-slate-700 mt-1">{ann.body}</p>
                       </div>
@@ -1415,13 +1438,12 @@ export default function GuideLinkRwandaApp() {
                   </div>
                 )}
 
-                {/* Custom Dashboards Created by Owner in App Server */}
                 {welcomeCustomDashboards.length > 0 && (
-                  <div className="space-y-2.5 pt-2">
+                  <div className="space-y-3 pt-2">
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
                       🌟 Specialized Platform Dashboards
                     </span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                       {welcomeCustomDashboards.map((cd) => (
                         <button
                           key={cd.id}
@@ -1436,7 +1458,7 @@ export default function GuideLinkRwandaApp() {
                           <div>
                             <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">{cd.badge || 'Partner Hub'}</span>
                             <h4 className="font-bold text-sm text-slate-900">{cd.name}</h4>
-                            <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5">{cd.description}</p>
+                            <p className="text-xs text-slate-500 line-clamp-2 mt-0.5">{cd.description}</p>
                           </div>
                         </button>
                       ))}
@@ -1445,14 +1467,14 @@ export default function GuideLinkRwandaApp() {
                 )}
               </div>
 
-              {/* Right Column on Laptop/Desktop: Access Actions */}
-              <div className="lg:col-span-5 space-y-4">
-                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+              {/* Right Widescreen Column: Access Portal */}
+              <div className="lg:col-span-5 xl:col-span-4 space-y-4">
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-sm space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold uppercase tracking-wider" style={{ color: appConfig.primaryColor || '#234E40' }}>
                       Member Access
                     </span>
-                    <span className="text-[11px] font-bold bg-emerald-100 text-[#234E40] px-3 py-1 rounded-full">
+                    <span className="text-xs font-bold bg-emerald-100 text-[#234E40] px-3 py-1 rounded-full">
                       {appConfig.travelerFreeBadge || 'Travelers: FREE'}
                     </span>
                   </div>
@@ -1464,7 +1486,7 @@ export default function GuideLinkRwandaApp() {
                       setCurrentRole('signin');
                     }}
                     style={{ backgroundColor: appConfig.primaryColor || '#234E40' }}
-                    className="w-full py-4 hover:opacity-95 text-white rounded-xl font-bold text-sm shadow transition flex items-center justify-center space-x-2"
+                    className="w-full py-4 hover:opacity-95 text-white rounded-xl font-bold text-sm md:text-base shadow transition flex items-center justify-center space-x-2"
                   >
                     <span>🔑</span>
                     <span>Sign In (Registered Members) →</span>
@@ -1487,7 +1509,7 @@ export default function GuideLinkRwandaApp() {
                         setEmailNotificationSent(false);
                         setCurrentRole('signup');
                       }}
-                      className="w-full py-3.5 bg-emerald-50 hover:bg-emerald-100 text-[#234E40] border border-[#3B6E5B]/30 rounded-xl font-bold text-sm transition flex items-center justify-center space-x-2"
+                      className="w-full py-4 bg-emerald-50 hover:bg-emerald-100 text-[#234E40] border border-[#3B6E5B]/30 rounded-xl font-bold text-sm md:text-base transition flex items-center justify-center space-x-2"
                     >
                       <span>📝</span>
                       <span>Create Account (New Sign Up)</span>
@@ -1501,7 +1523,7 @@ export default function GuideLinkRwandaApp() {
                       setOwnerPinInput('');
                       setShowOwnerPinModal(true);
                     }}
-                    className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs shadow-sm transition flex items-center justify-center space-x-2"
+                    className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs md:text-sm shadow-sm transition flex items-center justify-center space-x-2"
                   >
                     <span>👑</span>
                     <span>C.E.O Login ({ownerProfile.name})</span>
@@ -1512,19 +1534,19 @@ export default function GuideLinkRwandaApp() {
           </div>
         </div>
 
-        {/* Full-Width Copyright Footer */}
-        <footer className="w-full px-6 py-5 bg-white border-t border-slate-200 text-center">
+        {/* Edge-to-Edge Copyright Footer */}
+        <footer className="w-full px-6 md:px-12 py-5 bg-white border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center text-center sm:text-left gap-2">
           <p className="text-xs font-medium text-slate-500">
             &copy; {new Date().getFullYear()} <strong className="text-slate-700">{ownerProfile.name}</strong>. All rights reserved.
           </p>
-          <p className="text-[11px] text-slate-400 mt-0.5">
+          <p className="text-xs text-slate-400">
             {appConfig.appName} • {appConfig.footerLocation || 'Kigali, Rwanda'}
           </p>
         </footer>
 
         {showOwnerPinModal && (
           <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-            <form onSubmit={handleOwnerLogin} className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-xl">
+            <form onSubmit={handleOwnerLogin} className="bg-white rounded-2xl p-6 w-full max-w-md space-y-4 shadow-xl">
               <div className="text-center space-y-1">
                 <div className="w-12 h-12 bg-slate-900 text-white rounded-full flex items-center justify-center mx-auto text-lg">
                   🔐
@@ -1567,7 +1589,7 @@ export default function GuideLinkRwandaApp() {
   }
 
   // =========================================================================
-  // 1B. CUSTOM DASHBOARD VIEW (Created Dynamically by Owner in App Server)
+  // 1B. FULL-BLEED CUSTOM DASHBOARD VIEW
   // =========================================================================
   if (currentRole === 'custom_dashboard_view') {
     const customDash = (appConfig.customDashboards || []).find((d) => d.id === activeCustomDashId);
@@ -1577,23 +1599,21 @@ export default function GuideLinkRwandaApp() {
     }
 
     return (
-      <div className="min-h-screen w-full bg-slate-100 flex flex-col justify-between font-sans">
-        <div style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="text-white px-6 py-4 sticky top-0 z-30 shadow-sm">
-          <div className="max-w-7xl mx-auto flex justify-between items-center">
-            <div className="flex items-center space-x-3">
-              <span className="text-2xl">{customDash.icon || '📊'}</span>
-              <div>
-                <h2 className="font-bold text-base">{customDash.name}</h2>
-                <p className="text-xs text-emerald-200">{customDash.badge || appConfig.appName}</p>
-              </div>
+      <div className="min-h-screen w-screen bg-slate-100 flex flex-col justify-between font-sans overflow-x-hidden">
+        <div style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="w-full text-white px-6 md:px-12 py-4 sticky top-0 z-30 shadow-sm flex justify-between items-center">
+          <div className="flex items-center space-x-3">
+            <span className="text-2xl">{customDash.icon || '📊'}</span>
+            <div>
+              <h2 className="font-bold text-base md:text-lg">{customDash.name}</h2>
+              <p className="text-xs text-emerald-200">{customDash.badge || appConfig.appName}</p>
             </div>
-            <button onClick={resetToWelcome} className="text-xs bg-black/30 hover:bg-black/40 px-4 py-2 rounded-full font-semibold">
-              ← Back to Home
-            </button>
           </div>
+          <button onClick={resetToWelcome} className="text-xs bg-black/30 hover:bg-black/40 px-4 py-2 rounded-full font-semibold">
+            ← Back to Home
+          </button>
         </div>
 
-        <div className="max-w-7xl w-full mx-auto px-5 sm:px-8 py-6 flex-1 space-y-6">
+        <div className="w-full px-6 md:px-12 py-6 flex-1 space-y-6">
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-2">
             <span className="text-xs font-bold uppercase text-[#3B6E5B]">{customDash.badge}</span>
             <h3 className="text-xl font-bold text-slate-900">{customDash.name}</h3>
@@ -1601,7 +1621,7 @@ export default function GuideLinkRwandaApp() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div className="lg:col-span-5">
+            <div className="lg:col-span-4">
               <form
                 onSubmit={async (e) => {
                   e.preventDefault();
@@ -1654,14 +1674,14 @@ export default function GuideLinkRwandaApp() {
               </form>
             </div>
 
-            <div className="lg:col-span-7 space-y-3">
+            <div className="lg:col-span-8 space-y-3">
               <h4 className="font-bold text-sm text-slate-900">📋 Live Entries ({(customDash.items || []).length})</h4>
               {(customDash.items || []).length === 0 ? (
                 <div className="bg-white p-8 rounded-2xl border text-center text-xs text-slate-500">
                   No entries posted in {customDash.name} yet.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   {(customDash.items || []).map((item) => (
                     <div key={item.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm text-xs space-y-1.5">
                       <div className="flex justify-between items-start">
@@ -1684,57 +1704,69 @@ export default function GuideLinkRwandaApp() {
   }
 
   // =========================================================================
-  // 2. FULL-SCREEN SIGN IN VIEW
+  // 2. FULL-BLEED WIDESCREEN SIGN IN VIEW
   // =========================================================================
   if (currentRole === 'signin') {
     return (
-      <div className="min-h-screen w-full bg-slate-100 flex flex-col justify-between font-sans">
-        <div className="bg-white px-6 py-4 border-b border-slate-200">
-          <div className="max-w-7xl mx-auto flex justify-between items-center">
-            <h2 className="font-bold text-slate-900">Secure Member Sign In</h2>
-            <button onClick={resetToWelcome} className="text-xs bg-slate-100 px-3 py-1.5 rounded-full font-semibold text-slate-600">
-              ← Home
-            </button>
-          </div>
+      <div className="min-h-screen w-screen bg-slate-100 flex flex-col justify-between font-sans overflow-x-hidden">
+        <div className="w-full bg-white px-6 md:px-12 py-4 border-b border-slate-200 flex justify-between items-center">
+          <h2 className="font-bold text-base md:text-lg text-slate-900">{appConfig.appName} — Secure Member Sign In</h2>
+          <button onClick={resetToWelcome} className="text-xs bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-full font-semibold text-slate-700">
+            ← Home
+          </button>
         </div>
 
-        <div className="p-6 flex-1 flex items-center justify-center">
-          <form onSubmit={handleSignInSubmit} className="w-full max-w-md bg-white p-6 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
-            <div>
-              <span className="text-[11px] font-bold uppercase text-[#3B6E5B]">Password Protected</span>
-              <h3 className="text-lg font-bold text-slate-900">Sign In to Your Dashboard</h3>
-              <p className="text-xs text-slate-500 mt-1">Enter your registered Phone or Email and your password.</p>
-            </div>
+        <div className="w-full px-6 md:px-12 py-8 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+          <div className="hidden lg:block lg:col-span-6 space-y-4 pr-8">
+            <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-emerald-100 text-[#234E40]">
+              Rwanda&apos;s Tourism Ecosystem
+            </span>
+            <h1 className="text-4xl font-extrabold text-slate-900 leading-tight">
+              Welcome back to {appConfig.appName}
+            </h1>
+            <p className="text-base text-slate-600 leading-relaxed">
+              Sign in to manage bookings, respond to travelers, apply for guiding assignments, and collaborate securely across Rwanda.
+            </p>
+          </div>
 
-            <div>
-              <label className="text-xs font-bold text-slate-700">Phone Number or Email</label>
-              <input
-                type="text"
-                required
-                autoFocus
-                placeholder="e.g. +250780558555"
-                value={signInContact}
-                onChange={(e) => setSignInContact(e.target.value)}
-                className="w-full mt-1 p-3 border border-slate-300 rounded-xl text-sm"
-              />
-            </div>
+          <div className="lg:col-span-6 flex justify-center lg:justify-end">
+            <form onSubmit={handleSignInSubmit} className="w-full max-w-lg bg-white p-6 md:p-8 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
+              <div>
+                <span className="text-[11px] font-bold uppercase text-[#3B6E5B]">Password Protected</span>
+                <h3 className="text-xl font-bold text-slate-900">Sign In to Your Dashboard</h3>
+                <p className="text-xs text-slate-500 mt-1">Enter your registered Phone or Email and your password.</p>
+              </div>
 
-            <div>
-              <label className="text-xs font-bold text-slate-700">Password</label>
-              <input
-                type="password"
-                required
-                placeholder="Enter password"
-                value={signInPassword}
-                onChange={(e) => setSignInPassword(e.target.value)}
-                className="w-full mt-1 p-3 border border-slate-300 rounded-xl text-sm"
-              />
-            </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700">Phone Number or Email</label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  placeholder="e.g. +250780558555"
+                  value={signInContact}
+                  onChange={(e) => setSignInContact(e.target.value)}
+                  className="w-full mt-1 p-3.5 border border-slate-300 rounded-xl text-sm"
+                />
+              </div>
 
-            <button type="submit" style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="w-full py-3.5 hover:opacity-95 text-white rounded-xl font-bold text-sm shadow transition">
-              Unlock Dashboard →
-            </button>
-          </form>
+              <div>
+                <label className="text-xs font-bold text-slate-700">Password</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Enter password"
+                  value={signInPassword}
+                  onChange={(e) => setSignInPassword(e.target.value)}
+                  className="w-full mt-1 p-3.5 border border-slate-300 rounded-xl text-sm"
+                />
+              </div>
+
+              <button type="submit" style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="w-full py-4 hover:opacity-95 text-white rounded-xl font-bold text-sm md:text-base shadow transition">
+                Unlock Dashboard →
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     );
@@ -1749,24 +1781,22 @@ export default function GuideLinkRwandaApp() {
     const renewalUssdDialUri = buildUssdDialUri(selectedRenewalPlan.price);
 
     return (
-      <div className="min-h-screen w-full bg-slate-100 flex flex-col justify-between font-sans">
-        <div className="bg-red-700 text-white px-6 py-4">
-          <div className="max-w-7xl mx-auto flex justify-between items-center">
-            <div>
-              <h2 className="font-bold text-sm">🔒 Subscription Expired — Access Locked</h2>
-              <p className="text-[11px] text-red-100">{expiredUserAccount.name} ({getRoleDisplayLabel(expiredUserAccount.role)})</p>
-            </div>
-            <button onClick={resetToWelcome} className="text-xs bg-red-900 px-3 py-1.5 rounded-full font-semibold">
-              ← Home
-            </button>
+      <div className="min-h-screen w-screen bg-slate-100 flex flex-col justify-between font-sans overflow-x-hidden">
+        <div className="w-full bg-red-700 text-white px-6 md:px-12 py-4 flex justify-between items-center">
+          <div>
+            <h2 className="font-bold text-sm md:text-base">🔒 Subscription Expired — Access Locked</h2>
+            <p className="text-xs text-red-100">{expiredUserAccount.name} ({getRoleDisplayLabel(expiredUserAccount.role)})</p>
           </div>
+          <button onClick={resetToWelcome} className="text-xs bg-red-900 px-4 py-2 rounded-full font-semibold">
+            ← Home
+          </button>
         </div>
 
-        <div className="p-5 flex-1 flex items-center justify-center">
-          <div className="w-full max-w-lg">
+        <div className="w-full px-6 md:px-12 py-8 flex-1 flex items-center justify-center">
+          <div className="w-full max-w-3xl">
             {!renewalSubmitted ? (
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
-                <div className="bg-red-50 border border-red-200 p-3.5 rounded-xl text-xs space-y-1">
+              <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 space-y-5 shadow-sm">
+                <div className="bg-red-50 border border-red-200 p-4 rounded-xl text-xs md:text-sm space-y-1">
                   <p className="font-bold text-red-900">Your previous subscription plan has ended.</p>
                   <p className="text-red-800">
                     Account access is revoked until you subscribe to a new plan via MTN MoMo below.
@@ -1775,7 +1805,7 @@ export default function GuideLinkRwandaApp() {
 
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-800 block">Choose New Subscription Plan:</label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {subscriptionPlans.map((plan) => (
                       <button
                         key={plan.id}
@@ -1784,7 +1814,7 @@ export default function GuideLinkRwandaApp() {
                           setRenewalPlanId(plan.id);
                           setUssdTriggered(false);
                         }}
-                        className={`p-3 rounded-xl border-2 text-left flex justify-between items-center transition ${
+                        className={`p-3.5 rounded-xl border-2 text-left flex justify-between items-center transition ${
                           renewalPlanId === plan.id
                             ? 'border-[#234E40] bg-emerald-50/70'
                             : 'border-slate-200 bg-white hover:bg-slate-50'
@@ -1808,18 +1838,18 @@ export default function GuideLinkRwandaApp() {
                 </div>
 
                 <div className="bg-amber-50 border border-amber-300 p-4 rounded-2xl space-y-2 text-center">
-                  <p className="text-[11px] font-bold text-slate-700">
+                  <p className="text-xs font-bold text-slate-700">
                     Tap to pay <strong>{Number(selectedRenewalPlan.price).toLocaleString()} RWF</strong> automatically:
                   </p>
                   <a
                     href={renewalUssdDialUri}
                     onClick={() => setUssdTriggered(true)}
-                    className="block w-full py-3 px-4 bg-amber-400 hover:bg-amber-500 text-slate-950 rounded-xl font-extrabold text-sm tracking-wide shadow border-2 border-amber-500"
+                    className="block w-full py-3.5 px-4 bg-amber-400 hover:bg-amber-500 text-slate-950 rounded-xl font-extrabold text-sm tracking-wide shadow border-2 border-amber-500"
                   >
                     📞 {renewalUssdDisplay}
                   </a>
                   {ussdTriggered && (
-                    <p className="text-[11px] font-bold text-emerald-800 bg-emerald-100 py-1 px-2 rounded-lg">
+                    <p className="text-xs font-bold text-emerald-800 bg-emerald-100 py-1.5 px-2.5 rounded-lg">
                       ✓ Dialer launched! Enter MoMo PIN on your phone, then enter reference below.
                     </p>
                   )}
@@ -1833,7 +1863,7 @@ export default function GuideLinkRwandaApp() {
                     placeholder="e.g. MP261116.2051.B98765"
                     value={renewalMomoRef}
                     onChange={(e) => setRenewalMomoRef(e.target.value)}
-                    className="w-full mt-1 p-3 border border-slate-300 rounded-xl text-xs font-semibold"
+                    className="w-full mt-1 p-3.5 border border-slate-300 rounded-xl text-xs font-semibold"
                   />
                 </div>
 
@@ -1841,21 +1871,21 @@ export default function GuideLinkRwandaApp() {
                   type="button"
                   disabled={isSubmittingPayment}
                   onClick={handleCompleteRenewalPayment}
-                  className="w-full py-3.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow transition"
+                  className="w-full py-4 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow transition"
                 >
                   {isSubmittingPayment ? '⏳ Notifying C.E.O...' : '✓ Renewal Paid — Notify C.E.O to Unlock'}
                 </button>
               </div>
             ) : (
-              <div className="bg-white p-6 rounded-2xl border text-center space-y-4 shadow-sm">
-                <div className="w-12 h-12 bg-emerald-100 text-[#234E40] rounded-full flex items-center justify-center mx-auto text-xl font-bold">
+              <div className="bg-white p-8 rounded-2xl border text-center space-y-4 shadow-sm">
+                <div className="w-14 h-14 bg-emerald-100 text-[#234E40] rounded-full flex items-center justify-center mx-auto text-2xl font-bold">
                   ✓
                 </div>
-                <h3 className="text-lg font-bold text-slate-900">Renewal Payment Submitted</h3>
-                <p className="text-xs text-slate-600">
+                <h3 className="text-xl font-bold text-slate-900">Renewal Payment Submitted</h3>
+                <p className="text-sm text-slate-600">
                   Your renewal for <strong>{selectedRenewalPlan.name}</strong> ({Number(selectedRenewalPlan.price).toLocaleString()} RWF) has been sent to C.E.O <strong>{ownerProfile.name}</strong> ({ownerProfile.email}). Once confirmed, sign in to access your dashboard.
                 </p>
-                <button onClick={resetToWelcome} className="w-full py-3 bg-[#3B6E5B] text-white rounded-xl font-bold text-xs">
+                <button onClick={resetToWelcome} className="w-full py-3.5 bg-[#3B6E5B] text-white rounded-xl font-bold text-sm">
                   Return to Home Screen
                 </button>
               </div>
@@ -1867,7 +1897,7 @@ export default function GuideLinkRwandaApp() {
   }
 
   // =========================================================================
-  // 4. FULL-SCREEN SIGN UP VIEW
+  // 4. FULL-BLEED WIDESCREEN SIGN UP VIEW
   // =========================================================================
   if (currentRole === 'signup') {
     const selectedPlan = getPlanById(regForm.subscriptionPlanId);
@@ -1883,28 +1913,26 @@ export default function GuideLinkRwandaApp() {
     )}`;
 
     return (
-      <div className="min-h-screen w-full bg-slate-100 flex flex-col justify-between font-sans">
-        <div className="bg-white px-6 py-4 border-b border-slate-200">
-          <div className="max-w-7xl mx-auto flex justify-between items-center">
-            <h2 className="font-bold text-slate-900">Create New Account</h2>
-            <button onClick={resetToWelcome} className="text-xs bg-slate-100 px-3 py-1.5 rounded-full font-semibold text-slate-600">
-              ← Home
-            </button>
-          </div>
+      <div className="min-h-screen w-screen bg-slate-100 flex flex-col justify-between font-sans overflow-x-hidden">
+        <div className="w-full bg-white px-6 md:px-12 py-4 border-b border-slate-200 flex justify-between items-center">
+          <h2 className="font-bold text-base md:text-lg text-slate-900">{appConfig.appName} — Create New Account</h2>
+          <button onClick={resetToWelcome} className="text-xs bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-full font-semibold text-slate-700">
+            ← Home
+          </button>
         </div>
 
-        <div className="p-5 flex-1 flex items-center justify-center">
-          <div className="w-full max-w-xl">
+        <div className="w-full px-6 md:px-12 py-8 flex-1 flex items-center justify-center">
+          <div className="w-full max-w-4xl">
             {regStep === 'details' && (
-              <form onSubmit={handleSignUpSubmit} className="bg-white p-6 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
+              <form onSubmit={handleSignUpSubmit} className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 space-y-5 shadow-sm">
                 <div>
                   <span className="text-[11px] font-bold uppercase text-[#3B6E5B]">New Registration</span>
-                  <h3 className="text-lg font-bold text-slate-900">Join {appConfig.appName}</h3>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <h3 className="text-xl font-bold text-slate-900">Join {appConfig.appName}</h3>
+                  <p className="text-xs md:text-sm text-slate-500 mt-1">
                     Travelers join <strong>FREE</strong>. Tourism Graduates, Travel Agencies & Tour Companies select a subscription plan.
                   </p>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-bold text-slate-700">Full Name or Company Name</label>
                     <input
@@ -1913,7 +1941,7 @@ export default function GuideLinkRwandaApp() {
                       placeholder="e.g. Alice Uwase"
                       value={regForm.name}
                       onChange={(e) => setRegForm({ ...regForm, name: e.target.value })}
-                      className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-sm"
+                      className="w-full mt-1 p-3 border border-slate-200 rounded-xl text-sm"
                     />
                   </div>
                   <div>
@@ -1924,11 +1952,11 @@ export default function GuideLinkRwandaApp() {
                       placeholder="e.g. +250788000000"
                       value={regForm.contact}
                       onChange={(e) => setRegForm({ ...regForm, contact: e.target.value })}
-                      className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-sm"
+                      className="w-full mt-1 p-3 border border-slate-200 rounded-xl text-sm"
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="text-xs font-bold text-slate-700">Create Password</label>
                     <input
@@ -1937,7 +1965,7 @@ export default function GuideLinkRwandaApp() {
                       placeholder="••••••"
                       value={regForm.password}
                       onChange={(e) => setRegForm({ ...regForm, password: e.target.value })}
-                      className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-sm"
+                      className="w-full mt-1 p-3 border border-slate-200 rounded-xl text-sm"
                     />
                   </div>
                   <div>
@@ -1948,39 +1976,39 @@ export default function GuideLinkRwandaApp() {
                       placeholder="••••••"
                       value={regForm.confirmPassword}
                       onChange={(e) => setRegForm({ ...regForm, confirmPassword: e.target.value })}
-                      className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-sm"
+                      className="w-full mt-1 p-3 border border-slate-200 rounded-xl text-sm"
                     />
                   </div>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-700">Select Account Role</label>
-                  <select
-                    value={regForm.role}
-                    onChange={(e) => setRegForm({ ...regForm, role: e.target.value })}
-                    className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl text-sm bg-white font-semibold"
-                  >
-                    <option value="traveler">🧳 Traveler (FREE Instant Access)</option>
-                    <option value="graduate">🎓 Tourism Graduate (Guide / Consultant)</option>
-                    <option value="agency">🏢 Travel Agency</option>
-                    <option value="tour_company">🚐 Tour Company (Safari Operator)</option>
-                    {(appConfig.customDashboards || []).map((cd) => (
-                      <option key={cd.id} value={cd.id}>{cd.icon || '📊'} {cd.name}</option>
-                    ))}
-                  </select>
+                  <div>
+                    <label className="text-xs font-bold text-slate-700">Select Account Role</label>
+                    <select
+                      value={regForm.role}
+                      onChange={(e) => setRegForm({ ...regForm, role: e.target.value })}
+                      className="w-full mt-1 p-3 border border-slate-200 rounded-xl text-sm bg-white font-semibold"
+                    >
+                      <option value="traveler">🧳 Traveler (FREE Instant Access)</option>
+                      <option value="graduate">🎓 Tourism Graduate (Guide / Consultant)</option>
+                      <option value="agency">🏢 Travel Agency</option>
+                      <option value="tour_company">🚐 Tour Company (Safari Operator)</option>
+                      {(appConfig.customDashboards || []).map((cd) => (
+                        <option key={cd.id} value={cd.id}>{cd.icon || '📊'} {cd.name}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 {regForm.role !== 'traveler' && (
-                  <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <div className="space-y-3 pt-2 border-t border-slate-100">
                     <label className="text-xs font-bold text-[#234E40] block">
                       💳 Choose Your Subscription Plan:
                     </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {subscriptionPlans.map((plan) => (
                         <button
                           key={plan.id}
                           type="button"
                           onClick={() => setRegForm({ ...regForm, subscriptionPlanId: plan.id })}
-                          className={`p-3 rounded-xl border-2 text-left flex justify-between items-center transition ${
+                          className={`p-3.5 rounded-xl border-2 text-left flex justify-between items-center transition ${
                             regForm.subscriptionPlanId === plan.id
                               ? 'border-[#234E40] bg-emerald-50/80 shadow-sm'
                               : 'border-slate-200 bg-white hover:bg-slate-50'
@@ -2013,7 +2041,7 @@ export default function GuideLinkRwandaApp() {
                   </div>
                 )}
 
-                <button type="submit" style={{ backgroundColor: appConfig.secondaryColor || '#3B6E5B' }} className="w-full py-3.5 text-white rounded-xl font-bold text-sm shadow">
+                <button type="submit" style={{ backgroundColor: appConfig.secondaryColor || '#3B6E5B' }} className="w-full py-4 text-white rounded-xl font-bold text-sm md:text-base shadow">
                   {regForm.role === 'traveler'
                     ? 'Complete Free Sign Up →'
                     : `Proceed to Pay ${Number(selectedPlan.price).toLocaleString()} RWF (${selectedPlan.name}) →`}
@@ -2022,15 +2050,15 @@ export default function GuideLinkRwandaApp() {
             )}
 
             {regStep === 'pay_subscription' && (
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
-                <div className="bg-amber-50 border border-amber-300 p-4 rounded-2xl space-y-2.5 text-center">
+              <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 space-y-5 shadow-sm max-w-2xl mx-auto">
+                <div className="bg-amber-50 border border-amber-300 p-5 rounded-2xl space-y-2.5 text-center">
                   <span className="text-[10px] font-extrabold uppercase tracking-wider bg-amber-400 text-slate-900 px-2.5 py-0.5 rounded-full">
                     {selectedPlan.name} • {selectedPlan.durationLabel}
                   </span>
-                  <h3 className="text-base font-bold text-slate-900">
+                  <h3 className="text-lg font-bold text-slate-900">
                     Tap Below to Pay {Number(selectedPlan.price).toLocaleString()} RWF Automatically
                   </h3>
-                  <p className="text-[11px] text-slate-600">
+                  <p className="text-xs text-slate-600">
                     Clicking the code below automatically launches your phone dialer to complete your subscription payment:
                   </p>
 
@@ -2051,21 +2079,21 @@ export default function GuideLinkRwandaApp() {
                           alert(`✓ Copied ${activeUssdDisplay} to clipboard!`);
                         }
                       }}
-                      className="text-[11px] font-bold text-[#234E40] bg-white border border-slate-200 px-3 py-1 rounded-lg hover:bg-slate-50"
+                      className="text-xs font-bold text-[#234E40] bg-white border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50"
                     >
                       📋 Copy USSD Code
                     </button>
                     <button
                       type="button"
                       onClick={() => setRegStep('details')}
-                      className="text-[11px] font-bold text-slate-600 bg-white border border-slate-200 px-3 py-1 rounded-lg hover:bg-slate-50"
+                      className="text-xs font-bold text-slate-600 bg-white border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50"
                     >
                       ↺ Change Plan
                     </button>
                   </div>
 
                   {ussdTriggered && (
-                    <p className="text-[11px] font-bold text-emerald-800 bg-emerald-100 py-1.5 px-2.5 rounded-lg">
+                    <p className="text-xs font-bold text-emerald-800 bg-emerald-100 py-1.5 px-2.5 rounded-lg">
                       ✓ Phone dialer launched! Enter your MoMo PIN on your phone, then confirm below.
                     </p>
                   )}
@@ -2079,7 +2107,7 @@ export default function GuideLinkRwandaApp() {
                     placeholder="e.g. MP261116.2051.A12345"
                     value={regForm.momoRef}
                     onChange={(e) => setRegForm({ ...regForm, momoRef: e.target.value })}
-                    className="w-full mt-1 p-3 border border-slate-300 rounded-xl text-xs font-semibold"
+                    className="w-full mt-1 p-3.5 border border-slate-300 rounded-xl text-xs font-semibold"
                   />
                 </div>
 
@@ -2087,7 +2115,7 @@ export default function GuideLinkRwandaApp() {
                   type="button"
                   disabled={isSubmittingPayment}
                   onClick={handleCompleteSubscriptionPayment}
-                  className="w-full py-3.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow transition"
+                  className="w-full py-4 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow transition"
                 >
                   {isSubmittingPayment
                     ? '⏳ Sending Real-Time Notification to C.E.O...'
@@ -2097,12 +2125,12 @@ export default function GuideLinkRwandaApp() {
             )}
 
             {regStep === 'pending_approval' && (
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center space-y-4 shadow-sm">
-                <div className="w-12 h-12 bg-emerald-100 text-[#234E40] rounded-full flex items-center justify-center mx-auto text-xl font-bold">
+              <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center space-y-4 shadow-sm max-w-xl mx-auto">
+                <div className="w-14 h-14 bg-emerald-100 text-[#234E40] rounded-full flex items-center justify-center mx-auto text-2xl font-bold">
                   ✓
                 </div>
-                <h3 className="text-lg font-bold text-slate-900">Subscription Recorded & C.E.O Notified</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
+                <h3 className="text-xl font-bold text-slate-900">Subscription Recorded & C.E.O Notified</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">
                   Your <strong>{selectedPlan.name}</strong> ({Number(selectedPlan.price).toLocaleString()} RWF) payment via <strong>{activeUssdDisplay}</strong> (Ref: <strong>{regForm.momoRef}</strong>) is saved.
                   {emailNotificationSent
                     ? ` A real-time email notification has been sent to C.E.O ${ownerProfile.name} (${ownerProfile.email}).`
@@ -2111,12 +2139,12 @@ export default function GuideLinkRwandaApp() {
 
                 <a
                   href={manualMailtoHref}
-                  className="block w-full py-2.5 bg-amber-100 hover:bg-amber-200 text-amber-950 rounded-xl font-bold text-xs border border-amber-300 transition"
+                  className="block w-full py-3 bg-amber-100 hover:bg-amber-200 text-amber-950 rounded-xl font-bold text-xs border border-amber-300 transition"
                 >
                   📧 Send Direct Email Copy to {ownerProfile.email}
                 </a>
 
-                <button onClick={resetToWelcome} className="w-full py-3 bg-[#3B6E5B] text-white rounded-xl font-bold text-xs shadow">
+                <button onClick={resetToWelcome} className="w-full py-3.5 bg-[#3B6E5B] text-white rounded-xl font-bold text-sm shadow">
                   Return to Home Screen
                 </button>
               </div>
@@ -2128,7 +2156,7 @@ export default function GuideLinkRwandaApp() {
   }
 
   // =========================================================================
-  // 5. FULL-SCREEN C.E.O OWNER HQ VIEW (Responsive Laptop/Desktop + Mobile)
+  // 5. FULL-BLEED WIDESCREEN C.E.O OWNER HQ VIEW
   // =========================================================================
   if (currentRole === 'owner') {
     const totalRegFees = registeredUsers.reduce((sum, u) => sum + (u.feePaid || 0), 0);
@@ -2139,28 +2167,26 @@ export default function GuideLinkRwandaApp() {
     const pendingCount = registeredUsers.filter((u) => u.status === 'pending_approval').length;
 
     return (
-      <div className="min-h-screen w-full bg-slate-100 flex flex-col justify-between font-sans relative">
-        <div style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="text-white px-5 py-4 sticky top-0 z-30 shadow-sm">
-          <div className="max-w-7xl mx-auto flex justify-between items-center">
-            <div className="flex items-center space-x-3">
-              {ownerProfile.photo ? (
-                <img src={ownerProfile.photo} alt="C.E.O" className="w-11 h-11 rounded-full object-cover border-2 border-amber-400" />
-              ) : (
-                <div className="w-11 h-11 bg-amber-400 text-slate-900 rounded-full flex items-center justify-center font-extrabold text-sm">👑</div>
-              )}
-              <div>
-                <h2 className="font-bold text-sm md:text-base">{ownerProfile.name} <span className="text-[10px] bg-amber-400 text-slate-900 px-1.5 py-0.5 rounded font-extrabold ml-1">C.E.O</span></h2>
-                <p className="text-[11px] text-emerald-200">{ownerProfile.contact} • MoMo: {MOMO_PAYMENT_CODE}</p>
-              </div>
+      <div className="min-h-screen w-screen bg-slate-100 flex flex-col justify-between font-sans overflow-x-hidden relative">
+        <div style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="w-full text-white px-6 md:px-12 py-4 sticky top-0 z-30 shadow-sm flex justify-between items-center">
+          <div className="flex items-center space-x-3">
+            {ownerProfile.photo ? (
+              <img src={ownerProfile.photo} alt="C.E.O" className="w-11 h-11 rounded-full object-cover border-2 border-amber-400" />
+            ) : (
+              <div className="w-11 h-11 bg-amber-400 text-slate-900 rounded-full flex items-center justify-center font-extrabold text-sm">👑</div>
+            )}
+            <div>
+              <h2 className="font-bold text-sm md:text-base">{ownerProfile.name} <span className="text-[10px] bg-amber-400 text-slate-900 px-1.5 py-0.5 rounded font-extrabold ml-1">C.E.O</span></h2>
+              <p className="text-[11px] text-emerald-200">{ownerProfile.contact} • MoMo: {MOMO_PAYMENT_CODE}</p>
             </div>
-            <button onClick={resetToWelcome} className="text-xs bg-black/30 hover:bg-black/40 px-4 py-2 rounded-full font-semibold">Log Out</button>
           </div>
+          <button onClick={resetToWelcome} className="text-xs bg-black/30 hover:bg-black/40 px-4 py-2 rounded-full font-semibold">Log Out</button>
         </div>
 
-        {/* Full-Width Responsive 8-Tab Navigation Bar */}
-        <div className="bg-white border-b border-slate-200 sticky top-[76px] z-20 shadow-sm">
-          <div className="max-w-7xl mx-auto px-2 sm:px-6 py-2 grid grid-cols-8 gap-1 text-center">
-            <button onClick={() => setOwnerTab('pending')} className={`p-1.5 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center relative ${ownerTab === 'pending' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
+        {/* Full-Width 8-Tab Navigation Bar */}
+        <div className="w-full bg-white border-b border-slate-200 sticky top-[76px] z-20 shadow-sm px-4 md:px-12 py-2">
+          <div className="w-full grid grid-cols-8 gap-1.5 text-center">
+            <button onClick={() => setOwnerTab('pending')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center relative ${ownerTab === 'pending' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
               <span className="text-sm">⏳</span><span className="text-[9px] md:text-xs">SignUps</span>
               {pendingCount > 0 && <span className="bg-red-600 text-white text-[8px] px-1.5 rounded-full">{pendingCount}</span>}
             </button>
@@ -2171,42 +2197,43 @@ export default function GuideLinkRwandaApp() {
                   handleSelectUserForAdminEdit(registeredUsers[0]);
                 }
               }}
-              className={`p-1.5 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center ${ownerTab === 'users_mgmt' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}
+              className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center ${ownerTab === 'users_mgmt' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}
             >
               <span className="text-sm">👥</span><span className="text-[9px] md:text-xs">Users</span>
             </button>
-            <button onClick={() => setOwnerTab('app_server')} className={`p-1.5 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center ${ownerTab === 'app_server' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
+            <button onClick={() => setOwnerTab('app_server')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center ${ownerTab === 'app_server' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
               <span className="text-sm">🖥️</span><span className="text-[9px] md:text-xs">Server</span>
             </button>
-            <button onClick={() => setOwnerTab('plans_mgmt')} className={`p-1.5 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center ${ownerTab === 'plans_mgmt' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
+            <button onClick={() => setOwnerTab('plans_mgmt')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center ${ownerTab === 'plans_mgmt' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
               <span className="text-sm">💳</span><span className="text-[9px] md:text-xs">Plans</span>
             </button>
-            <button onClick={() => setOwnerTab('overview')} className={`p-1.5 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center ${ownerTab === 'overview' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">📊</span><span className="text-[9px] md:text-xs">Money</span></button>
-            <button onClick={() => setOwnerTab('vip')} className={`p-1.5 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center ${ownerTab === 'vip' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">⭐</span><span className="text-[9px] md:text-xs">VIP</span></button>
-            <button onClick={() => setOwnerTab('deals')} className={`p-1.5 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center ${ownerTab === 'deals' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">🎛️</span><span className="text-[9px] md:text-xs">Roles</span></button>
-            <button onClick={() => setOwnerTab('owner_profile')} className={`p-1.5 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center ${ownerTab === 'owner_profile' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">👤</span><span className="text-[9px] md:text-xs">Me</span></button>
+            <button onClick={() => setOwnerTab('overview')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center ${ownerTab === 'overview' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">📊</span><span className="text-[9px] md:text-xs">Money</span></button>
+            <button onClick={() => setOwnerTab('vip')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center ${ownerTab === 'vip' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">⭐</span><span className="text-[9px] md:text-xs">VIP</span></button>
+            <button onClick={() => setOwnerTab('deals')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center ${ownerTab === 'deals' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">🎛️</span><span className="text-[9px] md:text-xs">Roles</span></button>
+            <button onClick={() => setOwnerTab('owner_profile')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center ${ownerTab === 'owner_profile' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">👤</span><span className="text-[9px] md:text-xs">Me</span></button>
           </div>
         </div>
 
-        <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-5 flex-1 pb-12">
+        {/* Full-Width Content Body */}
+        <div className="w-full px-6 md:px-12 py-6 space-y-5 flex-1 pb-12">
           {/* NO-CODE APP SERVER & LIVE CMS (🖥️ Server Tab) */}
           {ownerTab === 'app_server' && (
             <div className="space-y-4">
-              <div className="bg-gradient-to-r from-slate-950 via-[#234E40] to-[#3B6E5B] text-white p-5 rounded-2xl shadow-sm space-y-1">
+              <div className="bg-gradient-to-r from-slate-950 via-[#234E40] to-[#3B6E5B] text-white p-6 rounded-2xl shadow-sm space-y-1">
                 <div className="flex justify-between items-center">
                   <span className="text-[10px] uppercase font-bold bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full">
                     No-Code App Server & Builder
                   </span>
                   <span className="text-xs font-bold text-emerald-300">🟢 Cloud Synced</span>
                 </div>
-                <h3 className="font-bold text-lg pt-1">🖥️ Live Web App Studio, Dashboards & Features Builder</h3>
-                <p className="text-xs text-emerald-100">
+                <h3 className="font-bold text-lg md:text-xl pt-1">🖥️ Live Web App Studio, Dashboards & Features Builder</h3>
+                <p className="text-xs md:text-sm text-emerald-100">
                   Add new dashboards, create interactive app features, customize branding, colors, USSD payment codes, and content anytime without coding.
                 </p>
               </div>
 
               {/* App Server Sub-Navigation (5 Studio Tabs) */}
-              <div className="grid grid-cols-5 gap-1.5 bg-white p-1.5 rounded-2xl border text-[10px] md:text-xs font-bold text-center shadow-sm">
+              <div className="grid grid-cols-5 gap-2 bg-white p-2 rounded-2xl border text-[10px] md:text-xs font-bold text-center shadow-sm">
                 <button
                   type="button"
                   onClick={() => setServerSubTab('branding')}
@@ -2246,16 +2273,16 @@ export default function GuideLinkRwandaApp() {
 
               {/* Sub-Tab 1: Branding, Theme Colors & Payment Config */}
               {serverSubTab === 'branding' && (
-                <div className="bg-white p-5 rounded-2xl border space-y-4 text-xs shadow-sm max-w-3xl">
+                <div className="bg-white p-6 rounded-2xl border space-y-4 text-xs shadow-sm w-full">
                   <h4 className="font-bold text-sm text-[#234E40] border-b pb-2">🎨 App Identity, Colors & USSD Settings</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="font-bold text-slate-700">Platform / App Name</label>
                       <input
                         type="text"
                         value={appConfig.appName}
                         onChange={(e) => setAppConfig({ ...appConfig, appName: e.target.value })}
-                        className="w-full mt-1 p-2.5 border rounded-xl font-bold"
+                        className="w-full mt-1 p-3 border rounded-xl font-bold"
                       />
                     </div>
                     <div>
@@ -2264,7 +2291,7 @@ export default function GuideLinkRwandaApp() {
                         type="text"
                         value={appConfig.tagline}
                         onChange={(e) => setAppConfig({ ...appConfig, tagline: e.target.value })}
-                        className="w-full mt-1 p-2.5 border rounded-xl"
+                        className="w-full mt-1 p-3 border rounded-xl"
                       />
                     </div>
                   </div>
@@ -2274,17 +2301,17 @@ export default function GuideLinkRwandaApp() {
                       rows="2"
                       value={appConfig.subtitle}
                       onChange={(e) => setAppConfig({ ...appConfig, subtitle: e.target.value })}
-                      className="w-full mt-1 p-2.5 border rounded-xl"
+                      className="w-full mt-1 p-3 border rounded-xl"
                     />
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label className="font-bold text-slate-700">MTN MoMo Merchant Code</label>
                       <input
                         type="text"
                         value={appConfig.momoCode}
                         onChange={(e) => setAppConfig({ ...appConfig, momoCode: e.target.value })}
-                        className="w-full mt-1 p-2.5 border rounded-xl font-mono font-bold text-[#234E40]"
+                        className="w-full mt-1 p-3 border rounded-xl font-mono font-bold text-[#234E40]"
                       />
                     </div>
                     <div>
@@ -2295,7 +2322,7 @@ export default function GuideLinkRwandaApp() {
                         max="100"
                         value={appConfig.commissionRatePercent}
                         onChange={(e) => setAppConfig({ ...appConfig, commissionRatePercent: Number(e.target.value) })}
-                        className="w-full mt-1 p-2.5 border rounded-xl font-bold"
+                        className="w-full mt-1 p-3 border rounded-xl font-bold"
                       />
                     </div>
                     <div>
@@ -2305,25 +2332,25 @@ export default function GuideLinkRwandaApp() {
                           type="color"
                           value={appConfig.primaryColor || '#234E40'}
                           onChange={(e) => setAppConfig({ ...appConfig, primaryColor: e.target.value })}
-                          className="w-10 h-10 rounded border cursor-pointer"
+                          className="w-11 h-11 rounded border cursor-pointer"
                         />
                         <input
                           type="text"
                           value={appConfig.primaryColor || '#234E40'}
                           onChange={(e) => setAppConfig({ ...appConfig, primaryColor: e.target.value })}
-                          className="flex-1 p-2.5 border rounded-xl font-mono text-[11px]"
+                          className="flex-1 p-3 border rounded-xl font-mono text-xs"
                         />
                       </div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="font-bold text-slate-700">Footer City / Location</label>
                       <input
                         type="text"
                         value={appConfig.footerLocation}
                         onChange={(e) => setAppConfig({ ...appConfig, footerLocation: e.target.value })}
-                        className="w-full mt-1 p-2.5 border rounded-xl"
+                        className="w-full mt-1 p-3 border rounded-xl"
                       />
                     </div>
                     <div>
@@ -2333,7 +2360,7 @@ export default function GuideLinkRwandaApp() {
                         placeholder="e.g. 🎉 New 2026 Gorilla Trekking Season Packages Live!"
                         value={appConfig.welcomeBannerText || ''}
                         onChange={(e) => setAppConfig({ ...appConfig, welcomeBannerText: e.target.value })}
-                        className="w-full mt-1 p-2.5 border rounded-xl"
+                        className="w-full mt-1 p-3 border rounded-xl"
                       />
                     </div>
                   </div>
@@ -2353,10 +2380,10 @@ export default function GuideLinkRwandaApp() {
 
               {/* Sub-Tab 2: Create & Manage Brand-New Dashboards */}
               {serverSubTab === 'dashboards' && (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 text-xs">
-                  <div className="lg:col-span-6 bg-white p-5 rounded-2xl border space-y-3 shadow-sm">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-xs">
+                  <div className="lg:col-span-6 bg-white p-6 rounded-2xl border space-y-3 shadow-sm">
                     <h4 className="font-bold text-sm text-[#234E40]">📊 Create a New Dashboard / Partner Hub</h4>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-xs text-slate-500">
                       Build a complete new dashboard (e.g., Hotels & Lodges, Transport & 4x4 Fleet, Park Permits, Cultural Troupes) with interactive submissions and role registration.
                     </p>
                     <div className="grid grid-cols-4 gap-2">
@@ -2516,11 +2543,10 @@ export default function GuideLinkRwandaApp() {
 
               {/* Sub-Tab 3: Add Interactive App Features, Blocks & Custom Profile Fields */}
               {serverSubTab === 'features' && (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 text-xs">
-                  {/* Interactive App Feature Builder */}
-                  <div className="lg:col-span-6 bg-white p-5 rounded-2xl border space-y-3 shadow-sm">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-xs">
+                  <div className="lg:col-span-6 bg-white p-6 rounded-2xl border space-y-3 shadow-sm">
                     <h4 className="font-bold text-sm text-[#234E40]">✨ Add New Interactive App Feature</h4>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-xs text-slate-500">
                       Add interactive tools directly onto user dashboards: Quick Request Forms, Trip Cost Calculators, Safari Checklists, or External Resource Portals.
                     </p>
                     <div className="grid grid-cols-4 gap-2">
@@ -2727,7 +2753,7 @@ export default function GuideLinkRwandaApp() {
 
                   {/* Custom Info Sections & Profile Input Fields */}
                   <div className="lg:col-span-6 space-y-4">
-                    <div className="bg-white p-5 rounded-2xl border space-y-3 shadow-sm">
+                    <div className="bg-white p-6 rounded-2xl border space-y-3 shadow-sm">
                       <h4 className="font-bold text-sm text-[#234E40]">🧱 Add Custom Dashboard Info Card</h4>
                       <input
                         type="text"
@@ -2805,7 +2831,7 @@ export default function GuideLinkRwandaApp() {
                       ))}
                     </div>
 
-                    <div className="bg-white p-5 rounded-2xl border space-y-3 shadow-sm">
+                    <div className="bg-white p-6 rounded-2xl border space-y-3 shadow-sm">
                       <h4 className="font-bold text-sm text-[#234E40]">📝 Add Custom Profile Input Field</h4>
                       <input
                         type="text"
@@ -2874,8 +2900,8 @@ export default function GuideLinkRwandaApp() {
 
               {/* Sub-Tab 4: Announcements & Destinations Manager */}
               {serverSubTab === 'content' && (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 text-xs">
-                  <div className="lg:col-span-6 bg-white p-5 rounded-2xl border space-y-3 shadow-sm">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-xs">
+                  <div className="lg:col-span-6 bg-white p-6 rounded-2xl border space-y-3 shadow-sm">
                     <h4 className="font-bold text-sm text-[#234E40]">📢 Publish Live Announcements / Notices</h4>
                     <input
                       type="text"
@@ -2956,7 +2982,7 @@ export default function GuideLinkRwandaApp() {
                     ))}
                   </div>
 
-                  <div className="lg:col-span-6 bg-white p-5 rounded-2xl border space-y-3 shadow-sm">
+                  <div className="lg:col-span-6 bg-white p-6 rounded-2xl border space-y-3 shadow-sm">
                     <h4 className="font-bold text-sm text-[#234E40]">🗺️ Manage Booking Destinations</h4>
                     <div className="flex space-x-2">
                       <input
@@ -3011,66 +3037,68 @@ export default function GuideLinkRwandaApp() {
 
               {/* Sub-Tab 5: Server Access Switches, Sync & Backup Export */}
               {serverSubTab === 'controls' && (
-                <div className="bg-white p-5 rounded-2xl border space-y-4 text-xs shadow-sm max-w-2xl">
+                <div className="bg-white p-6 rounded-2xl border space-y-4 text-xs shadow-sm w-full">
                   <h4 className="font-bold text-sm text-[#234E40] border-b pb-1.5">⚙️ Server Switches & Live Database Controls</h4>
 
-                  <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border">
-                    <div>
-                      <p className="font-bold text-slate-900">Allow New Member Sign-Ups</p>
-                      <p className="text-[11px] text-slate-500">Toggle public account registration on/off</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        const updated = { ...appConfig, allowNewSignups: appConfig.allowNewSignups === false };
-                        setAppConfig(updated);
-                        await handleSaveAppServerConfig(updated);
-                      }}
-                      className={`px-3 py-1.5 rounded-xl font-bold ${
-                        appConfig.allowNewSignups !== false ? 'bg-emerald-600 text-white' : 'bg-slate-300 text-slate-700'
-                      }`}
-                    >
-                      {appConfig.allowNewSignups !== false ? '🟢 Enabled' : '🔒 Paused'}
-                    </button>
-                  </div>
-
-                  <div className="p-3 bg-slate-50 rounded-xl border space-y-2">
-                    <div className="flex justify-between items-center">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl border">
                       <div>
-                        <p className="font-bold text-slate-900">Maintenance Mode Lock</p>
-                        <p className="text-[11px] text-slate-500">Temporarily pause member logins while editing</p>
+                        <p className="font-bold text-slate-900">Allow New Member Sign-Ups</p>
+                        <p className="text-[11px] text-slate-500">Toggle public account registration on/off</p>
                       </div>
                       <button
                         type="button"
                         onClick={async () => {
-                          const updated = { ...appConfig, maintenanceMode: !appConfig.maintenanceMode };
+                          const updated = { ...appConfig, allowNewSignups: appConfig.allowNewSignups === false };
                           setAppConfig(updated);
                           await handleSaveAppServerConfig(updated);
                         }}
-                        className={`px-3 py-1.5 rounded-xl font-bold ${
-                          appConfig.maintenanceMode ? 'bg-red-600 text-white' : 'bg-slate-200 text-slate-700'
+                        className={`px-3.5 py-2 rounded-xl font-bold ${
+                          appConfig.allowNewSignups !== false ? 'bg-emerald-600 text-white' : 'bg-slate-300 text-slate-700'
                         }`}
                       >
-                        {appConfig.maintenanceMode ? '🚧 Active' : 'Off'}
+                        {appConfig.allowNewSignups !== false ? '🟢 Enabled' : '🔒 Paused'}
                       </button>
                     </div>
-                    <input
-                      type="text"
-                      value={appConfig.maintenanceMessage}
-                      onChange={(e) => setAppConfig({ ...appConfig, maintenanceMessage: e.target.value })}
-                      onBlur={() => handleSaveAppServerConfig()}
-                      className="w-full p-2 border rounded-xl bg-white text-[11px]"
-                    />
+
+                    <div className="p-4 bg-slate-50 rounded-xl border space-y-2">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="font-bold text-slate-900">Maintenance Mode Lock</p>
+                          <p className="text-[11px] text-slate-500">Temporarily pause member logins while editing</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const updated = { ...appConfig, maintenanceMode: !appConfig.maintenanceMode };
+                            setAppConfig(updated);
+                            await handleSaveAppServerConfig(updated);
+                          }}
+                          className={`px-3.5 py-2 rounded-xl font-bold ${
+                            appConfig.maintenanceMode ? 'bg-red-600 text-white' : 'bg-slate-200 text-slate-700'
+                          }`}
+                        >
+                          {appConfig.maintenanceMode ? '🚧 Active' : 'Off'}
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        value={appConfig.maintenanceMessage}
+                        onChange={(e) => setAppConfig({ ...appConfig, maintenanceMessage: e.target.value })}
+                        onBlur={() => handleSaveAppServerConfig()}
+                        className="w-full p-2 border rounded-xl bg-white text-[11px]"
+                      />
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 pt-1">
+                  <div className="grid grid-cols-2 gap-3 pt-1">
                     <button
                       type="button"
                       onClick={async () => {
                         await loadFirebaseData();
                         alert('✓ Live Firebase data refreshed!');
                       }}
-                      className="py-2.5 bg-emerald-50 border border-emerald-200 text-[#234E40] rounded-xl font-bold"
+                      className="py-3 bg-emerald-50 border border-emerald-200 text-[#234E40] rounded-xl font-bold"
                     >
                       🔄 Sync Cloud Now
                     </button>
@@ -3092,7 +3120,7 @@ export default function GuideLinkRwandaApp() {
                         a.download = `guidelink-rwanda-backup-${Date.now()}.json`;
                         a.click();
                       }}
-                      className="py-2.5 bg-slate-900 text-white rounded-xl font-bold"
+                      className="py-3 bg-slate-900 text-white rounded-xl font-bold"
                     >
                       📥 Export Backup
                     </button>
@@ -3109,7 +3137,7 @@ export default function GuideLinkRwandaApp() {
               {registeredUsers.length === 0 ? (
                 <div className="bg-white p-6 rounded-2xl border text-center text-xs text-slate-500">No sign-ups logged yet.</div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {registeredUsers.map((user) => {
                     const expired = isUserSubscriptionExpired(user);
                     return (
@@ -3175,13 +3203,13 @@ export default function GuideLinkRwandaApp() {
 
           {ownerTab === 'plans_mgmt' && (
             <div className="space-y-4">
-              <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-4 rounded-2xl shadow-sm space-y-1">
+              <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-5 rounded-2xl shadow-sm space-y-1">
                 <span className="text-[10px] uppercase font-bold bg-amber-400 text-slate-900 px-2 py-0.5 rounded-full">C.E.O Pricing Control</span>
-                <h3 className="font-bold text-base pt-1">💳 Edit Subscription Names & Costs</h3>
+                <h3 className="font-bold text-base md:text-lg pt-1">💳 Edit Subscription Names & Costs</h3>
                 <p className="text-xs text-emerald-100">Customize subscription package names, badges, and prices in RWF. Changes update live across Sign-Ups and Renewals.</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {subscriptionPlans.map((plan, index) => (
                   <div key={plan.id} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2.5 text-xs shadow-sm">
                     <div className="flex justify-between items-center border-b pb-1.5">
@@ -3245,7 +3273,7 @@ export default function GuideLinkRwandaApp() {
                 type="button"
                 disabled={isSaving}
                 onClick={handleSaveSubscriptionPlans}
-                className="w-full max-w-md py-3.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow transition"
+                className="w-full py-3.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow transition"
               >
                 {isSaving ? '⏳ Saving Plans to Firebase...' : '💾 Save All Plan Names & Costs'}
               </button>
@@ -3254,9 +3282,9 @@ export default function GuideLinkRwandaApp() {
 
           {ownerTab === 'users_mgmt' && (
             <div className="space-y-4">
-              <div className="bg-gradient-to-r from-slate-900 to-[#234E40] text-white p-4 rounded-2xl shadow-sm space-y-1">
+              <div className="bg-gradient-to-r from-slate-900 to-[#234E40] text-white p-5 rounded-2xl shadow-sm space-y-1">
                 <span className="text-[10px] uppercase font-bold bg-amber-400 text-slate-900 px-2 py-0.5 rounded-full">C.E.O Master Control</span>
-                <h3 className="font-bold text-base pt-1">👥 Users Management & Dashboard Editor</h3>
+                <h3 className="font-bold text-base md:text-lg pt-1">👥 Users Management & Dashboard Editor</h3>
                 <p className="text-xs text-emerald-100">Edit any user&apos;s login info, subscription plan, dashboard elements, or delete non-compliant accounts.</p>
               </div>
 
@@ -3265,8 +3293,8 @@ export default function GuideLinkRwandaApp() {
                   No registered users found yet.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-                  <div className="lg:col-span-4 bg-white p-4 rounded-2xl border space-y-2.5 shadow-sm text-xs h-fit">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  <div className="lg:col-span-4 bg-white p-5 rounded-2xl border space-y-3 shadow-sm text-xs h-fit">
                     <label className="font-bold text-slate-700 block">Select User Account ({registeredUsers.length} Total)</label>
                     <select
                       value={selectedManagedUserId}
@@ -3297,7 +3325,7 @@ export default function GuideLinkRwandaApp() {
                   </div>
 
                   {ownerUserEditForm && (
-                    <form onSubmit={handleOwnerSaveManagedUser} className="lg:col-span-8 bg-white p-5 rounded-2xl border space-y-4 shadow-sm text-xs">
+                    <form onSubmit={handleOwnerSaveManagedUser} className="lg:col-span-8 bg-white p-6 rounded-2xl border space-y-4 shadow-sm text-xs">
                       <div className="border-b pb-2 flex justify-between items-center">
                         <h4 className="font-bold text-sm text-[#234E40]">🔑 Login, Subscription & Account</h4>
                         <span className="text-[10px] font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-600">
@@ -3317,7 +3345,7 @@ export default function GuideLinkRwandaApp() {
                           />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-2 gap-3">
                           <div>
                             <label className="font-bold text-slate-700">Login Phone / Email</label>
                             <input
@@ -3340,7 +3368,7 @@ export default function GuideLinkRwandaApp() {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-2 gap-3">
                           <div>
                             <label className="font-bold text-slate-700">Account Role</label>
                             <select
@@ -3427,7 +3455,7 @@ export default function GuideLinkRwandaApp() {
                           />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-2 gap-3">
                           <div>
                             <label className="font-bold text-slate-700">Location</label>
                             <input
@@ -3600,10 +3628,10 @@ export default function GuideLinkRwandaApp() {
 
           {ownerTab === 'overview' && (
             <div className="space-y-4">
-              <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-6 rounded-2xl text-center space-y-1">
+              <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-8 rounded-2xl text-center space-y-1">
                 <span className="text-xs uppercase text-emerald-200 font-bold">Total Platform Revenue</span>
-                <div className="text-3xl md:text-4xl font-extrabold">RWF {grandTotalRevenue.toLocaleString()}</div>
-                <p className="text-xs text-emerald-100">
+                <div className="text-4xl md:text-5xl font-extrabold">RWF {grandTotalRevenue.toLocaleString()}</div>
+                <p className="text-xs md:text-sm text-emerald-100">
                   MoMo Code: {MOMO_PAYMENT_CODE} • Subscriptions: RWF {totalRegFees.toLocaleString()} • Commissions: RWF {totalDealCommissions.toLocaleString()}
                 </p>
               </div>
@@ -3612,15 +3640,15 @@ export default function GuideLinkRwandaApp() {
 
           {ownerTab === 'vip' && (
             <div className="space-y-3">
-              <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl text-xs space-y-1">
+              <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl text-xs space-y-1">
                 <span className="font-bold text-amber-900">🔒 Confidential C.E.O Area</span>
                 <p className="text-amber-800">These 3 tiers are hidden from regular users. Revoking access instantly removes the user from the traveler directory.</p>
               </div>
               <h3 className="font-bold text-sm text-slate-900">⭐ 3-Tier VIP Access Control</h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {exemptAccounts.map((acc) => (
-                  <div key={acc.id} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2.5 text-xs shadow-sm">
+                  <div key={acc.id} className="bg-white p-5 rounded-2xl border border-slate-200 space-y-2.5 text-xs shadow-sm">
                     <div className="flex justify-between items-center">
                       <span className="font-bold text-[#234E40] text-sm">{acc.tier}</span>
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${acc.confirmed ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
@@ -3637,7 +3665,7 @@ export default function GuideLinkRwandaApp() {
                           setExemptAccounts(exemptAccounts.map(a => a.id === acc.id ? { ...a, name: val } : a));
                         }}
                         onBlur={() => handleSaveVipEdits(acc)}
-                        className="w-full mt-0.5 p-2 border rounded-xl bg-slate-50 text-xs font-semibold"
+                        className="w-full mt-0.5 p-2.5 border rounded-xl bg-slate-50 text-xs font-semibold"
                       />
                     </div>
                     <div>
@@ -3650,7 +3678,7 @@ export default function GuideLinkRwandaApp() {
                           setExemptAccounts(exemptAccounts.map(a => a.id === acc.id ? { ...a, contact: val } : a));
                         }}
                         onBlur={() => handleSaveVipEdits(acc)}
-                        className="w-full mt-0.5 p-2 border rounded-xl bg-slate-50 text-xs"
+                        className="w-full mt-0.5 p-2.5 border rounded-xl bg-slate-50 text-xs"
                       />
                     </div>
                     <button
@@ -3668,13 +3696,13 @@ export default function GuideLinkRwandaApp() {
           )}
 
           {ownerTab === 'deals' && (
-            <div className="bg-white p-5 rounded-2xl border space-y-3 text-xs font-bold">
+            <div className="bg-white p-6 rounded-2xl border space-y-3 text-xs font-bold">
               <h3 className="font-bold text-sm text-slate-900">🎛️ Preview All Standard & Custom Dashboards</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
-                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'graduate' }); setCurrentRole('graduate'); setActiveTab('jobs'); }} className="p-3.5 bg-emerald-50 text-[#234E40] border rounded-xl">🎓 Graduate</button>
-                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'agency' }); setCurrentRole('agency'); setActiveTab('jobs'); }} className="p-3.5 bg-emerald-50 text-[#234E40] border rounded-xl">🏢 Agency</button>
-                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'tour_company' }); setCurrentRole('tour_company'); setActiveTab('jobs'); }} className="p-3.5 bg-emerald-50 text-[#234E40] border rounded-xl">🚐 Tour Co.</button>
-                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'traveler' }); setCurrentRole('traveler'); setActiveTab('jobs'); }} className="p-3.5 bg-emerald-50 text-[#234E40] border rounded-xl">🧳 Traveler</button>
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 pt-1">
+                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'graduate' }); setCurrentRole('graduate'); setActiveTab('jobs'); }} className="p-4 bg-emerald-50 text-[#234E40] border rounded-xl">🎓 Graduate</button>
+                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'agency' }); setCurrentRole('agency'); setActiveTab('jobs'); }} className="p-4 bg-emerald-50 text-[#234E40] border rounded-xl">🏢 Agency</button>
+                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'tour_company' }); setCurrentRole('tour_company'); setActiveTab('jobs'); }} className="p-4 bg-emerald-50 text-[#234E40] border rounded-xl">🚐 Tour Co.</button>
+                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'traveler' }); setCurrentRole('traveler'); setActiveTab('jobs'); }} className="p-4 bg-emerald-50 text-[#234E40] border rounded-xl">🧳 Traveler</button>
                 {(appConfig.customDashboards || []).map((cd) => (
                   <button
                     key={cd.id}
@@ -3682,7 +3710,7 @@ export default function GuideLinkRwandaApp() {
                       setActiveCustomDashId(cd.id);
                       setCurrentRole('custom_dashboard_view');
                     }}
-                    className="p-3.5 bg-amber-50 text-amber-950 border border-amber-200 rounded-xl"
+                    className="p-4 bg-amber-50 text-amber-950 border border-amber-200 rounded-xl"
                   >
                     {cd.icon} {cd.name}
                   </button>
@@ -3692,7 +3720,7 @@ export default function GuideLinkRwandaApp() {
           )}
 
           {ownerTab === 'owner_profile' && (
-            <div className="bg-white p-6 rounded-2xl border space-y-4 max-w-2xl">
+            <div className="bg-white p-6 rounded-2xl border space-y-4 w-full max-w-3xl">
               <h3 className="font-bold text-base text-slate-900">👑 C.E.O Profile & Photo</h3>
               <div className="flex flex-col items-center space-y-2">
                 {ownerProfile.photo ? (
@@ -3709,25 +3737,25 @@ export default function GuideLinkRwandaApp() {
               <div className="space-y-3 text-xs">
                 <div>
                   <label className="font-bold text-slate-700">Full Name</label>
-                  <input type="text" value={ownerProfile.name} onChange={(e) => setOwnerProfile({ ...ownerProfile, name: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
+                  <input type="text" value={ownerProfile.name} onChange={(e) => setOwnerProfile({ ...ownerProfile, name: e.target.value })} className="w-full mt-1 p-3 border rounded-xl" />
                 </div>
                 <div>
                   <label className="font-bold text-slate-700">Executive Title</label>
-                  <input type="text" value={ownerProfile.title} onChange={(e) => setOwnerProfile({ ...ownerProfile, title: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
+                  <input type="text" value={ownerProfile.title} onChange={(e) => setOwnerProfile({ ...ownerProfile, title: e.target.value })} className="w-full mt-1 p-3 border rounded-xl" />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="font-bold text-slate-700">Phone Number</label>
-                    <input type="text" value={ownerProfile.contact} onChange={(e) => setOwnerProfile({ ...ownerProfile, contact: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
+                    <input type="text" value={ownerProfile.contact} onChange={(e) => setOwnerProfile({ ...ownerProfile, contact: e.target.value })} className="w-full mt-1 p-3 border rounded-xl" />
                   </div>
                   <div>
                     <label className="font-bold text-slate-700">Email Address</label>
-                    <input type="email" value={ownerProfile.email} onChange={(e) => setOwnerProfile({ ...ownerProfile, email: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
+                    <input type="email" value={ownerProfile.email} onChange={(e) => setOwnerProfile({ ...ownerProfile, email: e.target.value })} className="w-full mt-1 p-3 border rounded-xl" />
                   </div>
                 </div>
                 <div>
                   <label className="font-bold text-slate-700">Executive Bio</label>
-                  <textarea rows="3" value={ownerProfile.bio} onChange={(e) => setOwnerProfile({ ...ownerProfile, bio: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
+                  <textarea rows="3" value={ownerProfile.bio} onChange={(e) => setOwnerProfile({ ...ownerProfile, bio: e.target.value })} className="w-full mt-1 p-3 border rounded-xl" />
                 </div>
                 
                 <button
@@ -3747,7 +3775,7 @@ export default function GuideLinkRwandaApp() {
   }
 
   // =========================================================================
-  // 6. FULL-SCREEN ROLE DASHBOARDS & WORKSPACES (Laptop/Desktop + Mobile)
+  // 6. FULL-BLEED WIDESCREEN ROLE DASHBOARDS & WORKSPACES
   // =========================================================================
   const currentProf = getCurrentProfile();
   const isPartnerRole = ['graduate', 'agency', 'tour_company'].includes(currentRole);
@@ -3828,11 +3856,11 @@ export default function GuideLinkRwandaApp() {
   });
 
   return (
-    <div className="min-h-screen w-full bg-slate-100 flex flex-col justify-between font-sans overflow-x-hidden relative">
+    <div className="min-h-screen w-screen bg-slate-100 flex flex-col justify-between font-sans overflow-x-hidden relative">
       
-      {/* FULL-WIDTH TOP HEADER & NAVIGATION BAR */}
+      {/* FULL-BLEED WIDESCREEN TOP HEADER & NAVIGATION BAR */}
       <div className="bg-white border-b sticky top-0 z-30 shadow-sm w-full">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center border-b border-slate-100">
+        <div className="w-full px-6 md:px-12 py-3 flex justify-between items-center border-b border-slate-100">
           <div className="flex items-center space-x-3">
             {currentProf?.photo ? (
               <img src={currentProf.photo} alt="Profile" className="w-10 h-10 rounded-full object-cover border-2 border-[#3B6E5B]" />
@@ -3876,34 +3904,34 @@ export default function GuideLinkRwandaApp() {
             >
               🔍
             </button>
-            <button onClick={resetToWelcome} className="text-xs bg-slate-100 hover:bg-slate-200 px-3.5 py-1.5 rounded-full font-semibold transition">Sign Out</button>
+            <button onClick={resetToWelcome} className="text-xs bg-slate-100 hover:bg-slate-200 px-4 py-1.5 rounded-full font-semibold transition">Sign Out</button>
           </div>
         </div>
 
-        {/* FULL-WIDTH 4 TABS NAVIGATION */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1.5">
-          <div className="grid grid-cols-4 gap-1.5 bg-slate-50 p-1 rounded-xl text-xs font-bold text-slate-600">
+        {/* FULL-BLEED 4 TABS NAVIGATION */}
+        <div className="w-full px-6 md:px-12 py-1.5">
+          <div className="w-full grid grid-cols-4 gap-2 bg-slate-50 p-1 rounded-xl text-xs font-bold text-slate-600">
             <button
               onClick={() => setActiveTab('jobs')}
-              className={`py-2 rounded-xl transition text-center ${activeTab === 'jobs' ? 'bg-[#234E40] text-white shadow-sm' : 'hover:bg-slate-200'}`}
+              className={`py-2.5 rounded-xl transition text-center ${activeTab === 'jobs' ? 'bg-[#234E40] text-white shadow-sm' : 'hover:bg-slate-200'}`}
             >
               {currentRole === 'traveler' ? '🏠 Explore' : '🏠 Work'}
             </button>
             <button
               onClick={() => setActiveTab('search')}
-              className={`py-2 rounded-xl transition text-center ${activeTab === 'search' ? 'bg-[#234E40] text-white shadow-sm' : 'hover:bg-slate-200'}`}
+              className={`py-2.5 rounded-xl transition text-center ${activeTab === 'search' ? 'bg-[#234E40] text-white shadow-sm' : 'hover:bg-slate-200'}`}
             >
               🔍 Search
             </button>
             <button
               onClick={() => setActiveTab('profile')}
-              className={`py-2 rounded-xl transition text-center ${activeTab === 'profile' ? 'bg-[#234E40] text-white shadow-sm' : 'hover:bg-slate-200'}`}
+              className={`py-2.5 rounded-xl transition text-center ${activeTab === 'profile' ? 'bg-[#234E40] text-white shadow-sm' : 'hover:bg-slate-200'}`}
             >
               👤 Profile
             </button>
             <button
               onClick={() => setActiveTab('chat')}
-              className={`py-2 rounded-xl transition text-center relative ${activeTab === 'chat' ? 'bg-[#234E40] text-white shadow-sm' : 'hover:bg-slate-200'}`}
+              className={`py-2.5 rounded-xl transition text-center relative ${activeTab === 'chat' ? 'bg-[#234E40] text-white shadow-sm' : 'hover:bg-slate-200'}`}
             >
               🔒 Chat
             </button>
@@ -3911,12 +3939,12 @@ export default function GuideLinkRwandaApp() {
         </div>
       </div>
 
-      {/* FULL-SCREEN RESPONSIVE CONTENT CONTAINER */}
-      <div className="max-w-7xl w-full mx-auto flex-1 px-4 sm:px-6 lg:px-8 py-5 space-y-5 pb-12">
+      {/* EDGE-TO-EDGE WIDESCREEN CONTENT BODY */}
+      <div className="w-full flex-1 px-6 md:px-12 py-6 space-y-5 pb-12">
         {roleAnnouncements.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {roleAnnouncements.map((ann) => (
-              <div key={ann.id} className="bg-amber-50 border border-amber-300 p-3.5 rounded-2xl text-xs shadow-sm">
+              <div key={ann.id} className="bg-amber-50 border border-amber-300 p-4 rounded-2xl text-xs shadow-sm">
                 <p className="font-bold text-amber-950">📢 {ann.title}</p>
                 <p className="text-amber-900 mt-0.5">{ann.body}</p>
               </div>
@@ -3938,7 +3966,7 @@ export default function GuideLinkRwandaApp() {
             </div>
             <button
               onClick={() => updateCurrentProfile({ isAvailable: currentProf.isAvailable === false })}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
                 currentProf.isAvailable !== false ? 'bg-emerald-100 text-[#234E40]' : 'bg-slate-200 text-slate-700'
               }`}
             >
@@ -3949,7 +3977,7 @@ export default function GuideLinkRwandaApp() {
 
         {/* INTERACTIVE APP FEATURES ADDED BY OWNER IN APP SERVER */}
         {activeTab === 'jobs' && roleCustomFeatures.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {roleCustomFeatures.map((feat) => (
               <div key={feat.id} className="bg-white p-4 rounded-2xl border-2 border-[#3B6E5B]/30 shadow-sm text-xs space-y-2.5">
                 <div className="flex items-center space-x-2">
@@ -4051,7 +4079,7 @@ export default function GuideLinkRwandaApp() {
 
         {/* Custom Info Sections Added by C.E.O in App Server */}
         {activeTab === 'jobs' && roleCustomSections.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {roleCustomSections.map((sec) => (
               <div key={sec.id} className="bg-white p-4 rounded-2xl border border-emerald-200 shadow-sm text-xs space-y-1">
                 <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">📌 {appConfig.appName} Notice</span>
@@ -4065,10 +4093,10 @@ export default function GuideLinkRwandaApp() {
         {/* UNIVERSAL SEARCH DIRECTORY TAB */}
         {activeTab === 'search' && (
           <div className="space-y-4">
-            <div style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="text-white p-5 rounded-2xl shadow-sm space-y-1">
+            <div style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="text-white p-6 rounded-2xl shadow-sm space-y-1">
               <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Global Partner Directory</span>
-              <h3 className="font-bold text-base md:text-lg pt-1">🔍 Search Agencies, Tour Companies & Graduates</h3>
-              <p className="text-xs text-emerald-100">Find any registered tourism partner in Rwanda by name, location, or service and book directly.</p>
+              <h3 className="font-bold text-base md:text-xl pt-1">🔍 Search Agencies, Tour Companies & Graduates</h3>
+              <p className="text-xs md:text-sm text-emerald-100">Find any registered tourism partner in Rwanda by name, location, or service and book directly.</p>
             </div>
 
             <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3 shadow-sm">
@@ -4093,7 +4121,7 @@ export default function GuideLinkRwandaApp() {
                 )}
               </div>
 
-              <div className="grid grid-cols-4 gap-1.5 bg-slate-100 p-1 rounded-xl text-[10px] md:text-xs font-bold text-center">
+              <div className="grid grid-cols-4 gap-2 bg-slate-100 p-1 rounded-xl text-[10px] md:text-xs font-bold text-center">
                 <button
                   type="button"
                   onClick={() => setSearchRoleFilter('all')}
@@ -4131,7 +4159,7 @@ export default function GuideLinkRwandaApp() {
                 <p>Try clearing your search filter or searching another keyword.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {searchedProviders.map((prov) => (
                   <div key={prov.id} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3 shadow-sm text-xs flex flex-col justify-between">
                     <div className="space-y-2.5">
@@ -4195,13 +4223,13 @@ export default function GuideLinkRwandaApp() {
         {/* Graduate Workspace */}
         {activeTab === 'jobs' && currentRole === 'graduate' && (
           <div className="space-y-5">
-            <div style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="text-white p-5 rounded-2xl shadow-sm space-y-1">
+            <div style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="text-white p-6 rounded-2xl shadow-sm space-y-1">
               <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Graduate Opportunity Hub</span>
-              <h3 className="font-bold text-base md:text-lg pt-1">Guiding Jobs, Consultant Roles & Freelance Travelers</h3>
-              <p className="text-xs text-emerald-100">Review qualifications, tour schedules, and accept assignments suited for tourism professionals.</p>
+              <h3 className="font-bold text-base md:text-xl pt-1">Guiding Jobs, Consultant Roles & Freelance Travelers</h3>
+              <p className="text-xs md:text-sm text-emerald-100">Review qualifications, tour schedules, and accept assignments suited for tourism professionals.</p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               <div className="lg:col-span-5 space-y-3">
                 <div className="flex justify-between items-center">
                   <h3 className="font-bold text-sm text-slate-900">🧳 Freelance Traveler Requests ({matchingTravelerRequests.length})</h3>
@@ -4253,7 +4281,7 @@ export default function GuideLinkRwandaApp() {
 
               <div className="lg:col-span-7 space-y-3">
                 <h3 className="font-bold text-sm text-slate-900">📋 Available Guiding & Consultant Jobs</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {tasks.map((task) => (
                     <div key={task.id} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2.5 shadow-sm text-xs flex flex-col justify-between">
                       <div className="space-y-1.5">
@@ -4295,16 +4323,16 @@ export default function GuideLinkRwandaApp() {
         {/* Travel Agency Workspace */}
         {activeTab === 'jobs' && currentRole === 'agency' && (
           <div className="space-y-5">
-            <div style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="text-white p-5 rounded-2xl shadow-sm space-y-1">
+            <div style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="text-white p-6 rounded-2xl shadow-sm space-y-1">
               <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Travel Agency Hub</span>
-              <h3 className="font-bold text-base md:text-lg pt-1">Explore Travel Consultants, Guides & Tourists</h3>
-              <p className="text-xs text-emerald-100">Review availability, qualifications, and post consultant/guiding assignments.</p>
+              <h3 className="font-bold text-base md:text-xl pt-1">Explore Travel Consultants, Guides & Tourists</h3>
+              <p className="text-xs md:text-sm text-emerald-100">Review availability, qualifications, and post consultant/guiding assignments.</p>
             </div>
 
             {matchingTravelerRequests.length > 0 && (
               <div className="space-y-2">
                 <h3 className="font-bold text-sm text-slate-900">🧳 Direct Traveler Expectations & Bookings</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {matchingTravelerRequests.map((req) => (
                     <div key={req.id} className="bg-white p-4 rounded-2xl border-2 border-amber-300 space-y-2 text-xs">
                       <div className="flex justify-between font-bold">
@@ -4331,10 +4359,10 @@ export default function GuideLinkRwandaApp() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               <div className="lg:col-span-7 space-y-3">
                 <h3 className="font-bold text-sm text-slate-900">👥 Available Consultants, Guides & Partners</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {filteredProviders.filter(p => p.type === 'graduate').map((prov) => (
                     <div key={prov.id} className="bg-white p-4 rounded-2xl border space-y-2 shadow-sm text-xs flex flex-col justify-between">
                       <div className="space-y-2">
@@ -4373,7 +4401,7 @@ export default function GuideLinkRwandaApp() {
               </div>
 
               <div className="lg:col-span-5">
-                <form onSubmit={handlePostNewTask} className="bg-white p-5 rounded-2xl border space-y-3 shadow-sm text-xs">
+                <form onSubmit={handlePostNewTask} className="bg-white p-6 rounded-2xl border space-y-3 shadow-sm text-xs">
                   <h3 className="font-bold text-sm text-slate-900">📢 Post Consultant or Guiding Assignment</h3>
                   <div>
                     <label className="font-bold text-slate-700">Job Category</label>
@@ -4431,16 +4459,16 @@ export default function GuideLinkRwandaApp() {
         {/* Tour Company Workspace */}
         {activeTab === 'jobs' && currentRole === 'tour_company' && (
           <div className="space-y-5">
-            <div style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="text-white p-5 rounded-2xl shadow-sm space-y-1">
+            <div style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="text-white p-6 rounded-2xl shadow-sm space-y-1">
               <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Tour Company Hub</span>
-              <h3 className="font-bold text-base md:text-lg pt-1">Explore Tour Consultants, Guides, Tourists & Graduates</h3>
-              <p className="text-xs text-emerald-100">Review live availability, safari qualifications, and publish expedition gigs.</p>
+              <h3 className="font-bold text-base md:text-xl pt-1">Explore Tour Consultants, Guides, Tourists & Graduates</h3>
+              <p className="text-xs md:text-sm text-emerald-100">Review live availability, safari qualifications, and publish expedition gigs.</p>
             </div>
 
             {matchingTravelerRequests.length > 0 && (
               <div className="space-y-2">
                 <h3 className="font-bold text-sm text-slate-900">🧳 Direct Traveler Expectations & Requests</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {matchingTravelerRequests.map((req) => (
                     <div key={req.id} className="bg-white p-4 rounded-2xl border-2 border-amber-300 space-y-2 text-xs">
                       <div className="flex justify-between font-bold">
@@ -4467,10 +4495,10 @@ export default function GuideLinkRwandaApp() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               <div className="lg:col-span-7 space-y-3">
                 <h3 className="font-bold text-sm text-slate-900">🚐 Available Tour Consultants, Guides & Graduates</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {filteredProviders.filter(p => p.type === 'graduate' || p.type === 'tour_company').map((prov) => (
                     <div key={prov.id} className="bg-white p-4 rounded-2xl border space-y-2 shadow-sm text-xs flex flex-col justify-between">
                       <div className="space-y-2">
@@ -4509,7 +4537,7 @@ export default function GuideLinkRwandaApp() {
               </div>
 
               <div className="lg:col-span-5">
-                <form onSubmit={handlePostNewTask} className="bg-white p-5 rounded-2xl border space-y-3 shadow-sm text-xs">
+                <form onSubmit={handlePostNewTask} className="bg-white p-6 rounded-2xl border space-y-3 shadow-sm text-xs">
                   <h3 className="font-bold text-sm text-slate-900">📢 Post Tour Expedition or Guiding Job</h3>
                   <div>
                     <label className="font-bold text-slate-700">Job Category</label>
@@ -4567,22 +4595,22 @@ export default function GuideLinkRwandaApp() {
         {/* Traveler Dashboard */}
         {activeTab === 'jobs' && currentRole === 'traveler' && (
           <div className="space-y-5">
-            <div style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="text-white p-5 rounded-2xl shadow-sm space-y-1">
+            <div style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="text-white p-6 rounded-2xl shadow-sm space-y-1">
               <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Free Traveler Account</span>
-              <h3 className="font-bold text-base md:text-lg pt-1">Choose Your Travel Partner in Rwanda</h3>
-              <p className="text-xs text-emerald-100">Browse live availability, graduate qualifications, and travel agency expectations.</p>
+              <h3 className="font-bold text-base md:text-xl pt-1">Choose Your Travel Partner in Rwanda</h3>
+              <p className="text-xs md:text-sm text-emerald-100">Browse live availability, graduate qualifications, and travel agency expectations.</p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-              <div className="lg:col-span-8 space-y-3">
-                <div className="grid grid-cols-4 gap-1.5 bg-white p-1.5 rounded-2xl border text-[10px] md:text-xs font-bold text-center">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <div className="lg:col-span-8 space-y-4">
+                <div className="grid grid-cols-4 gap-2 bg-white p-1.5 rounded-2xl border text-[10px] md:text-xs font-bold text-center">
                   <button onClick={() => setDirectoryFilter('all')} className={`py-2 rounded-xl ${directoryFilter === 'all' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}>All</button>
                   <button onClick={() => setDirectoryFilter('graduate')} className={`py-2 rounded-xl ${directoryFilter === 'graduate' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}>Graduates</button>
                   <button onClick={() => setDirectoryFilter('agency')} className={`py-2 rounded-xl ${directoryFilter === 'agency' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}>Agencies</button>
                   <button onClick={() => setDirectoryFilter('tour_company')} className={`py-2 rounded-xl ${directoryFilter === 'tour_company' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}>Tour Co.</button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   {filteredProviders.map((prov) => (
                     <div key={prov.id} className="bg-white p-4 rounded-2xl border space-y-2.5 shadow-sm text-xs flex flex-col justify-between">
                       <div className="space-y-2">
@@ -4629,7 +4657,7 @@ export default function GuideLinkRwandaApp() {
               </div>
 
               <div className="lg:col-span-4">
-                <form onSubmit={handleCreateTripRequest} className="bg-white p-5 rounded-2xl border space-y-3 shadow-sm">
+                <form onSubmit={handleCreateTripRequest} className="bg-white p-6 rounded-2xl border space-y-3 shadow-sm">
                   <h4 className="font-bold text-sm text-slate-900">🗺️ Request Custom Trip</h4>
                   <div>
                     <label className="text-[11px] font-bold text-slate-600">Partner Category</label>
@@ -4671,8 +4699,8 @@ export default function GuideLinkRwandaApp() {
 
         {/* Profile & Qualifications Workspace */}
         {activeTab === 'profile' && currentProf && (
-          <div className="max-w-2xl mx-auto space-y-4">
-            <div className="bg-white p-6 rounded-2xl border space-y-4 shadow-sm">
+          <div className="w-full max-w-4xl mx-auto space-y-4">
+            <div className="bg-white p-6 md:p-8 rounded-2xl border space-y-4 shadow-sm">
               <div className="flex flex-col items-center space-y-2">
                 {currentProf.photo ? (
                   <img src={currentProf.photo} alt="Avatar" className="w-24 h-24 rounded-full object-cover border-4 border-[#3B6E5B]" />
@@ -4681,47 +4709,51 @@ export default function GuideLinkRwandaApp() {
                     {currentProf.name.charAt(0)}
                   </div>
                 )}
-                <label className="cursor-pointer bg-[#3B6E5B] text-white px-3.5 py-1.5 rounded-xl text-xs font-bold">
+                <label className="cursor-pointer bg-[#3B6E5B] text-white px-4 py-2 rounded-xl text-xs font-bold">
                   📷 Upload Profile Photo
                   <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, (imgData) => updateCurrentProfile({ photo: imgData }))} />
                 </label>
               </div>
 
               <div className="space-y-3 text-xs">
-                <div>
-                  <label className="font-bold text-slate-700">Name / Company Name</label>
-                  <input type="text" value={currentProf.name} onChange={(e) => updateCurrentProfile({ name: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-bold text-slate-700">Name / Company Name</label>
+                    <input type="text" value={currentProf.name} onChange={(e) => updateCurrentProfile({ name: e.target.value })} className="w-full mt-1 p-3 border rounded-xl" />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-700">Location</label>
+                    <input type="text" value={currentProf.location} onChange={(e) => updateCurrentProfile({ location: e.target.value })} className="w-full mt-1 p-3 border rounded-xl" />
+                  </div>
                 </div>
                 <div>
                   <label className="font-bold text-slate-700">Headline / Tagline</label>
-                  <input type="text" value={currentProf.headline} onChange={(e) => updateCurrentProfile({ headline: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
-                </div>
-                <div>
-                  <label className="font-bold text-slate-700">Location</label>
-                  <input type="text" value={currentProf.location} onChange={(e) => updateCurrentProfile({ location: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
+                  <input type="text" value={currentProf.headline} onChange={(e) => updateCurrentProfile({ headline: e.target.value })} className="w-full mt-1 p-3 border rounded-xl" />
                 </div>
 
                 {roleCustomFields.length > 0 && (
                   <div className="space-y-2.5 pt-2 border-t border-slate-100">
                     <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">Additional Verified Details</span>
-                    {roleCustomFields.map((fld) => (
-                      <div key={fld.id}>
-                        <label className="font-bold text-slate-700">{fld.label}</label>
-                        <input
-                          type="text"
-                          placeholder={fld.placeholder || ''}
-                          value={(currentProf.customData || {})[fld.id] ?? customFieldValues[fld.id] ?? ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setCustomFieldValues({ ...customFieldValues, [fld.id]: val });
-                            updateCurrentProfile({
-                              customData: { ...(currentProf.customData || {}), [fld.id]: val }
-                            });
-                          }}
-                          className="w-full mt-1 p-2.5 border rounded-xl"
-                        />
-                      </div>
-                    ))}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {roleCustomFields.map((fld) => (
+                        <div key={fld.id}>
+                          <label className="font-bold text-slate-700">{fld.label}</label>
+                          <input
+                            type="text"
+                            placeholder={fld.placeholder || ''}
+                            value={(currentProf.customData || {})[fld.id] ?? customFieldValues[fld.id] ?? ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setCustomFieldValues({ ...customFieldValues, [fld.id]: val });
+                              updateCurrentProfile({
+                                customData: { ...(currentProf.customData || {}), [fld.id]: val }
+                              });
+                            }}
+                            className="w-full mt-1 p-2.5 border rounded-xl"
+                          />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 
@@ -4729,18 +4761,18 @@ export default function GuideLinkRwandaApp() {
                   <div className="space-y-4 pt-3 border-t">
                     <div>
                       <label className="font-bold text-slate-700">💰 Standard Rate / Pricing</label>
-                      <input type="text" value={currentProf.rateInfo || ''} onChange={(e) => updateCurrentProfile({ rateInfo: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
+                      <input type="text" value={currentProf.rateInfo || ''} onChange={(e) => updateCurrentProfile({ rateInfo: e.target.value })} className="w-full mt-1 p-3 border rounded-xl" />
                     </div>
 
-                    <div className="space-y-2 bg-slate-50 p-3 rounded-xl border">
+                    <div className="space-y-2 bg-slate-50 p-4 rounded-xl border">
                       <label className="font-bold text-[#234E40] block">🛠️ Services Offered</label>
                       <div className="flex space-x-2">
-                        <input type="text" placeholder="e.g. Gorilla Trekking Escort" value={newServiceInput} onChange={(e) => setNewServiceInput(e.target.value)} className="flex-1 p-2 border rounded-xl bg-white" />
-                        <button type="button" onClick={() => { if (!newServiceInput.trim()) return; updateCurrentProfile({ servicesOffered: [...(currentProf.servicesOffered || []), newServiceInput.trim()] }); setNewServiceInput(''); }} className="px-3 bg-[#234E40] text-white rounded-xl font-bold">+ Add</button>
+                        <input type="text" placeholder="e.g. Gorilla Trekking Escort" value={newServiceInput} onChange={(e) => setNewServiceInput(e.target.value)} className="flex-1 p-2.5 border rounded-xl bg-white" />
+                        <button type="button" onClick={() => { if (!newServiceInput.trim()) return; updateCurrentProfile({ servicesOffered: [...(currentProf.servicesOffered || []), newServiceInput.trim()] }); setNewServiceInput(''); }} className="px-4 bg-[#234E40] text-white rounded-xl font-bold">+ Add</button>
                       </div>
                       <div className="flex flex-wrap gap-1.5 pt-1">
                         {(currentProf.servicesOffered || []).map((srv, idx) => (
-                          <span key={idx} className="inline-flex items-center space-x-1 bg-white border text-[#234E40] px-2 py-1 rounded-lg">
+                          <span key={idx} className="inline-flex items-center space-x-1 bg-white border text-[#234E40] px-2.5 py-1 rounded-lg">
                             <span>✓ {srv}</span>
                             <button type="button" onClick={() => updateCurrentProfile({ servicesOffered: currentProf.servicesOffered.filter((_, i) => i !== idx) })} className="text-red-500 font-bold ml-1">✕</button>
                           </span>
@@ -4748,28 +4780,28 @@ export default function GuideLinkRwandaApp() {
                       </div>
                     </div>
 
-                    <div className="space-y-2 bg-slate-50 p-3 rounded-xl border">
+                    <div className="space-y-2 bg-slate-50 p-4 rounded-xl border">
                       <label className="font-bold text-[#234E40] block">🎓 Qualifications & Degrees</label>
                       <div className="flex space-x-2">
-                        <input type="text" placeholder="e.g. Advanced Diploma in Tours & Travel (RP Kitabi)" value={newDegreeInput} onChange={(e) => setNewDegreeInput(e.target.value)} className="flex-1 p-2 border rounded-xl bg-white" />
-                        <button type="button" onClick={() => { if (!newDegreeInput.trim()) return; updateCurrentProfile({ degrees: [...(currentProf.degrees || []), newDegreeInput.trim()] }); setNewDegreeInput(''); }} className="px-3 bg-[#3B6E5B] text-white rounded-xl font-bold">+ Add</button>
+                        <input type="text" placeholder="e.g. Advanced Diploma in Tours & Travel (RP Kitabi)" value={newDegreeInput} onChange={(e) => setNewDegreeInput(e.target.value)} className="flex-1 p-2.5 border rounded-xl bg-white" />
+                        <button type="button" onClick={() => { if (!newDegreeInput.trim()) return; updateCurrentProfile({ degrees: [...(currentProf.degrees || []), newDegreeInput.trim()] }); setNewDegreeInput(''); }} className="px-4 bg-[#3B6E5B] text-white rounded-xl font-bold">+ Add</button>
                       </div>
                       {(currentProf.degrees || []).map((deg, idx) => (
-                        <div key={idx} className="flex justify-between items-center bg-white border p-2 rounded-xl mt-1">
+                        <div key={idx} className="flex justify-between items-center bg-white border p-2.5 rounded-xl mt-1">
                           <span>🎓 {deg}</span>
                           <button type="button" onClick={() => updateCurrentProfile({ degrees: currentProf.degrees.filter((_, i) => i !== idx) })} className="text-red-500 font-bold">✕</button>
                         </div>
                       ))}
                     </div>
 
-                    <div className="space-y-2 bg-slate-50 p-3 rounded-xl border">
+                    <div className="space-y-2 bg-slate-50 p-4 rounded-xl border">
                       <label className="font-bold text-[#234E40] block">💼 Experience</label>
                       <div className="flex space-x-2">
-                        <input type="text" placeholder="e.g. 4 Years Safari Guiding" value={newExperienceInput} onChange={(e) => setNewExperienceInput(e.target.value)} className="flex-1 p-2 border rounded-xl bg-white" />
-                        <button type="button" onClick={() => { if (!newExperienceInput.trim()) return; updateCurrentProfile({ experiences: [...(currentProf.experiences || []), newExperienceInput.trim()] }); setNewExperienceInput(''); }} className="px-3 bg-[#3B6E5B] text-white rounded-xl font-bold">+ Add</button>
+                        <input type="text" placeholder="e.g. 4 Years Safari Guiding" value={newExperienceInput} onChange={(e) => setNewExperienceInput(e.target.value)} className="flex-1 p-2.5 border rounded-xl bg-white" />
+                        <button type="button" onClick={() => { if (!newExperienceInput.trim()) return; updateCurrentProfile({ experiences: [...(currentProf.experiences || []), newExperienceInput.trim()] }); setNewExperienceInput(''); }} className="px-4 bg-[#3B6E5B] text-white rounded-xl font-bold">+ Add</button>
                       </div>
                       {(currentProf.experiences || []).map((exp, idx) => (
-                        <div key={idx} className="flex justify-between items-center bg-white border p-2 rounded-xl mt-1">
+                        <div key={idx} className="flex justify-between items-center bg-white border p-2.5 rounded-xl mt-1">
                           <span>💼 {exp}</span>
                           <button type="button" onClick={() => updateCurrentProfile({ experiences: currentProf.experiences.filter((_, i) => i !== idx) })} className="text-red-500 font-bold">✕</button>
                         </div>
@@ -4788,12 +4820,12 @@ export default function GuideLinkRwandaApp() {
 
         {/* Strictly Confidential 1-on-1 Private Chat Tab */}
         {activeTab === 'chat' && (
-          <div className="max-w-3xl mx-auto bg-white p-5 rounded-2xl border space-y-3 shadow-sm flex flex-col h-[520px]">
+          <div className="w-full bg-white p-6 rounded-2xl border space-y-3 shadow-sm flex flex-col h-[540px]">
             <div className="border-b pb-2.5 space-y-2">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="font-bold text-sm text-slate-900">🔒 Confidential 1-on-1 Chat</h3>
-                  <p className="text-[10px] text-emerald-700 font-medium">
+                  <h3 className="font-bold text-sm md:text-base text-slate-900">🔒 Confidential 1-on-1 Chat</h3>
+                  <p className="text-[11px] text-emerald-700 font-medium">
                     End-to-end role privacy: Only you and your chat partner see this thread.
                   </p>
                 </div>
@@ -4807,7 +4839,7 @@ export default function GuideLinkRwandaApp() {
                       key={conv.id}
                       type="button"
                       onClick={() => openConfidentialChat(conv.id, conv.name)}
-                      className={`px-2.5 py-1 rounded-full text-[10px] font-bold shrink-0 transition ${
+                      className={`px-3 py-1 rounded-full text-xs font-bold shrink-0 transition ${
                         activePeerId === conv.id
                           ? 'bg-[#234E40] text-white'
                           : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -4820,7 +4852,7 @@ export default function GuideLinkRwandaApp() {
               )}
 
               {activeChatPeer.name && (
-                <div className="bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl flex justify-between items-center text-[11px]">
+                <div className="bg-emerald-50 border border-emerald-200 px-3.5 py-2 rounded-xl flex justify-between items-center text-xs">
                   <span>
                     Private Room with: <strong className="text-[#234E40]">{activeChatPeer.name}</strong>
                     {activeChatPeer.role ? ` (${activeChatPeer.role})` : ''}
@@ -4830,18 +4862,18 @@ export default function GuideLinkRwandaApp() {
               )}
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-2.5 p-3 bg-slate-50 rounded-xl text-xs">
+            <div className="flex-1 overflow-y-auto space-y-2.5 p-4 bg-slate-50 rounded-xl text-xs">
               {!activeChatPeer.id ? (
-                <div className="text-center text-slate-500 py-14 space-y-2 px-4">
-                  <p className="font-bold text-slate-700">No Private Room Selected</p>
-                  <p className="text-[11px]">
+                <div className="text-center text-slate-500 py-16 space-y-2 px-4">
+                  <p className="font-bold text-slate-700 text-sm">No Private Room Selected</p>
+                  <p className="text-xs">
                     Click <strong>&quot;🔒 Private Chat&quot;</strong> on any Guide, Travel Agency, Tour Company, or Traveler card to start a confidential 1-on-1 conversation.
                   </p>
                 </div>
               ) : activeRoomMessages.length === 0 ? (
-                <div className="text-center text-slate-400 py-14 space-y-1">
-                  <p className="font-semibold text-slate-600">Private conversation with {activeChatPeer.name}</p>
-                  <p className="text-[11px]">Third parties (such as agencies or other guides) cannot view this chat.</p>
+                <div className="text-center text-slate-400 py-16 space-y-1">
+                  <p className="font-semibold text-slate-600 text-sm">Private conversation with {activeChatPeer.name}</p>
+                  <p className="text-xs">Third parties (such as agencies or other guides) cannot view this chat.</p>
                 </div>
               ) : (
                 activeRoomMessages.map((msg) => {
@@ -4849,15 +4881,15 @@ export default function GuideLinkRwandaApp() {
                   return (
                     <div
                       key={msg.id}
-                      className={`p-3 rounded-xl max-w-[75%] ${
+                      className={`p-3 rounded-xl max-w-[70%] ${
                         isMine ? 'bg-[#234E40] text-white ml-auto' : 'bg-white border text-slate-800'
                       }`}
                     >
-                      <div className="flex justify-between text-[9px] opacity-75 mb-1 font-semibold space-x-2">
+                      <div className="flex justify-between text-[10px] opacity-75 mb-1 font-semibold space-x-2">
                         <span>{msg.sender} ({msg.role})</span>
                         <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
-                      <p className="text-xs">{msg.text}</p>
+                      <p className="text-xs md:text-sm">{msg.text}</p>
                     </div>
                   );
                 })
@@ -4872,9 +4904,9 @@ export default function GuideLinkRwandaApp() {
                   placeholder={`Message ${activeChatPeer.name} privately...`}
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  className="flex-1 p-3 border rounded-xl text-xs"
+                  className="flex-1 p-3.5 border rounded-xl text-xs md:text-sm"
                 />
-                <button type="submit" className="px-5 py-3 bg-[#234E40] text-white rounded-xl font-bold text-xs">
+                <button type="submit" className="px-6 py-3.5 bg-[#234E40] text-white rounded-xl font-bold text-xs md:text-sm">
                   Send
                 </button>
               </form>
@@ -4885,7 +4917,7 @@ export default function GuideLinkRwandaApp() {
 
       {bookingTarget && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleDirectProviderBooking} className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-3.5 shadow-xl text-xs">
+          <form onSubmit={handleDirectProviderBooking} className="bg-white rounded-2xl p-6 w-full max-w-md space-y-3.5 shadow-xl text-xs">
             <div>
               <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">{bookingTarget.categoryLabel}</span>
               <h3 className="font-bold text-base text-slate-900">Book {bookingTarget.name}</h3>
