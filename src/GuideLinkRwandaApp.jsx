@@ -128,7 +128,7 @@ const DEFAULT_SUBSCRIPTION_PLANS = [
   {
     id: 'quarter_6m',
     name: 'Quarter Subscription (6 Months)',
-    badge: 'Quarter • 6 Months',
+    badge: 'Quarter â€¢ 6 Months',
     durationLabel: '6 Months (180 Days)',
     days: 180,
     price: 60000,
@@ -137,7 +137,7 @@ const DEFAULT_SUBSCRIPTION_PLANS = [
   {
     id: 'gold_platinum_year',
     name: 'GOLD-PLATINUM',
-    badge: 'GOLD-PLATINUM • 1 Year',
+    badge: 'GOLD-PLATINUM â€¢ 1 Year',
     durationLabel: '1 Year (365 Days)',
     days: 365,
     price: 100000,
@@ -151,6 +151,7 @@ const DEFAULT_APP_SERVER_CONFIG = {
   subtitle: 'Connecting Tourism Graduates, Travel Agencies, Tour Companies, and Travelers across Rwanda.',
   footerLocation: 'Kigali, Rwanda',
   momoCode: '612771',
+  commissionRatePercent: 10,
   primaryColor: '#234E40',
   secondaryColor: '#3B6E5B',
   travelerFreeBadge: 'Travelers: FREE',
@@ -165,605 +166,14 @@ const DEFAULT_APP_SERVER_CONFIG = {
     'Kigali City & Cultural Heritage Tour'
   ],
   announcements: [],
-  ads: [],
   customFields: [],
   customSections: [],
   customDashboards: [],
   customFeatures: []
 };
 
-// =========================================================================
-// OPEN BOOKING & JOB ASSIGNMENT MARKETPLACE (Isolated `openBookings` Node)
-// =========================================================================
-function BookingMarketplace({ currentUser, currentRole }) {
-  const [bookings, setBookings] = useState([]);
-  const [showForm, setShowForm] = useState(false);
-  const [filter, setFilter] = useState('open'); // 'open' | 'my_bookings' | 'granted' | 'taken'
-  const [loading, setLoading] = useState(false);
-
-  const [guestId] = useState(() => {
-    let id = localStorage.getItem('gl_guest_owner_id');
-    if (!id) {
-      id = 'guest_' + Math.random().toString(36).substring(2, 11);
-      localStorage.setItem('gl_guest_owner_id', id);
-    }
-    return id;
-  });
-
-  const normalize = (s) => (s || '').replace(/\s+/g, '').toLowerCase();
-  const activeUserId = normalize(currentUser?.contact || currentUser?.id || currentUser?.name) || guestId;
-  const activeUserName = currentUser?.name || 'Member / Traveler';
-  const activeUserRole = (currentRole || currentUser?.role || 'traveler').toLowerCase();
-
-  // Tour Companies, Travel Agencies, and Graduates/Guides can apply for bookings
-  const isProvider = ['graduate', 'agency', 'tour_company'].includes(activeUserRole);
-
-  const [formData, setFormData] = useState({
-    title: '',
-    destination: 'Kigali City',
-    startDate: '',
-    durationDays: 1,
-    groupSize: 2,
-    budgetRwf: '',
-    targetRole: 'Any (Tour Company, Agency, or Graduate)',
-    notes: '',
-    ownerName: currentUser?.name || '',
-    ownerPhone: currentUser?.contact || ''
-  });
-
-  useEffect(() => {
-    if (currentUser) {
-      setFormData((prev) => ({
-        ...prev,
-        ownerName: prev.ownerName || currentUser.name || '',
-        ownerPhone: prev.ownerPhone || currentUser.contact || ''
-      }));
-    }
-  }, [currentUser]);
-
-  const fetchOpenBookings = async () => {
-    const docs = await firestoreGetCollection('openBookings');
-    if (docs.length > 0) {
-      const sorted = [...docs].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-      setBookings(sorted);
-    }
-  };
-
-  useEffect(() => {
-    fetchOpenBookings();
-    const timer = setInterval(fetchOpenBookings, 5000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const saveBookingDoc = async (docId, dataObj) => {
-    const fields = {};
-    Object.keys(dataObj).forEach((k) => {
-      fields[k] = toFirestoreValue(dataObj[k]);
-    });
-    const maskParams = Object.keys(dataObj)
-      .map((k) => `updateMask.fieldPaths=${encodeURIComponent(k)}`)
-      .join('&');
-    const url = `${FIRESTORE_BASE}/openBookings/${encodeURIComponent(docId)}?${maskParams}&key=${FIREBASE_API_KEY}`;
-    const res = await fetch(url, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fields })
-    });
-    return res.ok;
-  };
-
-  // Everyone is allowed to submit a booking request
-  const handleCreateBooking = async (e) => {
-    e.preventDefault();
-    if (!formData.title.trim()) return;
-    setLoading(true);
-    const newId = `bk-${Date.now()}`;
-    const newBooking = {
-      id: newId,
-      title: formData.title.trim(),
-      destination: formData.destination,
-      startDate: formData.startDate || 'Flexible Date',
-      durationDays: Number(formData.durationDays) || 1,
-      groupSize: Number(formData.groupSize) || 1,
-      budgetRwf: formData.budgetRwf.trim() || 'Negotiable',
-      targetRole: formData.targetRole,
-      notes: formData.notes.trim(),
-      ownerId: activeUserId,
-      ownerName: formData.ownerName.trim() || activeUserName,
-      ownerPhone: formData.ownerPhone.trim(),
-      status: 'open', // 'open' | 'taken'
-      applicants: [],
-      approvedProvider: null,
-      createdAt: Date.now()
-    };
-
-    setBookings([newBooking, ...bookings]);
-    await saveBookingDoc(newId, newBooking);
-
-    setFormData({
-      ...formData,
-      title: '',
-      startDate: '',
-      budgetRwf: '',
-      notes: ''
-    });
-    setShowForm(false);
-    setFilter('open');
-    setLoading(false);
-    alert('✓ Booking request published live!');
-  };
-
-  // Tour Company, Agency, or Graduate requests to take the open booking
-  const handleApplyForBooking = async (booking) => {
-    if (booking.status !== 'open') return;
-    const roleLabel =
-      activeUserRole === 'graduate'
-        ? 'Tourism Graduate / Guide'
-        : activeUserRole === 'agency'
-        ? 'Travel Agency'
-        : 'Tour Company';
-
-    const newApplicant = {
-      providerId: activeUserId,
-      providerName: activeUserName,
-      providerRole: roleLabel,
-      providerPhone: currentUser?.contact || '',
-      appliedAt: new Date().toISOString()
-    };
-
-    const updatedApplicants = [...(booking.applicants || []), newApplicant];
-    setBookings(
-      bookings.map((b) =>
-        b.id === booking.id ? { ...b, applicants: updatedApplicants } : b
-      )
-    );
-    await saveBookingDoc(booking.id, { applicants: updatedApplicants });
-    alert('✓ Request sent! Waiting for booking owner approval.');
-  };
-
-  // Booking Owner approves one provider -> marks booking 'taken' & dismisses from open list
-  const handleApproveProvider = async (booking, applicant) => {
-    const ok = window.confirm(
-      `Approve ${applicant.providerName} (${applicant.providerRole}) for "${booking.title}"? Once approved, this booking will be marked TAKEN and dismissed for everyone else.`
-    );
-    if (!ok) return;
-
-    const approvedData = {
-      ...applicant,
-      approvedAt: new Date().toISOString()
-    };
-
-    setBookings(
-      bookings.map((b) =>
-        b.id === booking.id
-          ? { ...b, status: 'taken', approvedProvider: approvedData }
-          : b
-      )
-    );
-    await saveBookingDoc(booking.id, {
-      status: 'taken',
-      approvedProvider: approvedData
-    });
-    alert(`✓ ${applicant.providerName} is now granted for this job! Booking is locked and dismissed from open requests.`);
-  };
-
-  const grantedCount = bookings.filter(
-    (b) => b.approvedProvider?.providerId === activeUserId
-  ).length;
-
-  const filteredBookings = bookings.filter((b) => {
-    const isOwner = b.ownerId === activeUserId;
-    const isGrantedToMe = b.approvedProvider?.providerId === activeUserId;
-    if (filter === 'open') return b.status === 'open';
-    if (filter === 'my_bookings') return isOwner;
-    if (filter === 'granted') return isGrantedToMe;
-    if (filter === 'taken') return b.status === 'taken';
-    return true;
-  });
-
-  return (
-    <div className="space-y-4">
-      {/* Banner */}
-      <div className="bg-[#234E40] text-white p-6 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="space-y-1">
-          <span className="text-[10px] uppercase font-bold bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full">
-            Open Access Booking Board
-          </span>
-          <h3 className="font-bold text-base md:text-xl pt-1">
-            📅 Live Bookings & Job Assignments
-          </h3>
-          <p className="text-xs md:text-sm text-emerald-100">
-            Everyone can submit a booking request. Deal owners can view all applicants and APPROVE WHOM THEY WANT. Once approved, the booking is marked taken and dismissed for others.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setShowForm(!showForm)}
-          className="px-5 py-3 bg-amber-400 hover:bg-amber-500 text-slate-950 font-extrabold text-xs md:text-sm rounded-xl shadow shrink-0 transition"
-        >
-          {showForm ? '✕ Close Form' : '+ Submit New Booking'}
-        </button>
-      </div>
-
-      {/* Submit Booking Form (Open to Everyone) */}
-      {showForm && (
-        <form
-          onSubmit={handleCreateBooking}
-          className="bg-white p-6 rounded-2xl border-2 border-[#3B6E5B] shadow-sm space-y-4 text-xs"
-        >
-          <h4 className="font-bold text-sm text-[#234E40] border-b pb-2">
-            📝 Submit a New Booking Request (Open to All Users)
-          </h4>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            <div>
-              <label className="font-bold text-slate-700">Trip / Booking Title *</label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. 3-Day Nyungwe & Lake Kivu Tour"
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="w-full mt-1 p-2.5 border rounded-xl"
-              />
-            </div>
-
-            <div>
-              <label className="font-bold text-slate-700">Destination *</label>
-              <select
-                value={formData.destination}
-                onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
-                className="w-full mt-1 p-2.5 border rounded-xl bg-white"
-              >
-                <option value="Kigali City">Kigali City</option>
-                <option value="Musanze / Volcanoes NP">Musanze / Volcanoes National Park</option>
-                <option value="Nyungwe / Kitabi">Nyungwe National Park / Kitabi</option>
-                <option value="Akagera National Park">Akagera National Park</option>
-                <option value="Lake Kivu (Rubavu / Rusizi)">Lake Kivu (Rubavu / Rusizi)</option>
-                <option value="Multi-Destination Rwanda">Multi-Destination Rwanda</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="font-bold text-slate-700">Preferred Provider</label>
-              <select
-                value={formData.targetRole}
-                onChange={(e) => setFormData({ ...formData, targetRole: e.target.value })}
-                className="w-full mt-1 p-2.5 border rounded-xl bg-white font-semibold"
-              >
-                <option value="Any (Tour Company, Agency, or Graduate)">Any (Tour Company, Agency, or Graduate)</option>
-                <option value="Tour Company">Tour Company</option>
-                <option value="Travel Agency">Travel Agency</option>
-                <option value="Tourism Graduate / Guide">Tourism Graduate / Guide</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="font-bold text-slate-700">Travel Date *</label>
-              <input
-                type="date"
-                required
-                value={formData.startDate}
-                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                className="w-full mt-1 p-2.5 border rounded-xl"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="font-bold text-slate-700">Days</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={formData.durationDays}
-                  onChange={(e) => setFormData({ ...formData, durationDays: e.target.value })}
-                  className="w-full mt-1 p-2.5 border rounded-xl"
-                />
-              </div>
-              <div>
-                <label className="font-bold text-slate-700">Travelers</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={formData.groupSize}
-                  onChange={(e) => setFormData({ ...formData, groupSize: e.target.value })}
-                  className="w-full mt-1 p-2.5 border rounded-xl"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="font-bold text-slate-700">Budget (RWF / USD)</label>
-              <input
-                type="text"
-                placeholder="e.g. 150,000 RWF or Negotiable"
-                value={formData.budgetRwf}
-                onChange={(e) => setFormData({ ...formData, budgetRwf: e.target.value })}
-                className="w-full mt-1 p-2.5 border rounded-xl"
-              />
-            </div>
-
-            <div>
-              <label className="font-bold text-slate-700">Your Name / Organization *</label>
-              <input
-                type="text"
-                required
-                value={formData.ownerName}
-                onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })}
-                className="w-full mt-1 p-2.5 border rounded-xl"
-              />
-            </div>
-
-            <div>
-              <label className="font-bold text-slate-700">Your Contact Phone / WhatsApp *</label>
-              <input
-                type="text"
-                required
-                placeholder="+25078XXXXXXX"
-                value={formData.ownerPhone}
-                onChange={(e) => setFormData({ ...formData, ownerPhone: e.target.value })}
-                className="w-full mt-1 p-2.5 border rounded-xl"
-              />
-            </div>
-
-            <div>
-              <label className="font-bold text-slate-700">Trip Requirements & Notes</label>
-              <input
-                type="text"
-                placeholder="Languages, vehicle, or itinerary notes..."
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                className="w-full mt-1 p-2.5 border rounded-xl"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end space-x-2">
-            <button
-              type="button"
-              onClick={() => setShowForm(false)}
-              className="px-4 py-2.5 bg-slate-100 rounded-xl font-bold text-slate-600"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-6 py-2.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold shadow"
-            >
-              {loading ? 'Publishing...' : 'Publish Booking Request →'}
-            </button>
-          </div>
-        </form>
-      )}
-
-      {/* Filter Tabs */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-white p-1.5 rounded-2xl border text-[11px] md:text-xs font-bold text-center shadow-sm">
-        <button
-          type="button"
-          onClick={() => setFilter('open')}
-          className={`py-2.5 rounded-xl transition ${
-            filter === 'open' ? 'bg-[#234E40] text-white' : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          🟢 Open Bookings ({bookings.filter((b) => b.status === 'open').length})
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setFilter('my_bookings')}
-          className={`py-2.5 rounded-xl transition ${
-            filter === 'my_bookings' ? 'bg-[#234E40] text-white' : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          📋 My Submitted ({bookings.filter((b) => b.ownerId === activeUserId).length})
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setFilter('granted')}
-          className={`py-2.5 rounded-xl transition flex items-center justify-center space-x-1.5 ${
-            filter === 'granted'
-              ? 'bg-emerald-700 text-white'
-              : 'text-emerald-900 bg-emerald-50 hover:bg-emerald-100'
-          }`}
-        >
-          <span>🎉 Granted to Me</span>
-          {grantedCount > 0 && (
-            <span className="px-2 py-0.5 text-[10px] bg-emerald-600 text-white rounded-full">
-              {grantedCount}
-            </span>
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setFilter('taken')}
-          className={`py-2.5 rounded-xl transition ${
-            filter === 'taken' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          🔒 Taken / Dismissed ({bookings.filter((b) => b.status === 'taken').length})
-        </button>
-      </div>
-
-      {/* Bookings Cards Grid */}
-      {filteredBookings.length === 0 ? (
-        <div className="bg-white p-8 rounded-2xl border text-center text-xs text-slate-500">
-          No bookings in this view right now. Click <strong>&quot;+ Submit New Booking&quot;</strong> to post one!
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredBookings.map((booking) => {
-            const isOwner = booking.ownerId === activeUserId;
-            const isTaken = booking.status === 'taken';
-            const isGrantedToMe = booking.approvedProvider?.providerId === activeUserId;
-            const alreadyApplied = (booking.applicants || []).some(
-              (a) => a.providerId === activeUserId
-            );
-
-            return (
-              <div
-                key={booking.id}
-                className={`p-5 rounded-2xl border shadow-sm text-xs flex flex-col justify-between space-y-3 ${
-                  isGrantedToMe
-                    ? 'bg-emerald-50 border-emerald-500 border-2'
-                    : isTaken
-                    ? 'bg-slate-50 border-slate-200 opacity-90'
-                    : 'bg-white border-slate-200'
-                }`}
-              >
-                <div className="space-y-2">
-                  <div className="flex justify-between items-start gap-2">
-                    <span className="text-[10px] font-bold uppercase text-[#3B6E5B] bg-emerald-50 px-2.5 py-0.5 rounded-full">
-                      📍 {booking.destination}
-                    </span>
-
-                    {isGrantedToMe ? (
-                      <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-600 text-white">
-                        ✓ Granted for Job
-                      </span>
-                    ) : isTaken ? (
-                      <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900">
-                        🔒 Taken & Dismissed
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                        ● Open
-                      </span>
-                    )}
-                  </div>
-
-                  <h4 className="font-bold text-sm text-slate-900">{booking.title}</h4>
-                  <p className="text-[11px] text-slate-500">
-                    Posted by <strong>{booking.ownerName}</strong> • For: {booking.targetRole}
-                  </p>
-
-                  <div className="bg-slate-100 p-2.5 rounded-xl grid grid-cols-3 gap-1 text-[11px]">
-                    <div>
-                      <span className="text-slate-400 block">Date</span>
-                      <span className="font-bold text-slate-800">{booking.startDate}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block">Trip</span>
-                      <span className="font-bold text-slate-800">
-                        {booking.durationDays}d • {booking.groupSize} pax
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block">Budget</span>
-                      <span className="font-bold text-[#234E40]">{booking.budgetRwf}</span>
-                    </div>
-                  </div>
-
-                  {booking.notes && (
-                    <p className="text-slate-600 italic">&quot;{booking.notes}&quot;</p>
-                  )}
-                </div>
-
-                {/* Action Footer */}
-                <div className="pt-2 border-t border-slate-200 space-y-2">
-                  {/* 1. Granted Provider View */}
-                  {isGrantedToMe && (
-                    <div className="bg-[#234E40] text-white p-3 rounded-xl space-y-1">
-                      <p className="font-bold">
-                        🎉 You have been approved &amp; granted for this job!
-                      </p>
-                      <p className="text-[11px] text-emerald-100">
-                        Owner: <strong>{booking.ownerName}</strong> • Phone:{' '}
-                        <strong>{booking.ownerPhone}</strong>
-                      </p>
-                    </div>
-                  )}
-
-                  {/* 2. Taken Notification for Other Users */}
-                  {isTaken && !isGrantedToMe && !isOwner && (
-                    <div className="bg-slate-200 text-slate-700 p-2.5 rounded-xl text-center font-semibold">
-                      🔒 This booking has already been taken by{' '}
-                      <strong>{booking.approvedProvider?.providerName}</strong> and is dismissed.
-                    </div>
-                  )}
-
-                  {/* 3. Owner Approval Controls - View all applicants and APPROVE WHOM THEY WANT */}
-                  {isOwner && (
-                    <div className="space-y-2">
-                      <p className="font-bold text-[11px] uppercase text-slate-700">
-                        {isTaken
-                          ? `✓ Approved: ${booking.approvedProvider?.providerName}`
-                          : `All Applicants (${(booking.applicants || []).length}) - Approve Whom You Want:`}
-                      </p>
-
-                      {!isTaken && (booking.applicants || []).length === 0 && (
-                        <p className="text-[11px] text-slate-400 italic">
-                          Waiting for providers to apply...
-                        </p>
-                      )}
-
-                      {!isTaken &&
-                        (booking.applicants || []).map((app, i) => (
-                          <div
-                            key={i}
-                            className="flex items-center justify-between bg-slate-50 border p-2 rounded-xl"
-                          >
-                            <div>
-                              <p className="font-bold text-slate-900">{app.providerName}</p>
-                              <p className="text-[10px] text-slate-500">
-                                {app.providerRole} {app.providerPhone ? `• ${app.providerPhone}` : ''}
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => handleApproveProvider(booking, app)}
-                              className="px-3 py-1.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-lg font-bold"
-                            >
-                              Approve
-                            </button>
-                          </div>
-                        ))}
-                    </div>
-                  )}
-
-                  {/* 4. Provider Request Button on Open Bookings */}
-                  {!isOwner && !isTaken && (
-                    <div>
-                      {isProvider ? (
-                        alreadyApplied ? (
-                          <button
-                            type="button"
-                            disabled
-                            className="w-full py-2.5 bg-slate-200 text-slate-600 rounded-xl font-bold cursor-not-allowed"
-                          >
-                            ✓ Request Sent — Awaiting Owner Approval
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleApplyForBooking(booking)}
-                            className="w-full py-2.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold transition"
-                          >
-                            Request / Accept Booking →
-                          </button>
-                        )
-                      ) : (
-                        <p className="text-[11px] text-slate-400 text-center">
-                          Open for verified Tour Companies, Agencies & Graduates to request.
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function GuideLinkRwandaApp() {
-  // Force full-bleed widescreen viewport
+  // Force full-bleed widescreen viewport (overrides Vite/CRA default #root portrait constraints)
   useEffect(() => {
     const styleId = 'guidelink-fullscreen-override';
     if (!document.getElementById(styleId)) {
@@ -792,37 +202,18 @@ export default function GuideLinkRwandaApp() {
   const [ownerPinInput, setOwnerPinInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Pop-up Ad State (Ads pop up instead of staying permanently)
-  const [activePopupAd, setActivePopupAd] = useState(null);
-
-  // No-Code App Server CMS State
+  // No-Code App Server CMS State (Live Cloud Config)
   const [appConfig, setAppConfig] = useState(DEFAULT_APP_SERVER_CONFIG);
-  const [serverSubTab, setServerSubTab] = useState('branding');
+  const [serverSubTab, setServerSubTab] = useState('branding'); // 'branding' | 'content' | 'dashboards' | 'features' | 'controls'
   const [newDestinationInput, setNewDestinationInput] = useState('');
   const [newAnnouncementForm, setNewAnnouncementForm] = useState({ title: '', body: '', targetRole: 'all' });
   const [newCustomFieldForm, setNewCustomFieldForm] = useState({ label: '', placeholder: '', targetRole: 'all', required: false });
   const [newCustomSectionForm, setNewCustomSectionForm] = useState({ title: '', content: '', targetRole: 'all' });
 
-  // Owner Sponsored Ads Generator State
-  const [newAdForm, setNewAdForm] = useState({
-    advertiserId: '',
-    advertiserName: '',
-    advertiserRoleLabel: '',
-    advertiserContact: '',
-    headline: '',
-    description: '',
-    badge: 'Featured Partner',
-    ctaLabel: 'Book / Inquire',
-    imageUrl: '',
-    targetAudience: 'all',
-    adFeePaid: 0,
-    active: true
-  });
-
   // No-Code New Dashboard Builder State
   const [newDashboardForm, setNewDashboardForm] = useState({
     name: '',
-    icon: '🏨',
+    icon: 'ðŸ¨',
     badge: 'New Partner Hub',
     description: '',
     actionTitle: 'Submit Listing / Request',
@@ -835,8 +226,8 @@ export default function GuideLinkRwandaApp() {
   // No-Code New App Feature Builder State
   const [newFeatureForm, setNewFeatureForm] = useState({
     title: '',
-    icon: '✨',
-    featureType: 'action_form',
+    icon: 'âœ¨',
+    featureType: 'action_form', // 'action_form' | 'checklist' | 'resource_link' | 'calculator'
     targetRole: 'all',
     description: '',
     buttonLabel: 'Submit Request',
@@ -850,11 +241,15 @@ export default function GuideLinkRwandaApp() {
   const [calcQtyMap, setCalcQtyMap] = useState({});
 
   const [customFieldValues, setCustomFieldValues] = useState({});
+
+  // Dynamic Subscription Plans State (Editable by Owner)
   const [subscriptionPlans, setSubscriptionPlans] = useState(DEFAULT_SUBSCRIPTION_PLANS);
 
+  // Universal Search State
   const [searchQuery, setSearchQuery] = useState('');
   const [searchRoleFilter, setSearchRoleFilter] = useState('all');
 
+  // Owner Users Management State
   const [selectedManagedUserId, setSelectedManagedUserId] = useState('');
   const [ownerUserEditForm, setOwnerUserEditForm] = useState(null);
   const [ownerNewServiceInput, setOwnerNewServiceInput] = useState('');
@@ -870,6 +265,7 @@ export default function GuideLinkRwandaApp() {
   const [chatInput, setChatInput] = useState('');
   const [activeChatPeer, setActiveChatPeer] = useState({ id: '', name: '', role: '' });
 
+  // Dynamic USSD & Payment Constants
   const MOMO_PAYMENT_CODE = appConfig.momoCode || '612771';
   const buildUssdDisplay = (amount) => `*182*8*1*${MOMO_PAYMENT_CODE}*${amount}#`;
   const buildUssdDialUri = (amount) => `tel:*182*8*1*${MOMO_PAYMENT_CODE}*${amount}%23`;
@@ -878,6 +274,7 @@ export default function GuideLinkRwandaApp() {
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [emailNotificationSent, setEmailNotificationSent] = useState(false);
 
+  // Expired Subscription Renewal State
   const [expiredUserAccount, setExpiredUserAccount] = useState(null);
   const [renewalPlanId, setRenewalPlanId] = useState('monthly');
   const [renewalMomoRef, setRenewalMomoRef] = useState('');
@@ -885,10 +282,10 @@ export default function GuideLinkRwandaApp() {
 
   const [ownerProfile, setOwnerProfile] = useState({
     name: 'RUTUNGURA Bonheur',
-    title: 'C.E.O, Founder & Platform Administrator • GuideLink Rwanda',
+    title: 'C.E.O, Founder & Platform Administrator â€¢ GuideLink Rwanda',
     contact: '+250780558555',
     email: 'rutungurab5@gmail.com',
-    bio: 'C.E.O & Tourism Management Specialist • Creator of GuideLink Rwanda.',
+    bio: 'C.E.O & Tourism Management Specialist â€¢ Creator of GuideLink Rwanda.',
     photo: ''
   });
 
@@ -949,6 +346,12 @@ export default function GuideLinkRwandaApp() {
     return false;
   };
 
+  const getPrivateRoomId = (idA, idB) => {
+    const cleanA = normalizeContact(idA);
+    const cleanB = normalizeContact(idB);
+    return [cleanA, cleanB].sort().join('__');
+  };
+
   const openConfidentialChat = (peerId, peerName, peerRoleLabel = '') => {
     const resolvedId = normalizeContact(peerId || peerName);
     setActiveChatPeer({
@@ -976,9 +379,9 @@ export default function GuideLinkRwandaApp() {
         setAppConfig((prev) => ({
           ...prev,
           ...mainCfg,
+          commissionRatePercent: Number(mainCfg.commissionRatePercent ?? prev.commissionRatePercent),
           destinations: Array.isArray(mainCfg.destinations) && mainCfg.destinations.length > 0 ? mainCfg.destinations : prev.destinations,
           announcements: Array.isArray(mainCfg.announcements) ? mainCfg.announcements : [],
-          ads: Array.isArray(mainCfg.ads) ? mainCfg.ads : [],
           customFields: Array.isArray(mainCfg.customFields) ? mainCfg.customFields : [],
           customSections: Array.isArray(mainCfg.customSections) ? mainCfg.customSections : [],
           customDashboards: Array.isArray(mainCfg.customDashboards) ? mainCfg.customDashboards : [],
@@ -1072,19 +475,6 @@ export default function GuideLinkRwandaApp() {
     return () => clearInterval(interval);
   }, []);
 
-  // Trigger Pop-up Ad when entering views or randomly
-  useEffect(() => {
-    const visibleAds = (appConfig.ads || []).filter((ad) => ad.active !== false);
-    if (visibleAds.length > 0 && !activePopupAd) {
-      // Pick a random ad to pop up after 2 seconds
-      const timer = setTimeout(() => {
-        const randomAd = visibleAds[Math.floor(Math.random() * visibleAds.length)];
-        setActivePopupAd(randomAd);
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [appConfig.ads, currentRole]);
-
   const getRoleDisplayLabel = (role) => {
     if (role === 'graduate') return 'Tourism Graduate / Guide';
     if (role === 'agency') return 'Travel Agency';
@@ -1171,9 +561,10 @@ export default function GuideLinkRwandaApp() {
     setIsSaving(true);
     await updateCurrentProfile(profileData);
     setIsSaving(false);
-    alert('✓ Profile & updates successfully saved to Firebase Cloud!');
+    alert('âœ“ Profile & updates successfully saved to Firebase Cloud!');
   };
 
+  // Save Owner No-Code App Server Configuration to Firebase
   const handleSaveAppServerConfig = async (customOverride = null) => {
     setIsSaving(true);
     const payload = customOverride || appConfig;
@@ -1183,6 +574,7 @@ export default function GuideLinkRwandaApp() {
       subtitle: payload.subtitle || '',
       footerLocation: payload.footerLocation || 'Kigali, Rwanda',
       momoCode: payload.momoCode || '612771',
+      commissionRatePercent: Number(payload.commissionRatePercent) || 10,
       primaryColor: payload.primaryColor || '#234E40',
       secondaryColor: payload.secondaryColor || '#3B6E5B',
       travelerFreeBadge: payload.travelerFreeBadge || 'Travelers: FREE',
@@ -1192,7 +584,6 @@ export default function GuideLinkRwandaApp() {
       welcomeBannerText: payload.welcomeBannerText || '',
       destinations: payload.destinations || [],
       announcements: payload.announcements || [],
-      ads: payload.ads || [],
       customFields: payload.customFields || [],
       customSections: payload.customSections || [],
       customDashboards: payload.customDashboards || [],
@@ -1215,7 +606,7 @@ export default function GuideLinkRwandaApp() {
       });
     }
     setIsSaving(false);
-    alert('✓ Subscription plan names & costs saved to Firebase Cloud!');
+    alert('âœ“ Subscription plan names & costs saved to Firebase Cloud!');
   };
 
   const handleSelectUserForAdminEdit = (user) => {
@@ -1250,7 +641,7 @@ export default function GuideLinkRwandaApp() {
 
   const handleDeleteUserAccount = async (userId, userName) => {
     const confirmed = window.confirm(
-      `⚠️ Are you sure you want to permanently DELETE "${userName}" from the system? This action cannot be undone.`
+      `âš ï¸ Are you sure you want to permanently DELETE "${userName}" from the system? This action cannot be undone.`
     );
     if (!confirmed) return;
 
@@ -1275,7 +666,7 @@ export default function GuideLinkRwandaApp() {
     }
 
     await firestoreDeleteDoc('profiles', userId);
-    alert(`🗑️ User "${userName}" has been permanently deleted.`);
+    alert(`ðŸ—‘ï¸ User "${userName}" has been permanently deleted.`);
   };
 
   const handleOwnerSaveManagedUser = async (e) => {
@@ -1352,7 +743,7 @@ export default function GuideLinkRwandaApp() {
     });
 
     setIsSaving(false);
-    alert(`✓ Login info, subscription & all dashboard elements for ${cleanFields.name} updated in Firebase!`);
+    alert(`âœ“ Login info, subscription & all dashboard elements for ${cleanFields.name} updated in Firebase!`);
   };
 
   const handleImageUpload = (e, onSuccess) => {
@@ -1415,7 +806,7 @@ export default function GuideLinkRwandaApp() {
         return;
       }
       if (appConfig.maintenanceMode) {
-        alert(`⚠️ ${appConfig.maintenanceMessage}`);
+        alert(`âš ï¸ ${appConfig.maintenanceMessage}`);
         return;
       }
       setActiveUser({
@@ -1431,7 +822,7 @@ export default function GuideLinkRwandaApp() {
     }
 
     if (appConfig.maintenanceMode) {
-      alert(`⚠️ ${appConfig.maintenanceMessage}`);
+      alert(`âš ï¸ ${appConfig.maintenanceMessage}`);
       return;
     }
 
@@ -1695,7 +1086,7 @@ export default function GuideLinkRwandaApp() {
       status: nextStatus,
       subscriptionExpiresAt: updatedExpiry
     });
-    alert(`✓ User access has been successfully ${nextStatus === 'approved' ? 'GRANTED' : 'REVOKED'} in Firebase!`);
+    alert(`âœ“ User access has been successfully ${nextStatus === 'approved' ? 'GRANTED' : 'REVOKED'} in Firebase!`);
   };
 
   const toggleVipTierAccess = async (slotId) => {
@@ -1708,7 +1099,7 @@ export default function GuideLinkRwandaApp() {
       exemptAccounts.map((acc) => (acc.id === slotId ? updatedItem : acc))
     );
     await firestoreSaveDoc('vipTiers', slotId, updatedItem);
-    alert(`✓ ${target.tier} access has been successfully ${newStatus ? 'GRANTED' : 'REVOKED'}!`);
+    alert(`âœ“ ${target.tier} access has been successfully ${newStatus ? 'GRANTED' : 'REVOKED'}!`);
   };
 
   const handleSaveVipEdits = async (acc) => {
@@ -1729,7 +1120,7 @@ export default function GuideLinkRwandaApp() {
 
     setTasks(tasks.map((t) => (String(t.id) === taskDocId ? updatedTask : t)));
     await firestoreSaveDoc('tasks', taskDocId, updatedTask);
-    alert('✓ Gig accepted and synced to Firebase!');
+    alert('âœ“ Gig accepted and synced to Firebase!');
   };
 
   const handleCompleteTask = async (taskId) => {
@@ -1737,18 +1128,20 @@ export default function GuideLinkRwandaApp() {
     const existingTask = tasks.find((t) => String(t.id) === taskDocId);
     if (!existingTask) return;
 
+    const commissionRate = Number(appConfig.commissionRatePercent) || 10;
+    const commission = Math.round((existingTask.rawPay * commissionRate) / 100);
     const updatedTask = {
       ...existingTask,
       status: 'done',
       paymentStatus: 'paid',
-      ownerCommission: 0,
-      netGuidePayout: existingTask.rawPay,
+      ownerCommission: commission,
+      netGuidePayout: existingTask.rawPay - commission,
       createdAt: existingTask.createdAt || Date.now()
     };
 
     setTasks(tasks.map((t) => (String(t.id) === taskDocId ? updatedTask : t)));
     await firestoreSaveDoc('tasks', taskDocId, updatedTask);
-    alert(`✓ Task completed! 100% payout (RWF ${Number(existingTask.rawPay).toLocaleString()}) settled with zero commission fees.`);
+    alert(`âœ“ Task completed! Commission routed to MoMo Code ${MOMO_PAYMENT_CODE}.`);
   };
 
   const handleConfirmTravelerRequest = async (reqId) => {
@@ -1767,7 +1160,7 @@ export default function GuideLinkRwandaApp() {
       status: 'confirmed',
       confirmedBy: confirmedByLabel
     });
-    alert(`✓ Traveler request confirmed by ${responderName}!`);
+    alert(`âœ“ Traveler request confirmed by ${responderName}!`);
   };
 
   const handlePostNewTask = async (e) => {
@@ -1796,7 +1189,7 @@ export default function GuideLinkRwandaApp() {
     setTasks([newTask, ...tasks]);
     setNewTaskForm({ title: '', date: '', rawPay: '', location: 'Kigali', category: 'Guiding Job' });
     await firestoreSaveDoc('tasks', newId, newTask);
-    alert('✓ Assignment/Opportunity published to Firebase!');
+    alert('âœ“ Assignment/Opportunity published to Firebase!');
   };
 
   const handleCreateTripRequest = async (e) => {
@@ -1827,7 +1220,7 @@ export default function GuideLinkRwandaApp() {
       notes: ''
     });
     await firestoreSaveDoc('tripRequests', newId, newTrip);
-    alert(`✓ Request broadcasted to available ${categoryLabel}s!`);
+    alert(`âœ“ Request broadcasted to available ${categoryLabel}s!`);
   };
 
   const handleDirectProviderBooking = async (e) => {
@@ -1853,7 +1246,7 @@ export default function GuideLinkRwandaApp() {
     setBookingTarget(null);
     setBookingDetails({ dates: '', guests: '2', notes: '' });
     await firestoreSaveDoc('tripRequests', newId, newBooking);
-    alert(`✓ Booking request sent to ${newBooking.targetProvider}!`);
+    alert(`âœ“ Booking request sent to ${newBooking.targetProvider}!`);
   };
 
   const handleSendChatMessage = async (e) => {
@@ -1862,7 +1255,7 @@ export default function GuideLinkRwandaApp() {
 
     const myId = normalizeContact(activeUser?.contact || activeUser?.name || 'user');
     const recipientId = normalizeContact(activeChatPeer.id);
-    const roomId = [myId, recipientId].sort().join('__');
+    const roomId = getPrivateRoomId(myId, recipientId);
 
     const msgId = `chat-${Date.now()}`;
     const newMsg = {
@@ -1930,7 +1323,7 @@ export default function GuideLinkRwandaApp() {
           type: acc.role,
           categoryLabel: `${getRoleDisplayLabel(acc.role)} (${acc.tier})`,
           name: prof.name || acc.name,
-          headline: prof.headline || `${acc.tier} • Verified Partner`,
+          headline: prof.headline || `${acc.tier} â€¢ Verified Partner`,
           location: prof.location || 'Kigali, Rwanda',
           languages: (prof.skills || ['English', 'Kinyarwanda']).join(', '),
           rate: prof.rateInfo || (acc.role === 'graduate' ? 'RWF 45,000 / day' : 'Custom Packages'),
@@ -1955,7 +1348,7 @@ export default function GuideLinkRwandaApp() {
           id: `reg-${u.id}`,
           contactId: key,
           type: u.role,
-          categoryLabel: `${getRoleDisplayLabel(u.role)} • ${u.subscriptionPlanName || 'Verified'}`,
+          categoryLabel: `${getRoleDisplayLabel(u.role)} â€¢ ${u.subscriptionPlanName || 'Verified'}`,
           name: prof.name || u.name,
           headline: prof.headline || `Verified ${getRoleDisplayLabel(u.role)}`,
           location: prof.location || 'Rwanda',
@@ -1973,125 +1366,6 @@ export default function GuideLinkRwandaApp() {
     return [...dynamicProviders, ...defaultProviders];
   };
 
-  const eligiblePaidAdvertisers = [
-    ...registeredUsers
-      .filter(
-        (u) =>
-          u.status === 'approved' &&
-          !isUserSubscriptionExpired(u) &&
-          ['graduate', 'agency', 'tour_company'].includes(u.role)
-      )
-      .map((u) => {
-        const key = normalizeContact(u.contact);
-        const prof = userProfiles[key] || {};
-        return {
-          id: `reg-${u.id}`,
-          name: prof.name || u.name,
-          contact: u.contact,
-          role: u.role,
-          roleLabel: `${getRoleDisplayLabel(u.role)} • ${u.subscriptionPlanName || 'Paid Plan'}`,
-          headline: prof.headline || '',
-          location: prof.location || 'Rwanda',
-          photo: prof.photo || ''
-        };
-      }),
-    ...exemptAccounts
-      .filter((acc) => acc.confirmed && ['graduate', 'agency', 'tour_company'].includes(acc.role))
-      .map((acc) => {
-        const key = normalizeContact(acc.contact);
-        const prof = userProfiles[key] || {};
-        return {
-          id: `vip-${acc.id}`,
-          name: prof.name || acc.name,
-          contact: acc.contact,
-          role: acc.role,
-          roleLabel: `${getRoleDisplayLabel(acc.role)} • ${acc.tier}`,
-          headline: prof.headline || '',
-          location: prof.location || 'Rwanda',
-          photo: prof.photo || ''
-        };
-      })
-  ];
-
-  // =========================================================================
-  // POP-UP SPONSORED AD MODAL COMPONENT (Replaces permanent banner with popup)
-  // =========================================================================
-  const renderPopupAdModal = () => {
-    if (!activePopupAd) return null;
-    return (
-      <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-        <div className="bg-gradient-to-br from-amber-50 via-white to-emerald-50 border-2 border-amber-400 p-6 rounded-3xl max-w-md w-full shadow-2xl space-y-4 text-xs animate-scale-up relative">
-          <button
-            type="button"
-            onClick={() => setActivePopupAd(null)}
-            className="absolute top-4 right-4 bg-slate-200 hover:bg-slate-300 text-slate-800 w-8 h-8 rounded-full font-extrabold flex items-center justify-center"
-          >
-            ✕
-          </button>
-
-          <div className="flex items-center space-x-3">
-            {activePopupAd.imageUrl ? (
-              <img src={activePopupAd.imageUrl} alt="" className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-400 shrink-0" />
-            ) : (
-              <div className="w-14 h-14 rounded-2xl bg-amber-400 text-amber-950 flex items-center justify-center text-2xl font-black shrink-0">
-                📢
-              </div>
-            )}
-            <div>
-              <span className="text-[10px] font-extrabold uppercase bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full">
-                {activePopupAd.badge || 'Sponsored Partner'}
-              </span>
-              <h3 className="font-extrabold text-base text-slate-900 mt-1 leading-snug">
-                {activePopupAd.headline}
-              </h3>
-              <p className="text-xs font-bold text-[#234E40]">
-                {activePopupAd.advertiserName} {activePopupAd.advertiserRoleLabel ? `• ${activePopupAd.advertiserRoleLabel}` : ''}
-              </p>
-            </div>
-          </div>
-
-          {activePopupAd.description && (
-            <p className="text-slate-700 leading-relaxed text-sm bg-amber-100/50 p-3 rounded-xl border border-amber-200">
-              {activePopupAd.description}
-            </p>
-          )}
-
-          <div className="flex space-x-2 pt-2">
-            {activePopupAd.advertiserContact && (
-              <button
-                type="button"
-                onClick={() => {
-                  const ad = activePopupAd;
-                  setActivePopupAd(null);
-                  openConfidentialChat(ad.advertiserContact, ad.advertiserName, ad.advertiserRoleLabel || 'Sponsored Partner');
-                }}
-                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-xl font-bold text-xs shadow-sm transition"
-              >
-                🔒 Private Chat
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                const ad = activePopupAd;
-                setActivePopupAd(null);
-                setBookingTarget({
-                  type: 'agency',
-                  categoryLabel: ad.advertiserRoleLabel || 'Featured Partner',
-                  name: ad.advertiserName,
-                  location: 'Rwanda'
-                });
-              }}
-              className="flex-1 py-3 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-extrabold text-xs shadow transition"
-            >
-              {activePopupAd.ctaLabel || 'Book Now'} →
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   // =========================================================================
   // 1. FULL-BLEED WIDESCREEN WELCOME VIEW
   // =========================================================================
@@ -2105,7 +1379,6 @@ export default function GuideLinkRwandaApp() {
 
     return (
       <div className="min-h-screen w-screen bg-slate-50 flex flex-col justify-between font-sans overflow-x-hidden">
-        {renderPopupAdModal()}
         <div className="w-full">
           {/* Full-Bleed Widescreen Hero Banner */}
           <div className="bg-[#E2ECE9] w-full px-6 md:px-12 py-8 md:py-12 relative overflow-hidden">
@@ -2122,17 +1395,17 @@ export default function GuideLinkRwandaApp() {
             </div>
           </div>
 
-          {/* Edge-to-Edge Widescreen Grid */}
+          {/* Edge-to-Edge Widescreen Grid (No narrow portrait container) */}
           <div className="w-full px-6 md:px-12 lg:px-16 py-8 md:py-12 space-y-6">
             {appConfig.maintenanceMode && (
               <div className="w-full bg-red-50 border border-red-300 p-4 rounded-2xl text-xs md:text-sm text-red-900 font-semibold">
-                🚧 {appConfig.maintenanceMessage}
+                ðŸš§ {appConfig.maintenanceMessage}
               </div>
             )}
 
             {appConfig.welcomeBannerText && (
               <div className="w-full bg-amber-50 border border-amber-300 p-4 rounded-2xl text-xs md:text-sm text-amber-950 font-semibold">
-                📢 {appConfig.welcomeBannerText}
+                ðŸ“¢ {appConfig.welcomeBannerText}
               </div>
             )}
 
@@ -2158,7 +1431,7 @@ export default function GuideLinkRwandaApp() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
                     {welcomeAnnouncements.map((ann) => (
                       <div key={ann.id} className="bg-emerald-50/80 border border-emerald-200 p-4 rounded-2xl text-xs md:text-sm">
-                        <p className="font-bold text-[#234E40]">📌 {ann.title}</p>
+                        <p className="font-bold text-[#234E40]">ðŸ“Œ {ann.title}</p>
                         <p className="text-slate-700 mt-1">{ann.body}</p>
                       </div>
                     ))}
@@ -2168,7 +1441,7 @@ export default function GuideLinkRwandaApp() {
                 {welcomeCustomDashboards.length > 0 && (
                   <div className="space-y-3 pt-2">
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                      🌟 Specialized Platform Dashboards
+                      ðŸŒŸ Specialized Platform Dashboards
                     </span>
                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                       {welcomeCustomDashboards.map((cd) => (
@@ -2181,7 +1454,7 @@ export default function GuideLinkRwandaApp() {
                           }}
                           className="p-4 bg-white hover:bg-emerald-50 border border-slate-200 rounded-2xl text-left shadow-sm transition flex items-start space-x-3"
                         >
-                          <span className="text-2xl">{cd.icon || '📊'}</span>
+                          <span className="text-2xl">{cd.icon || 'ðŸ“Š'}</span>
                           <div>
                             <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">{cd.badge || 'Partner Hub'}</span>
                             <h4 className="font-bold text-sm text-slate-900">{cd.name}</h4>
@@ -2215,8 +1488,8 @@ export default function GuideLinkRwandaApp() {
                     style={{ backgroundColor: appConfig.primaryColor || '#234E40' }}
                     className="w-full py-4 hover:opacity-95 text-white rounded-xl font-bold text-sm md:text-base shadow transition flex items-center justify-center space-x-2"
                   >
-                    <span>🔑</span>
-                    <span>Sign In (Registered Members) →</span>
+                    <span>ðŸ”‘</span>
+                    <span>Sign In (Registered Members) â†’</span>
                   </button>
 
                   {appConfig.allowNewSignups !== false && (
@@ -2238,7 +1511,7 @@ export default function GuideLinkRwandaApp() {
                       }}
                       className="w-full py-4 bg-emerald-50 hover:bg-emerald-100 text-[#234E40] border border-[#3B6E5B]/30 rounded-xl font-bold text-sm md:text-base transition flex items-center justify-center space-x-2"
                     >
-                      <span>📝</span>
+                      <span>ðŸ“</span>
                       <span>Create Account (New Sign Up)</span>
                     </button>
                   )}
@@ -2252,7 +1525,7 @@ export default function GuideLinkRwandaApp() {
                     }}
                     className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs md:text-sm shadow-sm transition flex items-center justify-center space-x-2"
                   >
-                    <span>👑</span>
+                    <span>ðŸ‘‘</span>
                     <span>C.E.O Login ({ownerProfile.name})</span>
                   </button>
                 </div>
@@ -2267,7 +1540,7 @@ export default function GuideLinkRwandaApp() {
             &copy; {new Date().getFullYear()} <strong className="text-slate-700">{ownerProfile.name}</strong>. All rights reserved.
           </p>
           <p className="text-xs text-slate-400">
-            {appConfig.appName} • {appConfig.footerLocation || 'Kigali, Rwanda'}
+            {appConfig.appName} â€¢ {appConfig.footerLocation || 'Kigali, Rwanda'}
           </p>
         </footer>
 
@@ -2276,7 +1549,7 @@ export default function GuideLinkRwandaApp() {
             <form onSubmit={handleOwnerLogin} className="bg-white rounded-2xl p-6 w-full max-w-md space-y-4 shadow-xl">
               <div className="text-center space-y-1">
                 <div className="w-12 h-12 bg-slate-900 text-white rounded-full flex items-center justify-center mx-auto text-lg">
-                  🔐
+                  ðŸ”
                 </div>
                 <h3 className="font-bold text-base text-slate-900">C.E.O Authentication</h3>
                 <p className="text-xs text-slate-500">Enter private password to unlock Owner HQ & App Server.</p>
@@ -2285,7 +1558,7 @@ export default function GuideLinkRwandaApp() {
                 type="password"
                 required
                 autoFocus
-                placeholder="••••••••"
+                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                 value={ownerPinInput}
                 onChange={(e) => setOwnerPinInput(e.target.value)}
                 className="w-full p-3 border border-slate-300 rounded-xl text-sm text-center font-bold tracking-wider"
@@ -2327,17 +1600,16 @@ export default function GuideLinkRwandaApp() {
 
     return (
       <div className="min-h-screen w-screen bg-slate-100 flex flex-col justify-between font-sans overflow-x-hidden">
-        {renderPopupAdModal()}
         <div style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="w-full text-white px-6 md:px-12 py-4 sticky top-0 z-30 shadow-sm flex justify-between items-center">
           <div className="flex items-center space-x-3">
-            <span className="text-2xl">{customDash.icon || '📊'}</span>
+            <span className="text-2xl">{customDash.icon || 'ðŸ“Š'}</span>
             <div>
               <h2 className="font-bold text-base md:text-lg">{customDash.name}</h2>
               <p className="text-xs text-emerald-200">{customDash.badge || appConfig.appName}</p>
             </div>
           </div>
           <button onClick={resetToWelcome} className="text-xs bg-black/30 hover:bg-black/40 px-4 py-2 rounded-full font-semibold">
-            ← Back to Home
+            â† Back to Home
           </button>
         </div>
 
@@ -2369,7 +1641,7 @@ export default function GuideLinkRwandaApp() {
                   setAppConfig(updatedCfg);
                   setCustomDashPostInput({ title: '', details: '', priceOrMeta: '' });
                   await handleSaveAppServerConfig(updatedCfg);
-                  alert('✓ Entry published to this dashboard!');
+                  alert('âœ“ Entry published to this dashboard!');
                 }}
                 className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3 text-xs"
               >
@@ -2403,7 +1675,7 @@ export default function GuideLinkRwandaApp() {
             </div>
 
             <div className="lg:col-span-8 space-y-3">
-              <h4 className="font-bold text-sm text-slate-900">📋 Live Entries ({(customDash.items || []).length})</h4>
+              <h4 className="font-bold text-sm text-slate-900">ðŸ“‹ Live Entries ({(customDash.items || []).length})</h4>
               {(customDash.items || []).length === 0 ? (
                 <div className="bg-white p-8 rounded-2xl border text-center text-xs text-slate-500">
                   No entries posted in {customDash.name} yet.
@@ -2437,11 +1709,10 @@ export default function GuideLinkRwandaApp() {
   if (currentRole === 'signin') {
     return (
       <div className="min-h-screen w-screen bg-slate-100 flex flex-col justify-between font-sans overflow-x-hidden">
-        {renderPopupAdModal()}
         <div className="w-full bg-white px-6 md:px-12 py-4 border-b border-slate-200 flex justify-between items-center">
-          <h2 className="font-bold text-base md:text-lg text-slate-900">{appConfig.appName} — Secure Member Sign In</h2>
+          <h2 className="font-bold text-base md:text-lg text-slate-900">{appConfig.appName} â€” Secure Member Sign In</h2>
           <button onClick={resetToWelcome} className="text-xs bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-full font-semibold text-slate-700">
-            ← Home
+            â† Home
           </button>
         </div>
 
@@ -2492,7 +1763,7 @@ export default function GuideLinkRwandaApp() {
               </div>
 
               <button type="submit" style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="w-full py-4 hover:opacity-95 text-white rounded-xl font-bold text-sm md:text-base shadow transition">
-                Unlock Dashboard →
+                Unlock Dashboard â†’
               </button>
             </form>
           </div>
@@ -2511,14 +1782,13 @@ export default function GuideLinkRwandaApp() {
 
     return (
       <div className="min-h-screen w-screen bg-slate-100 flex flex-col justify-between font-sans overflow-x-hidden">
-        {renderPopupAdModal()}
         <div className="w-full bg-red-700 text-white px-6 md:px-12 py-4 flex justify-between items-center">
           <div>
-            <h2 className="font-bold text-sm md:text-base">🔒 Subscription Expired — Access Locked</h2>
+            <h2 className="font-bold text-sm md:text-base">ðŸ”’ Subscription Expired â€” Access Locked</h2>
             <p className="text-xs text-red-100">{expiredUserAccount.name} ({getRoleDisplayLabel(expiredUserAccount.role)})</p>
           </div>
           <button onClick={resetToWelcome} className="text-xs bg-red-900 px-4 py-2 rounded-full font-semibold">
-            ← Home
+            â† Home
           </button>
         </div>
 
@@ -2576,11 +1846,11 @@ export default function GuideLinkRwandaApp() {
                     onClick={() => setUssdTriggered(true)}
                     className="block w-full py-3.5 px-4 bg-amber-400 hover:bg-amber-500 text-slate-950 rounded-xl font-extrabold text-sm tracking-wide shadow border-2 border-amber-500"
                   >
-                    📞 {renewalUssdDisplay}
+                    ðŸ“ž {renewalUssdDisplay}
                   </a>
                   {ussdTriggered && (
                     <p className="text-xs font-bold text-emerald-800 bg-emerald-100 py-1.5 px-2.5 rounded-lg">
-                      ✓ Dialer launched! Enter MoMo PIN on your phone, then enter reference below.
+                      âœ“ Dialer launched! Enter MoMo PIN on your phone, then enter reference below.
                     </p>
                   )}
                 </div>
@@ -2603,13 +1873,13 @@ export default function GuideLinkRwandaApp() {
                   onClick={handleCompleteRenewalPayment}
                   className="w-full py-4 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow transition"
                 >
-                  {isSubmittingPayment ? '⏳ Notifying C.E.O...' : '✓ Renewal Paid — Notify C.E.O to Unlock'}
+                  {isSubmittingPayment ? 'â³ Notifying C.E.O...' : 'âœ“ Renewal Paid â€” Notify C.E.O to Unlock'}
                 </button>
               </div>
             ) : (
               <div className="bg-white p-8 rounded-2xl border text-center space-y-4 shadow-sm">
                 <div className="w-14 h-14 bg-emerald-100 text-[#234E40] rounded-full flex items-center justify-center mx-auto text-2xl font-bold">
-                  ✓
+                  âœ“
                 </div>
                 <h3 className="text-xl font-bold text-slate-900">Renewal Payment Submitted</h3>
                 <p className="text-sm text-slate-600">
@@ -2644,11 +1914,10 @@ export default function GuideLinkRwandaApp() {
 
     return (
       <div className="min-h-screen w-screen bg-slate-100 flex flex-col justify-between font-sans overflow-x-hidden">
-        {renderPopupAdModal()}
         <div className="w-full bg-white px-6 md:px-12 py-4 border-b border-slate-200 flex justify-between items-center">
-          <h2 className="font-bold text-base md:text-lg text-slate-900">{appConfig.appName} — Create New Account</h2>
+          <h2 className="font-bold text-base md:text-lg text-slate-900">{appConfig.appName} â€” Create New Account</h2>
           <button onClick={resetToWelcome} className="text-xs bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-full font-semibold text-slate-700">
-            ← Home
+            â† Home
           </button>
         </div>
 
@@ -2693,7 +1962,7 @@ export default function GuideLinkRwandaApp() {
                     <input
                       type="password"
                       required
-                      placeholder="••••••"
+                      placeholder="â€¢â€¢â€¢â€¢â€¢â€¢"
                       value={regForm.password}
                       onChange={(e) => setRegForm({ ...regForm, password: e.target.value })}
                       className="w-full mt-1 p-3 border border-slate-200 rounded-xl text-sm"
@@ -2704,7 +1973,7 @@ export default function GuideLinkRwandaApp() {
                     <input
                       type="password"
                       required
-                      placeholder="••••••"
+                      placeholder="â€¢â€¢â€¢â€¢â€¢â€¢"
                       value={regForm.confirmPassword}
                       onChange={(e) => setRegForm({ ...regForm, confirmPassword: e.target.value })}
                       className="w-full mt-1 p-3 border border-slate-200 rounded-xl text-sm"
@@ -2717,12 +1986,12 @@ export default function GuideLinkRwandaApp() {
                       onChange={(e) => setRegForm({ ...regForm, role: e.target.value })}
                       className="w-full mt-1 p-3 border border-slate-200 rounded-xl text-sm bg-white font-semibold"
                     >
-                      <option value="traveler">🧳 Traveler (FREE Instant Access)</option>
-                      <option value="graduate">🎓 Tourism Graduate (Guide / Consultant)</option>
-                      <option value="agency">🏢 Travel Agency</option>
-                      <option value="tour_company">🚐 Tour Company (Safari Operator)</option>
+                      <option value="traveler">ðŸ§³ Traveler (FREE Instant Access)</option>
+                      <option value="graduate">ðŸŽ“ Tourism Graduate (Guide / Consultant)</option>
+                      <option value="agency">ðŸ¢ Travel Agency</option>
+                      <option value="tour_company">ðŸš Tour Company (Safari Operator)</option>
                       {(appConfig.customDashboards || []).map((cd) => (
-                        <option key={cd.id} value={cd.id}>{cd.icon || '📊'} {cd.name}</option>
+                        <option key={cd.id} value={cd.id}>{cd.icon || 'ðŸ“Š'} {cd.name}</option>
                       ))}
                     </select>
                   </div>
@@ -2731,7 +2000,7 @@ export default function GuideLinkRwandaApp() {
                 {regForm.role !== 'traveler' && (
                   <div className="space-y-3 pt-2 border-t border-slate-100">
                     <label className="text-xs font-bold text-[#234E40] block">
-                      💳 Choose Your Subscription Plan:
+                      ðŸ’³ Choose Your Subscription Plan:
                     </label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {subscriptionPlans.map((plan) => (
@@ -2763,7 +2032,7 @@ export default function GuideLinkRwandaApp() {
                               {Number(plan.price).toLocaleString()} RWF
                             </span>
                             {regForm.subscriptionPlanId === plan.id && (
-                              <p className="text-[10px] font-bold text-emerald-700">✓ Selected</p>
+                              <p className="text-[10px] font-bold text-emerald-700">âœ“ Selected</p>
                             )}
                           </div>
                         </button>
@@ -2774,8 +2043,8 @@ export default function GuideLinkRwandaApp() {
 
                 <button type="submit" style={{ backgroundColor: appConfig.secondaryColor || '#3B6E5B' }} className="w-full py-4 text-white rounded-xl font-bold text-sm md:text-base shadow">
                   {regForm.role === 'traveler'
-                    ? 'Complete Free Sign Up →'
-                    : `Proceed to Pay ${Number(selectedPlan.price).toLocaleString()} RWF (${selectedPlan.name}) →`}
+                    ? 'Complete Free Sign Up â†’'
+                    : `Proceed to Pay ${Number(selectedPlan.price).toLocaleString()} RWF (${selectedPlan.name}) â†’`}
                 </button>
               </form>
             )}
@@ -2784,7 +2053,7 @@ export default function GuideLinkRwandaApp() {
               <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 space-y-5 shadow-sm max-w-2xl mx-auto">
                 <div className="bg-amber-50 border border-amber-300 p-5 rounded-2xl space-y-2.5 text-center">
                   <span className="text-[10px] font-extrabold uppercase tracking-wider bg-amber-400 text-slate-900 px-2.5 py-0.5 rounded-full">
-                    {selectedPlan.name} • {selectedPlan.durationLabel}
+                    {selectedPlan.name} â€¢ {selectedPlan.durationLabel}
                   </span>
                   <h3 className="text-lg font-bold text-slate-900">
                     Tap Below to Pay {Number(selectedPlan.price).toLocaleString()} RWF Automatically
@@ -2798,7 +2067,7 @@ export default function GuideLinkRwandaApp() {
                     onClick={() => setUssdTriggered(true)}
                     className="block w-full py-3.5 px-4 bg-amber-400 hover:bg-amber-500 active:scale-[0.99] text-slate-950 rounded-xl font-extrabold text-base tracking-wide shadow-md transition border-2 border-amber-500"
                   >
-                    📞 {activeUssdDisplay}
+                    ðŸ“ž {activeUssdDisplay}
                   </a>
 
                   <div className="flex justify-center space-x-2 pt-0.5">
@@ -2807,25 +2076,25 @@ export default function GuideLinkRwandaApp() {
                       onClick={() => {
                         if (navigator.clipboard) {
                           navigator.clipboard.writeText(activeUssdDisplay);
-                          alert(`✓ Copied ${activeUssdDisplay} to clipboard!`);
+                          alert(`âœ“ Copied ${activeUssdDisplay} to clipboard!`);
                         }
                       }}
                       className="text-xs font-bold text-[#234E40] bg-white border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50"
                     >
-                      📋 Copy USSD Code
+                      ðŸ“‹ Copy USSD Code
                     </button>
                     <button
                       type="button"
                       onClick={() => setRegStep('details')}
                       className="text-xs font-bold text-slate-600 bg-white border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50"
                     >
-                      ↺ Change Plan
+                      â†º Change Plan
                     </button>
                   </div>
 
                   {ussdTriggered && (
                     <p className="text-xs font-bold text-emerald-800 bg-emerald-100 py-1.5 px-2.5 rounded-lg">
-                      ✓ Phone dialer launched! Enter your MoMo PIN on your phone, then confirm below.
+                      âœ“ Phone dialer launched! Enter your MoMo PIN on your phone, then confirm below.
                     </p>
                   )}
                 </div>
@@ -2849,8 +2118,8 @@ export default function GuideLinkRwandaApp() {
                   className="w-full py-4 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow transition"
                 >
                   {isSubmittingPayment
-                    ? '⏳ Sending Real-Time Notification to C.E.O...'
-                    : '✓ Payment Completed — Notify C.E.O Email'}
+                    ? 'â³ Sending Real-Time Notification to C.E.O...'
+                    : 'âœ“ Payment Completed â€” Notify C.E.O Email'}
                 </button>
               </div>
             )}
@@ -2858,7 +2127,7 @@ export default function GuideLinkRwandaApp() {
             {regStep === 'pending_approval' && (
               <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center space-y-4 shadow-sm max-w-xl mx-auto">
                 <div className="w-14 h-14 bg-emerald-100 text-[#234E40] rounded-full flex items-center justify-center mx-auto text-2xl font-bold">
-                  ✓
+                  âœ“
                 </div>
                 <h3 className="text-xl font-bold text-slate-900">Subscription Recorded & C.E.O Notified</h3>
                 <p className="text-sm text-slate-600 leading-relaxed">
@@ -2872,7 +2141,7 @@ export default function GuideLinkRwandaApp() {
                   href={manualMailtoHref}
                   className="block w-full py-3 bg-amber-100 hover:bg-amber-200 text-amber-950 rounded-xl font-bold text-xs border border-amber-300 transition"
                 >
-                  📧 Send Direct Email Copy to {ownerProfile.email}
+                  ðŸ“§ Send Direct Email Copy to {ownerProfile.email}
                 </a>
 
                 <button onClick={resetToWelcome} className="w-full py-3.5 bg-[#3B6E5B] text-white rounded-xl font-bold text-sm shadow">
@@ -2891,33 +2160,34 @@ export default function GuideLinkRwandaApp() {
   // =========================================================================
   if (currentRole === 'owner') {
     const totalRegFees = registeredUsers.reduce((sum, u) => sum + (u.feePaid || 0), 0);
-    const totalAdRevenue = (appConfig.ads || []).reduce((sum, ad) => sum + (Number(ad.adFeePaid) || 0), 0);
-    const grandTotalRevenue = totalRegFees + totalAdRevenue;
+    const totalDealCommissions = tasks
+      .filter((t) => t.paymentStatus === 'paid')
+      .reduce((sum, t) => sum + (t.ownerCommission || 0), 0);
+    const grandTotalRevenue = totalRegFees + totalDealCommissions;
     const pendingCount = registeredUsers.filter((u) => u.status === 'pending_approval').length;
 
     return (
       <div className="min-h-screen w-screen bg-slate-100 flex flex-col justify-between font-sans overflow-x-hidden relative">
-        {renderPopupAdModal()}
         <div style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="w-full text-white px-6 md:px-12 py-4 sticky top-0 z-30 shadow-sm flex justify-between items-center">
           <div className="flex items-center space-x-3">
             {ownerProfile.photo ? (
               <img src={ownerProfile.photo} alt="C.E.O" className="w-11 h-11 rounded-full object-cover border-2 border-amber-400" />
             ) : (
-              <div className="w-11 h-11 bg-amber-400 text-slate-900 rounded-full flex items-center justify-center font-extrabold text-sm">👑</div>
+              <div className="w-11 h-11 bg-amber-400 text-slate-900 rounded-full flex items-center justify-center font-extrabold text-sm">ðŸ‘‘</div>
             )}
             <div>
               <h2 className="font-bold text-sm md:text-base">{ownerProfile.name} <span className="text-[10px] bg-amber-400 text-slate-900 px-1.5 py-0.5 rounded font-extrabold ml-1">C.E.O</span></h2>
-              <p className="text-[11px] text-emerald-200">{ownerProfile.contact} • MoMo: {MOMO_PAYMENT_CODE}</p>
+              <p className="text-[11px] text-emerald-200">{ownerProfile.contact} â€¢ MoMo: {MOMO_PAYMENT_CODE}</p>
             </div>
           </div>
           <button onClick={resetToWelcome} className="text-xs bg-black/30 hover:bg-black/40 px-4 py-2 rounded-full font-semibold">Log Out</button>
         </div>
 
-        {/* Full-Width 9-Tab Navigation Bar */}
-        <div className="w-full bg-white border-b border-slate-200 sticky top-[76px] z-20 shadow-sm px-3 md:px-12 py-2">
-          <div className="w-full grid grid-cols-9 gap-1 text-center">
-            <button onClick={() => setOwnerTab('pending')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1 items-center relative ${ownerTab === 'pending' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
-              <span className="text-sm">⏳</span><span className="text-[9px] md:text-xs">SignUps</span>
+        {/* Full-Width 8-Tab Navigation Bar */}
+        <div className="w-full bg-white border-b border-slate-200 sticky top-[76px] z-20 shadow-sm px-4 md:px-12 py-2">
+          <div className="w-full grid grid-cols-8 gap-1.5 text-center">
+            <button onClick={() => setOwnerTab('pending')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center relative ${ownerTab === 'pending' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
+              <span className="text-sm">â³</span><span className="text-[9px] md:text-xs">SignUps</span>
               {pendingCount > 0 && <span className="bg-red-600 text-white text-[8px] px-1.5 rounded-full">{pendingCount}</span>}
             </button>
             <button
@@ -2927,343 +2197,26 @@ export default function GuideLinkRwandaApp() {
                   handleSelectUserForAdminEdit(registeredUsers[0]);
                 }
               }}
-              className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1 items-center ${ownerTab === 'users_mgmt' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}
+              className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center ${ownerTab === 'users_mgmt' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}
             >
-              <span className="text-sm">👥</span><span className="text-[9px] md:text-xs">Users</span>
+              <span className="text-sm">ðŸ‘¥</span><span className="text-[9px] md:text-xs">Users</span>
             </button>
-            <button onClick={() => setOwnerTab('advertising')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1 items-center relative ${ownerTab === 'advertising' ? 'bg-amber-100 text-amber-950 font-bold' : 'text-slate-500'}`}>
-              <span className="text-sm">📢</span><span className="text-[9px] md:text-xs">Ads</span>
-              {(appConfig.ads || []).length > 0 && (
-                <span className="bg-[#234E40] text-white text-[8px] px-1.5 rounded-full">{(appConfig.ads || []).length}</span>
-              )}
+            <button onClick={() => setOwnerTab('app_server')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center ${ownerTab === 'app_server' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
+              <span className="text-sm">ðŸ–¥ï¸</span><span className="text-[9px] md:text-xs">Server</span>
             </button>
-            <button onClick={() => setOwnerTab('app_server')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1 items-center ${ownerTab === 'app_server' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
-              <span className="text-sm">🖥️</span><span className="text-[9px] md:text-xs">Server</span>
+            <button onClick={() => setOwnerTab('plans_mgmt')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center ${ownerTab === 'plans_mgmt' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
+              <span className="text-sm">ðŸ’³</span><span className="text-[9px] md:text-xs">Plans</span>
             </button>
-            <button onClick={() => setOwnerTab('plans_mgmt')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1 items-center ${ownerTab === 'plans_mgmt' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}>
-              <span className="text-sm">💳</span><span className="text-[9px] md:text-xs">Plans</span>
-            </button>
-            <button onClick={() => setOwnerTab('overview')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1 items-center ${ownerTab === 'overview' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">📊</span><span className="text-[9px] md:text-xs">Money</span></button>
-            <button onClick={() => setOwnerTab('vip')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1 items-center ${ownerTab === 'vip' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">⭐</span><span className="text-[9px] md:text-xs">VIP</span></button>
-            <button onClick={() => setOwnerTab('deals')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1 items-center ${ownerTab === 'deals' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">🎛️</span><span className="text-[9px] md:text-xs">Roles</span></button>
-            <button onClick={() => setOwnerTab('owner_profile')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1 items-center ${ownerTab === 'owner_profile' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">👤</span><span className="text-[9px] md:text-xs">Me</span></button>
+            <button onClick={() => setOwnerTab('overview')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center ${ownerTab === 'overview' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">ðŸ“Š</span><span className="text-[9px] md:text-xs">Money</span></button>
+            <button onClick={() => setOwnerTab('vip')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center ${ownerTab === 'vip' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">â­</span><span className="text-[9px] md:text-xs">VIP</span></button>
+            <button onClick={() => setOwnerTab('deals')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center ${ownerTab === 'deals' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">ðŸŽ›ï¸</span><span className="text-[9px] md:text-xs">Roles</span></button>
+            <button onClick={() => setOwnerTab('owner_profile')} className={`p-2 rounded-xl flex flex-col md:flex-row md:justify-center md:space-x-1.5 items-center ${ownerTab === 'owner_profile' ? 'bg-emerald-50 text-[#234E40] font-bold' : 'text-slate-500'}`}><span className="text-sm">ðŸ‘¤</span><span className="text-[9px] md:text-xs">Me</span></button>
           </div>
         </div>
 
         {/* Full-Width Content Body */}
         <div className="w-full px-6 md:px-12 py-6 space-y-5 flex-1 pb-12">
-          {ownerTab === 'advertising' && (
-            <div className="space-y-5">
-              <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-[#234E40] text-slate-950 p-6 rounded-2xl shadow-sm space-y-1">
-                <span className="text-[10px] uppercase font-extrabold bg-slate-950 text-amber-400 px-2.5 py-0.5 rounded-full">
-                  C.E.O Advertising Studio
-                </span>
-                <h3 className="font-extrabold text-lg md:text-xl pt-1 text-slate-950">
-                  📢 Sponsored Popup Ads Generator
-                </h3>
-                <p className="text-xs md:text-sm text-slate-900 font-medium">
-                  Generate spotlight pop-up ads for subscribed partners that appear dynamically across the platform.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-xs">
-                <form
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    if (!newAdForm.advertiserName.trim() || !newAdForm.headline.trim()) {
-                      alert('Please select or enter the Company/Guide Name and Ad Headline.');
-                      return;
-                    }
-                    const createdAd = {
-                      id: `ad-${Date.now()}`,
-                      advertiserId: newAdForm.advertiserId || '',
-                      advertiserName: newAdForm.advertiserName.trim(),
-                      advertiserRoleLabel: newAdForm.advertiserRoleLabel.trim(),
-                      advertiserContact: newAdForm.advertiserContact.trim(),
-                      headline: newAdForm.headline.trim(),
-                      description: newAdForm.description.trim(),
-                      badge: newAdForm.badge.trim() || 'Featured Partner',
-                      ctaLabel: newAdForm.ctaLabel.trim() || 'Book / Inquire',
-                      imageUrl: newAdForm.imageUrl || '',
-                      targetAudience: newAdForm.targetAudience || 'all',
-                      adFeePaid: Number(newAdForm.adFeePaid) || 0,
-                      active: true,
-                      createdAt: Date.now()
-                    };
-                    const updatedCfg = {
-                      ...appConfig,
-                      ads: [createdAd, ...(appConfig.ads || [])]
-                    };
-                    setAppConfig(updatedCfg);
-                    setNewAdForm({
-                      advertiserId: '',
-                      advertiserName: '',
-                      advertiserRoleLabel: '',
-                      advertiserContact: '',
-                      headline: '',
-                      description: '',
-                      badge: 'Featured Partner',
-                      ctaLabel: 'Book / Inquire',
-                      imageUrl: '',
-                      targetAudience: 'all',
-                      adFeePaid: 0,
-                      active: true
-                    });
-                    await handleSaveAppServerConfig(updatedCfg);
-                    alert(`✓ Sponsored Pop-up Ad for "${createdAd.advertiserName}" published live!`);
-                  }}
-                  className="lg:col-span-5 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3.5"
-                >
-                  <h4 className="font-bold text-sm text-[#234E40] border-b pb-2">✨ Generate New Pop-up Ad</h4>
-
-                  <div>
-                    <label className="font-bold text-slate-700 block">
-                      1. Select Paid Company or Guide ({eligiblePaidAdvertisers.length} Active)
-                    </label>
-                    <select
-                      value={newAdForm.advertiserId}
-                      onChange={(e) => {
-                        const chosenId = e.target.value;
-                        const found = eligiblePaidAdvertisers.find((item) => item.id === chosenId);
-                        if (found) {
-                          setNewAdForm({
-                            ...newAdForm,
-                            advertiserId: found.id,
-                            advertiserName: found.name,
-                            advertiserRoleLabel: found.roleLabel,
-                            advertiserContact: found.contact,
-                            headline: found.headline || `${found.name} — Verified Rwanda Tours & Guiding`,
-                            imageUrl: found.photo || newAdForm.imageUrl
-                          });
-                        } else {
-                          setNewAdForm({ ...newAdForm, advertiserId: '' });
-                        }
-                      }}
-                      className="w-full mt-1 p-2.5 border rounded-xl bg-amber-50/50 font-semibold text-slate-900"
-                    >
-                      <option value="">-- Choose a Subscribed Company / Guide --</option>
-                      {eligiblePaidAdvertisers.map((adv) => (
-                        <option key={adv.id} value={adv.id}>
-                          {adv.name} ({adv.roleLabel})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <div>
-                      <label className="font-bold text-slate-700">Advertiser Name</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. Echo Travels Ltd."
-                        value={newAdForm.advertiserName}
-                        onChange={(e) => setNewAdForm({ ...newAdForm, advertiserName: e.target.value })}
-                        className="w-full mt-1 p-2.5 border rounded-xl font-semibold"
-                      />
-                    </div>
-                    <div>
-                      <label className="font-bold text-slate-700">Contact / Phone</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. +250780558555"
-                        value={newAdForm.advertiserContact}
-                        onChange={(e) => setNewAdForm({ ...newAdForm, advertiserContact: e.target.value })}
-                        className="w-full mt-1 p-2.5 border rounded-xl"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="font-bold text-slate-700">2. Ad Headline / Promo Title</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. 20% Off Nyungwe Canopy & Gorilla Safaris!"
-                      value={newAdForm.headline}
-                      onChange={(e) => setNewAdForm({ ...newAdForm, headline: e.target.value })}
-                      className="w-full mt-1 p-2.5 border rounded-xl font-bold"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="font-bold text-slate-700">Short Ad Description</label>
-                    <textarea
-                      rows="2"
-                      placeholder="Highlight packages, 4x4 fleet, languages spoken..."
-                      value={newAdForm.description}
-                      onChange={(e) => setNewAdForm({ ...newAdForm, description: e.target.value })}
-                      className="w-full mt-1 p-2.5 border rounded-xl"
-                    />
-                  </div>
-
-                  <div className="bg-emerald-50 border border-emerald-200 p-3.5 rounded-xl space-y-1.5">
-                    <label className="font-extrabold text-[#234E40] block">
-                      🎯 3. Target Audience Control
-                    </label>
-                    <select
-                      value={newAdForm.targetAudience}
-                      onChange={(e) => setNewAdForm({ ...newAdForm, targetAudience: e.target.value })}
-                      className="w-full p-2.5 border border-emerald-300 rounded-xl bg-white font-bold text-slate-900"
-                    >
-                      <option value="all">🌍 Everyone</option>
-                      <option value="welcome">🏠 Welcome Home Screen Only</option>
-                      <option value="traveler">🧳 Travelers Only</option>
-                      <option value="partners">🏢 Agencies & Tour Companies Only</option>
-                      <option value="graduate">🎓 Tourism Graduates Only</option>
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <label className="font-bold text-slate-700">Badge Tag</label>
-                      <input
-                        type="text"
-                        placeholder="Sponsored"
-                        value={newAdForm.badge}
-                        onChange={(e) => setNewAdForm({ ...newAdForm, badge: e.target.value })}
-                        className="w-full mt-1 p-2.5 border rounded-xl"
-                      />
-                    </div>
-                    <div>
-                      <label className="font-bold text-slate-700">Button Text</label>
-                      <input
-                        type="text"
-                        placeholder="Book Now"
-                        value={newAdForm.ctaLabel}
-                        onChange={(e) => setNewAdForm({ ...newAdForm, ctaLabel: e.target.value })}
-                        className="w-full mt-1 p-2.5 border rounded-xl"
-                      />
-                    </div>
-                    <div>
-                      <label className="font-bold text-slate-700">Ad Fee (RWF)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={newAdForm.adFeePaid}
-                        onChange={(e) => setNewAdForm({ ...newAdForm, adFeePaid: Number(e.target.value) })}
-                        className="w-full mt-1 p-2.5 border rounded-xl font-bold text-[#234E40]"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border">
-                    <span className="font-bold text-slate-700">Ad Image:</span>
-                    <label className="cursor-pointer bg-slate-900 text-white px-3 py-1.5 rounded-lg font-bold">
-                      📷 {newAdForm.imageUrl ? 'Change Image' : 'Upload Image'}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => handleImageUpload(e, (imgData) => setNewAdForm({ ...newAdForm, imageUrl: imgData }))}
-                      />
-                    </label>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isSaving}
-                    className="w-full py-3.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow transition"
-                  >
-                    {isSaving ? '⏳ Publishing Ad...' : '🚀 Publish Pop-up Ad Live'}
-                  </button>
-                </form>
-
-                <div className="lg:col-span-7 space-y-3">
-                  <div className="flex justify-between items-center">
-                    <h4 className="font-bold text-sm text-slate-900">
-                      📋 Active Pop-up Ads ({(appConfig.ads || []).length})
-                    </h4>
-                    <span className="text-[11px] font-bold text-[#234E40]">
-                      Ad Revenue: RWF {totalAdRevenue.toLocaleString()}
-                    </span>
-                  </div>
-
-                  {(appConfig.ads || []).length === 0 ? (
-                    <div className="bg-white p-8 rounded-2xl border text-center text-slate-500 space-y-1">
-                      <p className="font-bold text-slate-700 text-sm">No Ads Published Yet</p>
-                      <p>Use the generator on the left to create pop-up ads.</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {(appConfig.ads || []).map((ad) => (
-                        <div
-                          key={ad.id}
-                          className={`bg-white p-4 rounded-2xl border-2 space-y-2.5 shadow-sm flex flex-col justify-between ${
-                            ad.active !== false ? 'border-amber-300' : 'border-slate-200 opacity-75'
-                          }`}
-                        >
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-start gap-2">
-                              <div className="flex items-center space-x-2.5">
-                                {ad.imageUrl ? (
-                                  <img src={ad.imageUrl} alt="" className="w-10 h-10 rounded-xl object-cover border" />
-                                ) : (
-                                  <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-900 flex items-center justify-center font-bold">
-                                    📢
-                                  </div>
-                                )}
-                                <div>
-                                  <span className="text-[10px] font-extrabold uppercase bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full">
-                                    {ad.badge}
-                                  </span>
-                                  <h5 className="font-bold text-sm text-slate-900 mt-0.5">{ad.headline}</h5>
-                                  <p className="text-[11px] font-semibold text-[#234E40]">{ad.advertiserName}</p>
-                                </div>
-                              </div>
-                              <span
-                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
-                                  ad.active !== false ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
-                                }`}
-                              >
-                                {ad.active !== false ? '🟢 Live' : '⏸️ Paused'}
-                              </span>
-                            </div>
-
-                            {ad.description && <p className="text-slate-600">{ad.description}</p>}
-                          </div>
-
-                          <div className="flex space-x-2 pt-1">
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                const updatedAds = appConfig.ads.map((item) =>
-                                  item.id === ad.id ? { ...item, active: item.active === false } : item
-                                );
-                                const updatedCfg = { ...appConfig, ads: updatedAds };
-                                setAppConfig(updatedCfg);
-                                await handleSaveAppServerConfig(updatedCfg);
-                              }}
-                              className={`flex-1 py-2 rounded-xl font-bold ${
-                                ad.active !== false
-                                  ? 'bg-amber-100 text-amber-950 hover:bg-amber-200'
-                                  : 'bg-emerald-600 text-white'
-                              }`}
-                            >
-                              {ad.active !== false ? '⏸️ Pause Ad' : '▶️ Resume Live'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                const updatedAds = appConfig.ads.filter((item) => item.id !== ad.id);
-                                const updatedCfg = { ...appConfig, ads: updatedAds };
-                                setAppConfig(updatedCfg);
-                                await handleSaveAppServerConfig(updatedCfg);
-                              }}
-                              className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold"
-                            >
-                              🗑️
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
+          {/* NO-CODE APP SERVER & LIVE CMS (ðŸ–¥ï¸ Server Tab) */}
           {ownerTab === 'app_server' && (
             <div className="space-y-4">
               <div className="bg-gradient-to-r from-slate-950 via-[#234E40] to-[#3B6E5B] text-white p-6 rounded-2xl shadow-sm space-y-1">
@@ -3271,52 +2224,57 @@ export default function GuideLinkRwandaApp() {
                   <span className="text-[10px] uppercase font-bold bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full">
                     No-Code App Server & Builder
                   </span>
-                  <span className="text-xs font-bold text-emerald-300">🟢 Cloud Synced</span>
+                  <span className="text-xs font-bold text-emerald-300">ðŸŸ¢ Cloud Synced</span>
                 </div>
-                <h3 className="font-bold text-lg md:text-xl pt-1">🖥️ Live Web App Studio, Dashboards & Features Builder</h3>
+                <h3 className="font-bold text-lg md:text-xl pt-1">ðŸ–¥ï¸ Live Web App Studio, Dashboards & Features Builder</h3>
+                <p className="text-xs md:text-sm text-emerald-100">
+                  Add new dashboards, create interactive app features, customize branding, colors, USSD payment codes, and content anytime without coding.
+                </p>
               </div>
 
+              {/* App Server Sub-Navigation (5 Studio Tabs) */}
               <div className="grid grid-cols-5 gap-2 bg-white p-2 rounded-2xl border text-[10px] md:text-xs font-bold text-center shadow-sm">
                 <button
                   type="button"
                   onClick={() => setServerSubTab('branding')}
                   className={`py-2.5 rounded-xl ${serverSubTab === 'branding' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}
                 >
-                  🎨 Branding
+                  ðŸŽ¨ Branding
                 </button>
                 <button
                   type="button"
                   onClick={() => setServerSubTab('dashboards')}
                   className={`py-2.5 rounded-xl ${serverSubTab === 'dashboards' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}
                 >
-                  📊 Dashboards
+                  ðŸ“Š Dashboards
                 </button>
                 <button
                   type="button"
                   onClick={() => setServerSubTab('features')}
                   className={`py-2.5 rounded-xl ${serverSubTab === 'features' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}
                 >
-                  ✨ Features
+                  âœ¨ Features
                 </button>
                 <button
                   type="button"
                   onClick={() => setServerSubTab('content')}
                   className={`py-2.5 rounded-xl ${serverSubTab === 'content' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}
                 >
-                  📢 Content
+                  ðŸ“¢ Content
                 </button>
                 <button
                   type="button"
                   onClick={() => setServerSubTab('controls')}
                   className={`py-2.5 rounded-xl ${serverSubTab === 'controls' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}
                 >
-                  ⚙️ Server
+                  âš™ï¸ Server
                 </button>
               </div>
 
+              {/* Sub-Tab 1: Branding, Theme Colors & Payment Config */}
               {serverSubTab === 'branding' && (
                 <div className="bg-white p-6 rounded-2xl border space-y-4 text-xs shadow-sm w-full">
-                  <h4 className="font-bold text-sm text-[#234E40] border-b pb-2">🎨 App Identity, Colors & USSD Settings</h4>
+                  <h4 className="font-bold text-sm text-[#234E40] border-b pb-2">ðŸŽ¨ App Identity, Colors & USSD Settings</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="font-bold text-slate-700">Platform / App Name</label>
@@ -3346,7 +2304,7 @@ export default function GuideLinkRwandaApp() {
                       className="w-full mt-1 p-3 border rounded-xl"
                     />
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label className="font-bold text-slate-700">MTN MoMo Merchant Code</label>
                       <input
@@ -3354,6 +2312,17 @@ export default function GuideLinkRwandaApp() {
                         value={appConfig.momoCode}
                         onChange={(e) => setAppConfig({ ...appConfig, momoCode: e.target.value })}
                         className="w-full mt-1 p-3 border rounded-xl font-mono font-bold text-[#234E40]"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700">Platform Commission (%)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={appConfig.commissionRatePercent}
+                        onChange={(e) => setAppConfig({ ...appConfig, commissionRatePercent: Number(e.target.value) })}
+                        className="w-full mt-1 p-3 border rounded-xl font-bold"
                       />
                     </div>
                     <div>
@@ -3374,24 +2343,49 @@ export default function GuideLinkRwandaApp() {
                       </div>
                     </div>
                   </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="font-bold text-slate-700">Footer City / Location</label>
+                      <input
+                        type="text"
+                        value={appConfig.footerLocation}
+                        onChange={(e) => setAppConfig({ ...appConfig, footerLocation: e.target.value })}
+                        className="w-full mt-1 p-3 border rounded-xl"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700">Welcome Top Promo / Alert Banner (Optional)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. ðŸŽ‰ New 2026 Gorilla Trekking Season Packages Live!"
+                        value={appConfig.welcomeBannerText || ''}
+                        onChange={(e) => setAppConfig({ ...appConfig, welcomeBannerText: e.target.value })}
+                        className="w-full mt-1 p-3 border rounded-xl"
+                      />
+                    </div>
+                  </div>
                   <button
                     type="button"
                     disabled={isSaving}
                     onClick={async () => {
                       await handleSaveAppServerConfig();
-                      alert('✓ App branding, theme & USSD settings published live!');
+                      alert('âœ“ App branding, theme & USSD settings published live!');
                     }}
                     className="w-full py-3.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow transition"
                   >
-                    {isSaving ? '⏳ Publishing...' : '🚀 Publish Live App Changes'}
+                    {isSaving ? 'â³ Publishing...' : 'ðŸš€ Publish Live App Changes'}
                   </button>
                 </div>
               )}
 
+              {/* Sub-Tab 2: Create & Manage Brand-New Dashboards */}
               {serverSubTab === 'dashboards' && (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-xs">
                   <div className="lg:col-span-6 bg-white p-6 rounded-2xl border space-y-3 shadow-sm">
-                    <h4 className="font-bold text-sm text-[#234E40]">📊 Create a New Dashboard / Partner Hub</h4>
+                    <h4 className="font-bold text-sm text-[#234E40]">ðŸ“Š Create a New Dashboard / Partner Hub</h4>
+                    <p className="text-xs text-slate-500">
+                      Build a complete new dashboard (e.g., Hotels & Lodges, Transport & 4x4 Fleet, Park Permits, Cultural Troupes) with interactive submissions and role registration.
+                    </p>
                     <div className="grid grid-cols-4 gap-2">
                       <div>
                         <label className="font-bold text-slate-700">Icon</label>
@@ -3413,6 +2407,46 @@ export default function GuideLinkRwandaApp() {
                         />
                       </div>
                     </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="font-bold text-slate-700">Badge Tag</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Hospitality Partner"
+                          value={newDashboardForm.badge}
+                          onChange={(e) => setNewDashboardForm({ ...newDashboardForm, badge: e.target.value })}
+                          className="w-full mt-1 p-2.5 border rounded-xl"
+                        />
+                      </div>
+                      <div>
+                        <label className="font-bold text-slate-700">Form Button / Box Title</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Post Room / Package"
+                          value={newDashboardForm.actionTitle}
+                          onChange={(e) => setNewDashboardForm({ ...newDashboardForm, actionTitle: e.target.value })}
+                          className="w-full mt-1 p-2.5 border rounded-xl"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700">Dashboard Purpose & Instructions</label>
+                      <textarea
+                        rows="2"
+                        placeholder="Describe what users can do on this new dashboard..."
+                        value={newDashboardForm.description}
+                        onChange={(e) => setNewDashboardForm({ ...newDashboardForm, description: e.target.value })}
+                        className="w-full mt-1 p-2.5 border rounded-xl"
+                      />
+                    </div>
+                    <label className="flex items-center space-x-2 font-bold text-slate-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newDashboardForm.showOnWelcome !== false}
+                        onChange={(e) => setNewDashboardForm({ ...newDashboardForm, showOnWelcome: e.target.checked })}
+                      />
+                      <span>Display shortcut card on Welcome Home Screen</span>
+                    </label>
                     <button
                       type="button"
                       onClick={async () => {
@@ -3423,7 +2457,7 @@ export default function GuideLinkRwandaApp() {
                         const createdDash = {
                           id: `dash_${Date.now()}`,
                           name: newDashboardForm.name.trim(),
-                          icon: newDashboardForm.icon || '📊',
+                          icon: newDashboardForm.icon || 'ðŸ“Š',
                           badge: newDashboardForm.badge.trim() || 'Partner Hub',
                           description: newDashboardForm.description.trim(),
                           actionTitle: newDashboardForm.actionTitle.trim() || 'Add New Listing',
@@ -3438,7 +2472,7 @@ export default function GuideLinkRwandaApp() {
                         setAppConfig(updated);
                         setNewDashboardForm({
                           name: '',
-                          icon: '🏨',
+                          icon: 'ðŸ¨',
                           badge: 'New Partner Hub',
                           description: '',
                           actionTitle: 'Submit Listing / Request',
@@ -3447,7 +2481,7 @@ export default function GuideLinkRwandaApp() {
                           items: []
                         });
                         await handleSaveAppServerConfig(updated);
-                        alert(`✓ New Dashboard "${createdDash.name}" created and published live!`);
+                        alert(`âœ“ New Dashboard "${createdDash.name}" created and published live!`);
                       }}
                       className="w-full py-3 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow"
                     >
@@ -3456,135 +2490,641 @@ export default function GuideLinkRwandaApp() {
                   </div>
 
                   <div className="lg:col-span-6 space-y-3">
-                    <h4 className="font-bold text-sm text-slate-900">🗂️ Active Custom Dashboards ({(appConfig.customDashboards || []).length})</h4>
-                    {(appConfig.customDashboards || []).map((cd) => (
-                      <div key={cd.id} className="bg-white p-4 rounded-2xl border space-y-2 shadow-sm flex justify-between items-center">
-                        <div>
-                          <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">{cd.badge}</span>
-                          <h5 className="font-bold text-sm text-slate-900">{cd.icon} {cd.name}</h5>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            const updated = {
-                              ...appConfig,
-                              customDashboards: appConfig.customDashboards.filter((d) => d.id !== cd.id)
-                            };
-                            setAppConfig(updated);
-                            await handleSaveAppServerConfig(updated);
-                          }}
-                          className="px-3 py-1.5 bg-red-50 text-red-600 rounded-xl font-bold"
-                        >
-                          🗑️
-                        </button>
+                    <h4 className="font-bold text-sm text-slate-900">ðŸ—‚ï¸ Active Custom Dashboards ({(appConfig.customDashboards || []).length})</h4>
+                    {(appConfig.customDashboards || []).length === 0 ? (
+                      <div className="bg-white p-6 rounded-2xl border text-center text-slate-500">
+                        No custom dashboards added yet. Use the builder to launch your first custom dashboard.
                       </div>
-                    ))}
+                    ) : (
+                      (appConfig.customDashboards || []).map((cd) => (
+                        <div key={cd.id} className="bg-white p-4 rounded-2xl border space-y-2 shadow-sm">
+                          <div className="flex justify-between items-start">
+                            <div className="flex items-center space-x-2.5">
+                              <span className="text-2xl">{cd.icon}</span>
+                              <div>
+                                <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">{cd.badge}</span>
+                                <h5 className="font-bold text-sm text-slate-900">{cd.name}</h5>
+                              </div>
+                            </div>
+                            <div className="flex space-x-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveCustomDashId(cd.id);
+                                  setCurrentRole('custom_dashboard_view');
+                                }}
+                                className="px-3 py-1.5 bg-emerald-50 text-[#234E40] rounded-xl font-bold"
+                              >
+                                Open â†’
+                              </button>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const updated = {
+                                    ...appConfig,
+                                    customDashboards: appConfig.customDashboards.filter((d) => d.id !== cd.id)
+                                  };
+                                  setAppConfig(updated);
+                                  await handleSaveAppServerConfig(updated);
+                                }}
+                                className="px-2.5 py-1.5 bg-red-50 text-red-600 rounded-xl font-bold"
+                              >
+                                ðŸ—‘ï¸
+                              </button>
+                            </div>
+                          </div>
+                          <p className="text-slate-600">{cd.description}</p>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               )}
 
+              {/* Sub-Tab 3: Add Interactive App Features, Blocks & Custom Profile Fields */}
               {serverSubTab === 'features' && (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-xs">
                   <div className="lg:col-span-6 bg-white p-6 rounded-2xl border space-y-3 shadow-sm">
-                    <h4 className="font-bold text-sm text-[#234E40]">✨ Add New Interactive App Feature</h4>
-                    <input
-                      type="text"
-                      placeholder="Feature Title (e.g. Calculator)"
-                      value={newFeatureForm.title}
-                      onChange={(e) => setNewFeatureForm({ ...newFeatureForm, title: e.target.value })}
-                      className="w-full p-2.5 border rounded-xl font-bold"
-                    />
+                    <h4 className="font-bold text-sm text-[#234E40]">âœ¨ Add New Interactive App Feature</h4>
+                    <p className="text-xs text-slate-500">
+                      Add interactive tools directly onto user dashboards: Quick Request Forms, Trip Cost Calculators, Safari Checklists, or External Resource Portals.
+                    </p>
+                    <div className="grid grid-cols-4 gap-2">
+                      <div>
+                        <label className="font-bold text-slate-700">Icon</label>
+                        <input
+                          type="text"
+                          value={newFeatureForm.icon}
+                          onChange={(e) => setNewFeatureForm({ ...newFeatureForm, icon: e.target.value })}
+                          className="w-full mt-1 p-2.5 border rounded-xl text-center text-base"
+                        />
+                      </div>
+                      <div className="col-span-3">
+                        <label className="font-bold text-slate-700">Feature Title</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Gorilla Permit Cost Estimator"
+                          value={newFeatureForm.title}
+                          onChange={(e) => setNewFeatureForm({ ...newFeatureForm, title: e.target.value })}
+                          className="w-full mt-1 p-2.5 border rounded-xl font-bold"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="font-bold text-slate-700">Feature Type</label>
+                        <select
+                          value={newFeatureForm.featureType}
+                          onChange={(e) => setNewFeatureForm({ ...newFeatureForm, featureType: e.target.value })}
+                          className="w-full mt-1 p-2.5 border rounded-xl bg-white font-semibold"
+                        >
+                          <option value="action_form">ðŸ“ Interactive Request / Submission Box</option>
+                          <option value="calculator">ðŸ§® Instant Price / Permit Calculator</option>
+                          <option value="checklist">â˜‘ï¸ Interactive Safari / Guide Checklist</option>
+                          <option value="resource_link">ðŸ”— External Portal / Document Button</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="font-bold text-slate-700">Show On Dashboard</label>
+                        <select
+                          value={newFeatureForm.targetRole}
+                          onChange={(e) => setNewFeatureForm({ ...newFeatureForm, targetRole: e.target.value })}
+                          className="w-full mt-1 p-2.5 border rounded-xl bg-white font-semibold"
+                        >
+                          <option value="all">All User Dashboards</option>
+                          <option value="traveler">Travelers</option>
+                          <option value="graduate">Tourism Graduates</option>
+                          <option value="agency">Travel Agencies</option>
+                          <option value="tour_company">Tour Companies</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="font-bold text-slate-700">Feature Description / Instructions</label>
+                      <textarea
+                        rows="2"
+                        placeholder="Explain how members use this feature..."
+                        value={newFeatureForm.description}
+                        onChange={(e) => setNewFeatureForm({ ...newFeatureForm, description: e.target.value })}
+                        className="w-full mt-1 p-2.5 border rounded-xl"
+                      />
+                    </div>
+
+                    {newFeatureForm.featureType === 'calculator' && (
+                      <div>
+                        <label className="font-bold text-slate-700">Rate per Person / Unit (RWF)</label>
+                        <input
+                          type="number"
+                          value={newFeatureForm.unitPriceRwf}
+                          onChange={(e) => setNewFeatureForm({ ...newFeatureForm, unitPriceRwf: Number(e.target.value) })}
+                          className="w-full mt-1 p-2.5 border rounded-xl font-bold text-[#234E40]"
+                        />
+                      </div>
+                    )}
+
+                    {newFeatureForm.featureType === 'checklist' && (
+                      <div>
+                        <label className="font-bold text-slate-700">Checklist Items (Comma-separated)</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. RDB License, First Aid Kit, Yellow Fever Card, 4x4 Inspection"
+                          value={newFeatureForm.checklistItemsText}
+                          onChange={(e) => setNewFeatureForm({ ...newFeatureForm, checklistItemsText: e.target.value })}
+                          className="w-full mt-1 p-2.5 border rounded-xl"
+                        />
+                      </div>
+                    )}
+
+                    {newFeatureForm.featureType === 'resource_link' && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="font-bold text-slate-700">Button Text</label>
+                          <input
+                            type="text"
+                            placeholder="Open Portal â†’"
+                            value={newFeatureForm.buttonLabel}
+                            onChange={(e) => setNewFeatureForm({ ...newFeatureForm, buttonLabel: e.target.value })}
+                            className="w-full mt-1 p-2.5 border rounded-xl"
+                          />
+                        </div>
+                        <div>
+                          <label className="font-bold text-slate-700">Website URL</label>
+                          <input
+                            type="url"
+                            placeholder="https://visitrwanda.com"
+                            value={newFeatureForm.linkUrl}
+                            onChange={(e) => setNewFeatureForm({ ...newFeatureForm, linkUrl: e.target.value })}
+                            className="w-full mt-1 p-2.5 border rounded-xl"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {newFeatureForm.featureType === 'action_form' && (
+                      <div>
+                        <label className="font-bold text-slate-700">Submit Button Label</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Request Permit / Quote"
+                          value={newFeatureForm.buttonLabel}
+                          onChange={(e) => setNewFeatureForm({ ...newFeatureForm, buttonLabel: e.target.value })}
+                          className="w-full mt-1 p-2.5 border rounded-xl"
+                        />
+                      </div>
+                    )}
+
                     <button
                       type="button"
                       onClick={async () => {
-                        if (!newFeatureForm.title.trim()) return;
+                        if (!newFeatureForm.title.trim()) {
+                          alert('Please enter a feature title.');
+                          return;
+                        }
+                        const checklistArr = newFeatureForm.checklistItemsText
+                          .split(',')
+                          .map((s) => s.trim())
+                          .filter(Boolean);
                         const createdFeat = {
                           id: `feat-${Date.now()}`,
                           title: newFeatureForm.title.trim(),
-                          icon: newFeatureForm.icon || '✨',
+                          icon: newFeatureForm.icon || 'âœ¨',
                           featureType: newFeatureForm.featureType,
                           targetRole: newFeatureForm.targetRole,
                           description: newFeatureForm.description.trim(),
-                          buttonLabel: 'Submit',
-                          linkUrl: '',
-                          unitPriceRwf: 50000,
-                          checklistItems: ['Step 1']
+                          buttonLabel: newFeatureForm.buttonLabel.trim() || 'Submit',
+                          linkUrl: newFeatureForm.linkUrl.trim(),
+                          unitPriceRwf: Number(newFeatureForm.unitPriceRwf) || 50000,
+                          checklistItems: checklistArr.length > 0 ? checklistArr : ['Step 1: Verify Documents', 'Step 2: Confirm Booking']
                         };
                         const updated = {
                           ...appConfig,
                           customFeatures: [...(appConfig.customFeatures || []), createdFeat]
                         };
                         setAppConfig(updated);
+                        setNewFeatureForm({
+                          title: '',
+                          icon: 'âœ¨',
+                          featureType: 'action_form',
+                          targetRole: 'all',
+                          description: '',
+                          buttonLabel: 'Submit Request',
+                          linkUrl: '',
+                          unitPriceRwf: 50000,
+                          checklistItemsText: ''
+                        });
                         await handleSaveAppServerConfig(updated);
-                        alert('✓ Feature added live!');
+                        alert(`âœ“ App Feature "${createdFeat.title}" added live!`);
                       }}
-                      className="w-full py-3 bg-[#234E40] text-white rounded-xl font-bold shadow"
+                      className="w-full py-3 bg-[#234E40] text-white rounded-xl font-bold text-sm shadow"
                     >
-                      + Publish Feature
+                      + Publish New App Feature
                     </button>
+
+                    {(appConfig.customFeatures || []).length > 0 && (
+                      <div className="space-y-2 pt-2 border-t">
+                        <p className="font-bold text-slate-700">Live Custom Features ({appConfig.customFeatures.length}):</p>
+                        {appConfig.customFeatures.map((feat) => (
+                          <div key={feat.id} className="bg-slate-50 border p-2.5 rounded-xl flex justify-between items-center">
+                            <div>
+                              <p className="font-bold text-slate-900">{feat.icon} {feat.title}</p>
+                              <p className="text-[10px] text-slate-500">Type: {feat.featureType} â€¢ Target: {feat.targetRole}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const updated = {
+                                  ...appConfig,
+                                  customFeatures: appConfig.customFeatures.filter((f) => f.id !== feat.id)
+                                };
+                                setAppConfig(updated);
+                                await handleSaveAppServerConfig(updated);
+                              }}
+                              className="text-red-600 font-bold px-2"
+                            >
+                              ðŸ—‘ï¸
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Custom Info Sections & Profile Input Fields */}
+                  <div className="lg:col-span-6 space-y-4">
+                    <div className="bg-white p-6 rounded-2xl border space-y-3 shadow-sm">
+                      <h4 className="font-bold text-sm text-[#234E40]">ðŸ§± Add Custom Dashboard Info Card</h4>
+                      <input
+                        type="text"
+                        placeholder="Card Title (e.g. National Park Entry Fee Guide)"
+                        value={newCustomSectionForm.title}
+                        onChange={(e) => setNewCustomSectionForm({ ...newCustomSectionForm, title: e.target.value })}
+                        className="w-full p-2.5 border rounded-xl"
+                      />
+                      <textarea
+                        rows="2"
+                        placeholder="Card content, rules, or instructions..."
+                        value={newCustomSectionForm.content}
+                        onChange={(e) => setNewCustomSectionForm({ ...newCustomSectionForm, content: e.target.value })}
+                        className="w-full p-2.5 border rounded-xl"
+                      />
+                      <div className="flex space-x-2">
+                        <select
+                          value={newCustomSectionForm.targetRole}
+                          onChange={(e) => setNewCustomSectionForm({ ...newCustomSectionForm, targetRole: e.target.value })}
+                          className="flex-1 p-2.5 border rounded-xl bg-white font-semibold"
+                        >
+                          <option value="all">All User Dashboards</option>
+                          <option value="graduate">Tourism Graduates</option>
+                          <option value="agency">Travel Agencies</option>
+                          <option value="tour_company">Tour Companies</option>
+                          <option value="traveler">Travelers</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!newCustomSectionForm.title.trim() || !newCustomSectionForm.content.trim()) return;
+                            const updated = {
+                              ...appConfig,
+                              customSections: [
+                                ...(appConfig.customSections || []),
+                                {
+                                  id: `sec-${Date.now()}`,
+                                  title: newCustomSectionForm.title.trim(),
+                                  content: newCustomSectionForm.content.trim(),
+                                  targetRole: newCustomSectionForm.targetRole
+                                }
+                              ]
+                            };
+                            setAppConfig(updated);
+                            setNewCustomSectionForm({ title: '', content: '', targetRole: 'all' });
+                            await handleSaveAppServerConfig(updated);
+                            alert('âœ“ Info card added live!');
+                          }}
+                          className="px-4 bg-[#234E40] text-white rounded-xl font-bold"
+                        >
+                          + Add Card
+                        </button>
+                      </div>
+                      {(appConfig.customSections || []).map((sec) => (
+                        <div key={sec.id} className="bg-slate-50 border p-2.5 rounded-xl flex justify-between items-start">
+                          <div>
+                            <p className="font-bold text-slate-900">{sec.title} <span className="text-[10px] text-[#3B6E5B]">({sec.targetRole})</span></p>
+                            <p className="text-slate-600">{sec.content}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const updated = {
+                                ...appConfig,
+                                customSections: appConfig.customSections.filter((s) => s.id !== sec.id)
+                              };
+                              setAppConfig(updated);
+                              await handleSaveAppServerConfig(updated);
+                            }}
+                            className="text-red-600 font-bold"
+                          >
+                            ðŸ—‘ï¸
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="bg-white p-6 rounded-2xl border space-y-3 shadow-sm">
+                      <h4 className="font-bold text-sm text-[#234E40]">ðŸ“ Add Custom Profile Input Field</h4>
+                      <input
+                        type="text"
+                        placeholder="Field Label (e.g. RDB License Number)"
+                        value={newCustomFieldForm.label}
+                        onChange={(e) => setNewCustomFieldForm({ ...newCustomFieldForm, label: e.target.value })}
+                        className="w-full p-2.5 border rounded-xl"
+                      />
+                      <div className="flex space-x-2">
+                        <input
+                          type="text"
+                          placeholder="Placeholder (e.g. RDB-2026-8841)"
+                          value={newCustomFieldForm.placeholder}
+                          onChange={(e) => setNewCustomFieldForm({ ...newCustomFieldForm, placeholder: e.target.value })}
+                          className="flex-1 p-2.5 border rounded-xl"
+                        />
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!newCustomFieldForm.label.trim()) return;
+                            const updated = {
+                              ...appConfig,
+                              customFields: [
+                                ...(appConfig.customFields || []),
+                                {
+                                  id: `fld-${Date.now()}`,
+                                  label: newCustomFieldForm.label.trim(),
+                                  placeholder: newCustomFieldForm.placeholder.trim(),
+                                  targetRole: 'all'
+                                }
+                              ]
+                            };
+                            setAppConfig(updated);
+                            setNewCustomFieldForm({ label: '', placeholder: '', targetRole: 'all', required: false });
+                            await handleSaveAppServerConfig(updated);
+                            alert('âœ“ Custom profile field added!');
+                          }}
+                          className="px-4 bg-[#3B6E5B] text-white rounded-xl font-bold"
+                        >
+                          + Add Field
+                        </button>
+                      </div>
+                      {(appConfig.customFields || []).map((fld) => (
+                        <div key={fld.id} className="bg-slate-50 border p-2.5 rounded-xl flex justify-between items-center">
+                          <span className="font-bold text-slate-900">{fld.label}</span>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const updated = {
+                                ...appConfig,
+                                customFields: appConfig.customFields.filter((f) => f.id !== fld.id)
+                              };
+                              setAppConfig(updated);
+                              await handleSaveAppServerConfig(updated);
+                            }}
+                            className="text-red-600 font-bold"
+                          >
+                            ðŸ—‘ï¸
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
 
+              {/* Sub-Tab 4: Announcements & Destinations Manager */}
               {serverSubTab === 'content' && (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-xs">
                   <div className="lg:col-span-6 bg-white p-6 rounded-2xl border space-y-3 shadow-sm">
-                    <h4 className="font-bold text-sm text-[#234E40]">📢 Publish Announcements</h4>
+                    <h4 className="font-bold text-sm text-[#234E40]">ðŸ“¢ Publish Live Announcements / Notices</h4>
                     <input
                       type="text"
-                      placeholder="Title"
+                      placeholder="Announcement Title"
                       value={newAnnouncementForm.title}
                       onChange={(e) => setNewAnnouncementForm({ ...newAnnouncementForm, title: e.target.value })}
                       className="w-full p-2.5 border rounded-xl"
                     />
                     <textarea
                       rows="2"
-                      placeholder="Body..."
+                      placeholder="Message details visible on selected dashboards..."
                       value={newAnnouncementForm.body}
                       onChange={(e) => setNewAnnouncementForm({ ...newAnnouncementForm, body: e.target.value })}
                       className="w-full p-2.5 border rounded-xl"
                     />
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (!newAnnouncementForm.title.trim()) return;
-                        const updated = {
-                          ...appConfig,
-                          announcements: [
-                            {
-                              id: `ann-${Date.now()}`,
-                              title: newAnnouncementForm.title.trim(),
-                              body: newAnnouncementForm.body.trim(),
-                              targetRole: newAnnouncementForm.targetRole
-                            },
-                            ...(appConfig.announcements || [])
-                          ]
-                        };
-                        setAppConfig(updated);
-                        await handleSaveAppServerConfig(updated);
-                        alert('✓ Announcement published!');
-                      }}
-                      className="w-full py-3 bg-[#234E40] text-white rounded-xl font-bold"
-                    >
-                      + Post Announcement
-                    </button>
+                    <div className="flex space-x-2">
+                      <select
+                        value={newAnnouncementForm.targetRole}
+                        onChange={(e) => setNewAnnouncementForm({ ...newAnnouncementForm, targetRole: e.target.value })}
+                        className="flex-1 p-2.5 border rounded-xl bg-white font-semibold"
+                      >
+                        <option value="all">All Screens & Dashboards</option>
+                        <option value="welcome">Welcome Home Screen Only</option>
+                        <option value="traveler">Travelers Dashboard</option>
+                        <option value="graduate">Tourism Graduates Dashboard</option>
+                        <option value="agency">Travel Agencies Dashboard</option>
+                        <option value="tour_company">Tour Companies Dashboard</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!newAnnouncementForm.title.trim() || !newAnnouncementForm.body.trim()) return;
+                          const updated = {
+                            ...appConfig,
+                            announcements: [
+                              {
+                                id: `ann-${Date.now()}`,
+                                title: newAnnouncementForm.title.trim(),
+                                body: newAnnouncementForm.body.trim(),
+                                targetRole: newAnnouncementForm.targetRole
+                              },
+                              ...(appConfig.announcements || [])
+                            ]
+                          };
+                          setAppConfig(updated);
+                          setNewAnnouncementForm({ title: '', body: '', targetRole: 'all' });
+                          await handleSaveAppServerConfig(updated);
+                          alert('âœ“ Announcement published live!');
+                        }}
+                        className="px-4 bg-[#234E40] text-white rounded-xl font-bold"
+                      >
+                        + Post
+                      </button>
+                    </div>
+
+                    {(appConfig.announcements || []).map((ann) => (
+                      <div key={ann.id} className="bg-slate-50 border p-3 rounded-xl flex justify-between items-start">
+                        <div>
+                          <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">Target: {ann.targetRole}</span>
+                          <p className="font-bold text-slate-900">{ann.title}</p>
+                          <p className="text-slate-600 mt-0.5">{ann.body}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const updated = {
+                              ...appConfig,
+                              announcements: appConfig.announcements.filter((a) => a.id !== ann.id)
+                            };
+                            setAppConfig(updated);
+                            await handleSaveAppServerConfig(updated);
+                          }}
+                          className="text-red-600 font-bold px-2 py-1"
+                        >
+                          ðŸ—‘ï¸
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="lg:col-span-6 bg-white p-6 rounded-2xl border space-y-3 shadow-sm">
+                    <h4 className="font-bold text-sm text-[#234E40]">ðŸ—ºï¸ Manage Booking Destinations</h4>
+                    <div className="flex space-x-2">
+                      <input
+                        type="text"
+                        placeholder="Add new destination (e.g. Lake Kivu Gisenyi Beach)"
+                        value={newDestinationInput}
+                        onChange={(e) => setNewDestinationInput(e.target.value)}
+                        className="flex-1 p-2.5 border rounded-xl"
+                      />
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!newDestinationInput.trim()) return;
+                          const updated = {
+                            ...appConfig,
+                            destinations: [...(appConfig.destinations || []), newDestinationInput.trim()]
+                          };
+                          setAppConfig(updated);
+                          setNewDestinationInput('');
+                          await handleSaveAppServerConfig(updated);
+                          alert('âœ“ Destination added!');
+                        }}
+                        className="px-4 bg-[#3B6E5B] text-white rounded-xl font-bold"
+                      >
+                        + Add
+                      </button>
+                    </div>
+                    <div className="space-y-1.5">
+                      {(appConfig.destinations || []).map((dest, idx) => (
+                        <div key={idx} className="flex justify-between items-center bg-slate-50 border p-2.5 rounded-xl">
+                          <span className="font-medium text-slate-800">ðŸ“ {dest}</span>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const updated = {
+                                ...appConfig,
+                                destinations: appConfig.destinations.filter((_, i) => i !== idx)
+                              };
+                              setAppConfig(updated);
+                              await handleSaveAppServerConfig(updated);
+                            }}
+                            className="text-red-600 font-bold"
+                          >
+                            âœ•
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
 
+              {/* Sub-Tab 5: Server Access Switches, Sync & Backup Export */}
               {serverSubTab === 'controls' && (
                 <div className="bg-white p-6 rounded-2xl border space-y-4 text-xs shadow-sm w-full">
-                  <h4 className="font-bold text-sm text-[#234E40] border-b pb-1.5">⚙️ Server Switches & Database Controls</h4>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await loadFirebaseData();
-                      alert('✓ Live Firebase data refreshed!');
-                    }}
-                    className="py-3 px-4 bg-emerald-50 border text-[#234E40] rounded-xl font-bold"
-                  >
-                    🔄 Sync Cloud Now
-                  </button>
+                  <h4 className="font-bold text-sm text-[#234E40] border-b pb-1.5">âš™ï¸ Server Switches & Live Database Controls</h4>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl border">
+                      <div>
+                        <p className="font-bold text-slate-900">Allow New Member Sign-Ups</p>
+                        <p className="text-[11px] text-slate-500">Toggle public account registration on/off</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const updated = { ...appConfig, allowNewSignups: appConfig.allowNewSignups === false };
+                          setAppConfig(updated);
+                          await handleSaveAppServerConfig(updated);
+                        }}
+                        className={`px-3.5 py-2 rounded-xl font-bold ${
+                          appConfig.allowNewSignups !== false ? 'bg-emerald-600 text-white' : 'bg-slate-300 text-slate-700'
+                        }`}
+                      >
+                        {appConfig.allowNewSignups !== false ? 'ðŸŸ¢ Enabled' : 'ðŸ”’ Paused'}
+                      </button>
+                    </div>
+
+                    <div className="p-4 bg-slate-50 rounded-xl border space-y-2">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="font-bold text-slate-900">Maintenance Mode Lock</p>
+                          <p className="text-[11px] text-slate-500">Temporarily pause member logins while editing</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const updated = { ...appConfig, maintenanceMode: !appConfig.maintenanceMode };
+                            setAppConfig(updated);
+                            await handleSaveAppServerConfig(updated);
+                          }}
+                          className={`px-3.5 py-2 rounded-xl font-bold ${
+                            appConfig.maintenanceMode ? 'bg-red-600 text-white' : 'bg-slate-200 text-slate-700'
+                          }`}
+                        >
+                          {appConfig.maintenanceMode ? 'ðŸš§ Active' : 'Off'}
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        value={appConfig.maintenanceMessage}
+                        onChange={(e) => setAppConfig({ ...appConfig, maintenanceMessage: e.target.value })}
+                        onBlur={() => handleSaveAppServerConfig()}
+                        className="w-full p-2 border rounded-xl bg-white text-[11px]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await loadFirebaseData();
+                        alert('âœ“ Live Firebase data refreshed!');
+                      }}
+                      className="py-3 bg-emerald-50 border border-emerald-200 text-[#234E40] rounded-xl font-bold"
+                    >
+                      ðŸ”„ Sync Cloud Now
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const backup = {
+                          exportedAt: new Date().toISOString(),
+                          appConfig,
+                          subscriptionPlans,
+                          registeredUsers,
+                          tasks,
+                          tripRequests
+                        };
+                        const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `guidelink-rwanda-backup-${Date.now()}.json`;
+                        a.click();
+                      }}
+                      className="py-3 bg-slate-900 text-white rounded-xl font-bold"
+                    >
+                      ðŸ“¥ Export Backup
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -3592,7 +3132,8 @@ export default function GuideLinkRwandaApp() {
 
           {ownerTab === 'pending' && (
             <div className="space-y-3">
-              <h3 className="font-bold text-base text-slate-900">⏳ Member Sign-Ups & Subscriptions</h3>
+              <h3 className="font-bold text-base text-slate-900">â³ Member Sign-Ups, Subscriptions & Access Control</h3>
+              <p className="text-xs text-slate-500">Approve, revoke, edit, or delete any user who didn&apos;t pay or failed to follow instructions.</p>
               {registeredUsers.length === 0 ? (
                 <div className="bg-white p-6 rounded-2xl border text-center text-xs text-slate-500">No sign-ups logged yet.</div>
               ) : (
@@ -3611,24 +3152,46 @@ export default function GuideLinkRwandaApp() {
                                 ? 'bg-emerald-100 text-emerald-800'
                                 : 'bg-red-100 text-red-800'
                             }`}>
-                              {expired ? '⚠️ Expired' : user.status === 'approved' ? '🟢 Active' : '🔒 Revoked'}
+                              {expired ? 'âš ï¸ Expired' : user.status === 'approved' ? 'ðŸŸ¢ Active' : 'ðŸ”’ Revoked / Pending'}
                             </span>
                           </div>
-                          <p className="text-slate-500">{user.contact} • Paid: {Number(user.feePaid || 0).toLocaleString()} RWF</p>
+                          <p className="text-slate-500">{user.contact} â€¢ Ref: {user.momoRef} â€¢ Paid: {Number(user.feePaid || 0).toLocaleString()} RWF</p>
+                          {user.role !== 'traveler' && (
+                            <p className="text-[11px] font-semibold text-[#234E40]">
+                              Plan: {user.subscriptionPlanName || 'Starter Monthly'}
+                              {user.subscriptionExpiresAt > 0
+                                ? ` â€¢ Expires: ${new Date(user.subscriptionExpiresAt).toLocaleDateString()}`
+                                : ''}
+                            </p>
+                          )}
                         </div>
                         
                         <div className="flex space-x-1.5 pt-2">
                           {user.status !== 'approved' || expired ? (
                             <button onClick={() => toggleUserAccessStatus(user.id, user.contact, 'revoked')} className="flex-1 py-2 bg-[#3B6E5B] text-white rounded-xl font-bold">
-                              ✓ Grant
+                              âœ“ Grant Access
                             </button>
                           ) : (
-                            <button onClick={() => toggleUserAccessStatus(user.id, user.contact, user.status)} className="flex-1 py-2 bg-amber-600 text-white rounded-xl font-bold">
-                              ✕ Revoke
+                            <button onClick={() => toggleUserAccessStatus(user.id, user.contact, user.status)} className="flex-1 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold">
+                              âœ• Revoke
                             </button>
                           )}
-                          <button onClick={() => { handleSelectUserForAdminEdit(user); setOwnerTab('users_mgmt'); }} className="px-3 py-2 bg-slate-100 rounded-xl font-bold">✏️</button>
-                          <button onClick={() => handleDeleteUserAccount(user.id, user.name)} className="px-3 py-2 bg-red-600 text-white rounded-xl font-bold">🗑️</button>
+                          <button
+                            onClick={() => {
+                              handleSelectUserForAdminEdit(user);
+                              setOwnerTab('users_mgmt');
+                            }}
+                            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold"
+                          >
+                            âœï¸ Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteUserAccount(user.id, user.name)}
+                            title="Delete Non-Compliant / Unpaid User"
+                            className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold"
+                          >
+                            ðŸ—‘ï¸
+                          </button>
                         </div>
                       </div>
                     );
@@ -3641,33 +3204,67 @@ export default function GuideLinkRwandaApp() {
           {ownerTab === 'plans_mgmt' && (
             <div className="space-y-4">
               <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-5 rounded-2xl shadow-sm space-y-1">
-                <span className="text-[10px] uppercase font-bold bg-amber-400 text-slate-900 px-2 py-0.5 rounded-full">Pricing Control</span>
-                <h3 className="font-bold text-base md:text-lg pt-1">💳 Edit Subscription Names & Costs</h3>
+                <span className="text-[10px] uppercase font-bold bg-amber-400 text-slate-900 px-2 py-0.5 rounded-full">C.E.O Pricing Control</span>
+                <h3 className="font-bold text-base md:text-lg pt-1">ðŸ’³ Edit Subscription Names & Costs</h3>
+                <p className="text-xs text-emerald-100">Customize subscription package names, badges, and prices in RWF. Changes update live across Sign-Ups and Renewals.</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {subscriptionPlans.map((plan, index) => (
-                  <div key={plan.id} className="bg-white p-4 rounded-2xl border space-y-2.5 text-xs shadow-sm">
-                    <span className="font-extrabold text-[#234E40]">Tier #{index + 1}</span>
-                    <input
-                      type="text"
-                      value={plan.name}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setSubscriptionPlans(subscriptionPlans.map((p) => (p.id === plan.id ? { ...p, name: val } : p)));
-                      }}
-                      className="w-full p-2.5 border rounded-xl font-semibold"
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      value={plan.price}
-                      onChange={(e) => {
-                        const val = Number(e.target.value);
-                        setSubscriptionPlans(subscriptionPlans.map((p) => (p.id === plan.id ? { ...p, price: val } : p)));
-                      }}
-                      className="w-full p-2.5 border rounded-xl font-extrabold text-[#234E40]"
-                    />
+                  <div key={plan.id} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2.5 text-xs shadow-sm">
+                    <div className="flex justify-between items-center border-b pb-1.5">
+                      <span className="font-extrabold text-[#234E40]">Tier #{index + 1} â€¢ {plan.durationLabel}</span>
+                      <span className="text-[10px] font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full">
+                        {Number(plan.price).toLocaleString()} RWF
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="font-bold text-slate-700">Subscription Plan Name</label>
+                      <input
+                        type="text"
+                        value={plan.name}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSubscriptionPlans(
+                            subscriptionPlans.map((p) => (p.id === plan.id ? { ...p, name: val } : p))
+                          );
+                        }}
+                        className="w-full mt-1 p-2.5 border rounded-xl font-semibold text-slate-900"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="font-bold text-slate-700">Cost (RWF)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={plan.price}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setSubscriptionPlans(
+                              subscriptionPlans.map((p) => (p.id === plan.id ? { ...p, price: val } : p))
+                            );
+                          }}
+                          className="w-full mt-1 p-2.5 border rounded-xl font-extrabold text-[#234E40]"
+                        />
+                      </div>
+                      <div>
+                        <label className="font-bold text-slate-700">Badge Tag</label>
+                        <input
+                          type="text"
+                          value={plan.badge}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setSubscriptionPlans(
+                              subscriptionPlans.map((p) => (p.id === plan.id ? { ...p, badge: val } : p))
+                            );
+                          }}
+                          className="w-full mt-1 p-2.5 border rounded-xl"
+                        />
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -3676,44 +3273,352 @@ export default function GuideLinkRwandaApp() {
                 type="button"
                 disabled={isSaving}
                 onClick={handleSaveSubscriptionPlans}
-                className="w-full py-3.5 bg-[#234E40] text-white rounded-xl font-bold text-sm shadow"
+                className="w-full py-3.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow transition"
               >
-                💾 Save Plans
+                {isSaving ? 'â³ Saving Plans to Firebase...' : 'ðŸ’¾ Save All Plan Names & Costs'}
               </button>
             </div>
           )}
 
           {ownerTab === 'users_mgmt' && (
             <div className="space-y-4">
+              <div className="bg-gradient-to-r from-slate-900 to-[#234E40] text-white p-5 rounded-2xl shadow-sm space-y-1">
+                <span className="text-[10px] uppercase font-bold bg-amber-400 text-slate-900 px-2 py-0.5 rounded-full">C.E.O Master Control</span>
+                <h3 className="font-bold text-base md:text-lg pt-1">ðŸ‘¥ Users Management & Dashboard Editor</h3>
+                <p className="text-xs text-emerald-100">Edit any user&apos;s login info, subscription plan, dashboard elements, or delete non-compliant accounts.</p>
+              </div>
+
               {registeredUsers.length === 0 ? (
-                <div className="bg-white p-6 rounded-2xl border text-center text-xs text-slate-500">No users found.</div>
+                <div className="bg-white p-6 rounded-2xl border text-center text-xs text-slate-500">
+                  No registered users found yet.
+                </div>
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                  <div className="lg:col-span-4 bg-white p-5 rounded-2xl border space-y-3 text-xs h-fit">
+                  <div className="lg:col-span-4 bg-white p-5 rounded-2xl border space-y-3 shadow-sm text-xs h-fit">
+                    <label className="font-bold text-slate-700 block">Select User Account ({registeredUsers.length} Total)</label>
                     <select
                       value={selectedManagedUserId}
                       onChange={(e) => {
                         const found = registeredUsers.find((u) => u.id === e.target.value);
                         if (found) handleSelectUserForAdminEdit(found);
                       }}
-                      className="w-full p-2.5 border rounded-xl bg-slate-50 font-semibold"
+                      className="w-full p-2.5 border rounded-xl bg-slate-50 font-semibold text-slate-900"
                     >
-                      <option value="">-- Choose member --</option>
+                      <option value="">-- Choose a member to edit or delete --</option>
                       {registeredUsers.map((u) => (
-                        <option key={u.id} value={u.id}>{u.name} ({u.contact})</option>
+                        <option key={u.id} value={u.id}>
+                          {u.name} ({getRoleDisplayLabel(u.role)}) â€¢ {u.contact}
+                        </option>
                       ))}
                     </select>
+
+                    {ownerUserEditForm && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteUserAccount(ownerUserEditForm.docId, ownerUserEditForm.name)}
+                        className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-xs flex items-center justify-center space-x-2 shadow-sm transition"
+                      >
+                        <span>ðŸ—‘ï¸</span>
+                        <span>Delete User ({ownerUserEditForm.name}) Permanently</span>
+                      </button>
+                    )}
                   </div>
 
                   {ownerUserEditForm && (
-                    <form onSubmit={handleOwnerSaveManagedUser} className="lg:col-span-8 bg-white p-6 rounded-2xl border space-y-4 text-xs">
-                      <input
-                        type="text"
-                        value={ownerUserEditForm.name}
-                        onChange={(e) => setOwnerUserEditForm({ ...ownerUserEditForm, name: e.target.value })}
-                        className="w-full p-2.5 border rounded-xl"
-                      />
-                      <button type="submit" className="w-full py-3 bg-[#234E40] text-white rounded-xl font-bold">💾 Save User</button>
+                    <form onSubmit={handleOwnerSaveManagedUser} className="lg:col-span-8 bg-white p-6 rounded-2xl border space-y-4 shadow-sm text-xs">
+                      <div className="border-b pb-2 flex justify-between items-center">
+                        <h4 className="font-bold text-sm text-[#234E40]">ðŸ”‘ Login, Subscription & Account</h4>
+                        <span className="text-[10px] font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-600">
+                          ID: {ownerUserEditForm.docId}
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div>
+                          <label className="font-bold text-slate-700">Full Name / Company Name</label>
+                          <input
+                            type="text"
+                            required
+                            value={ownerUserEditForm.name}
+                            onChange={(e) => setOwnerUserEditForm({ ...ownerUserEditForm, name: e.target.value })}
+                            className="w-full mt-1 p-2.5 border rounded-xl"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="font-bold text-slate-700">Login Phone / Email</label>
+                            <input
+                              type="text"
+                              required
+                              value={ownerUserEditForm.contact}
+                              onChange={(e) => setOwnerUserEditForm({ ...ownerUserEditForm, contact: e.target.value })}
+                              className="w-full mt-1 p-2.5 border rounded-xl"
+                            />
+                          </div>
+                          <div>
+                            <label className="font-bold text-slate-700">Login Password</label>
+                            <input
+                              type="text"
+                              required
+                              value={ownerUserEditForm.password}
+                              onChange={(e) => setOwnerUserEditForm({ ...ownerUserEditForm, password: e.target.value })}
+                              className="w-full mt-1 p-2.5 border rounded-xl font-mono"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="font-bold text-slate-700">Account Role</label>
+                            <select
+                              value={ownerUserEditForm.role}
+                              onChange={(e) => setOwnerUserEditForm({ ...ownerUserEditForm, role: e.target.value })}
+                              className="w-full mt-1 p-2.5 border rounded-xl bg-white font-semibold"
+                            >
+                              <option value="traveler">ðŸ§³ Traveler</option>
+                              <option value="graduate">ðŸŽ“ Tourism Graduate / Guide</option>
+                              <option value="agency">ðŸ¢ Travel Agency</option>
+                              <option value="tour_company">ðŸš Tour Company</option>
+                              {(appConfig.customDashboards || []).map((cd) => (
+                                <option key={cd.id} value={cd.id}>{cd.icon || 'ðŸ“Š'} {cd.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="font-bold text-slate-700">Account Access Status</label>
+                            <select
+                              value={ownerUserEditForm.status}
+                              onChange={(e) => setOwnerUserEditForm({ ...ownerUserEditForm, status: e.target.value })}
+                              className="w-full mt-1 p-2.5 border rounded-xl bg-white font-semibold"
+                            >
+                              <option value="approved">ðŸŸ¢ Approved (Active)</option>
+                              <option value="pending_approval">â³ Pending Approval</option>
+                              <option value="expired">âš ï¸ Expired (Needs Renewal)</option>
+                              <option value="revoked">ðŸ”’ Revoked (Blocked)</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {ownerUserEditForm.role !== 'traveler' && (
+                          <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl space-y-2">
+                            <label className="font-bold text-amber-950 block">ðŸ’³ Partner Subscription Tier</label>
+                            <select
+                              value={ownerUserEditForm.subscriptionPlanId}
+                              onChange={(e) => {
+                                const plan = getPlanById(e.target.value);
+                                setOwnerUserEditForm({
+                                  ...ownerUserEditForm,
+                                  subscriptionPlanId: plan.id,
+                                  subscriptionExpiresAt: Date.now() + plan.days * 24 * 60 * 60 * 1000
+                                });
+                              }}
+                              className="w-full p-2 border rounded-xl bg-white font-semibold text-slate-900"
+                            >
+                              {subscriptionPlans.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name} â€” {Number(p.price).toLocaleString()} RWF ({p.durationLabel})
+                                </option>
+                              ))}
+                            </select>
+                            {ownerUserEditForm.subscriptionExpiresAt > 0 && (
+                              <p className="text-[11px] text-amber-900 font-medium">
+                                Active Until: <strong>{new Date(ownerUserEditForm.subscriptionExpiresAt).toLocaleDateString()}</strong>
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="border-t pt-3 space-y-3">
+                        <div className="flex justify-between items-center">
+                          <h4 className="font-bold text-sm text-[#234E40]">ðŸŽ›ï¸ Dashboard Elements & Public Listing</h4>
+                          <button
+                            type="button"
+                            onClick={() => setOwnerUserEditForm({ ...ownerUserEditForm, isAvailable: !ownerUserEditForm.isAvailable })}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${
+                              ownerUserEditForm.isAvailable ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                            }`}
+                          >
+                            {ownerUserEditForm.isAvailable ? 'ðŸŸ¢ Available' : 'ðŸŸ¡ Busy'}
+                          </button>
+                        </div>
+
+                        <div>
+                          <label className="font-bold text-slate-700">Dashboard Headline / Tagline</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Certified Multilingual Safari Guide"
+                            value={ownerUserEditForm.headline}
+                            onChange={(e) => setOwnerUserEditForm({ ...ownerUserEditForm, headline: e.target.value })}
+                            className="w-full mt-1 p-2.5 border rounded-xl"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="font-bold text-slate-700">Location</label>
+                            <input
+                              type="text"
+                              value={ownerUserEditForm.location}
+                              onChange={(e) => setOwnerUserEditForm({ ...ownerUserEditForm, location: e.target.value })}
+                              className="w-full mt-1 p-2.5 border rounded-xl"
+                            />
+                          </div>
+                          <div>
+                            <label className="font-bold text-slate-700">Standard Rate / Pricing</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. RWF 40,000 / day"
+                              value={ownerUserEditForm.rateInfo}
+                              onChange={(e) => setOwnerUserEditForm({ ...ownerUserEditForm, rateInfo: e.target.value })}
+                              className="w-full mt-1 p-2.5 border rounded-xl"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2 bg-slate-50 p-3 rounded-xl border">
+                          <label className="font-bold text-[#234E40] block">ðŸ› ï¸ Services Offered</label>
+                          <div className="flex space-x-2">
+                            <input
+                              type="text"
+                              placeholder="Add service..."
+                              value={ownerNewServiceInput}
+                              onChange={(e) => setOwnerNewServiceInput(e.target.value)}
+                              className="flex-1 p-2 border rounded-xl bg-white"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!ownerNewServiceInput.trim()) return;
+                                setOwnerUserEditForm({
+                                  ...ownerUserEditForm,
+                                  servicesOffered: [...(ownerUserEditForm.servicesOffered || []), ownerNewServiceInput.trim()]
+                                });
+                                setOwnerNewServiceInput('');
+                              }}
+                              className="px-3 bg-[#234E40] text-white rounded-xl font-bold"
+                            >
+                              + Add
+                            </button>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            {(ownerUserEditForm.servicesOffered || []).map((srv, idx) => (
+                              <span key={idx} className="inline-flex items-center space-x-1 bg-white border text-[#234E40] px-2 py-1 rounded-lg">
+                                <span>âœ“ {srv}</span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setOwnerUserEditForm({
+                                      ...ownerUserEditForm,
+                                      servicesOffered: ownerUserEditForm.servicesOffered.filter((_, i) => i !== idx)
+                                    })
+                                  }
+                                  className="text-red-500 font-bold ml-1"
+                                >
+                                  âœ•
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="space-y-2 bg-slate-50 p-3 rounded-xl border">
+                          <label className="font-bold text-[#234E40] block">ðŸŽ“ Qualifications & Degrees</label>
+                          <div className="flex space-x-2">
+                            <input
+                              type="text"
+                              placeholder="Add degree/certificate..."
+                              value={ownerNewDegreeInput}
+                              onChange={(e) => setOwnerNewDegreeInput(e.target.value)}
+                              className="flex-1 p-2 border rounded-xl bg-white"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!ownerNewDegreeInput.trim()) return;
+                                setOwnerUserEditForm({
+                                  ...ownerUserEditForm,
+                                  degrees: [...(ownerUserEditForm.degrees || []), ownerNewDegreeInput.trim()]
+                                });
+                                setOwnerNewDegreeInput('');
+                              }}
+                              className="px-3 bg-[#3B6E5B] text-white rounded-xl font-bold"
+                            >
+                              + Add
+                            </button>
+                          </div>
+                          {(ownerUserEditForm.degrees || []).map((deg, idx) => (
+                            <div key={idx} className="flex justify-between items-center bg-white border p-2 rounded-xl mt-1">
+                              <span>ðŸŽ“ {deg}</span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setOwnerUserEditForm({
+                                    ...ownerUserEditForm,
+                                    degrees: ownerUserEditForm.degrees.filter((_, i) => i !== idx)
+                                  })
+                                }
+                                className="text-red-500 font-bold"
+                              >
+                                âœ•
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="space-y-2 bg-slate-50 p-3 rounded-xl border">
+                          <label className="font-bold text-[#234E40] block">ðŸ’¼ Experience</label>
+                          <div className="flex space-x-2">
+                            <input
+                              type="text"
+                              placeholder="Add experience..."
+                              value={ownerNewExpInput}
+                              onChange={(e) => setOwnerNewExpInput(e.target.value)}
+                              className="flex-1 p-2 border rounded-xl bg-white"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!ownerNewExpInput.trim()) return;
+                                setOwnerUserEditForm({
+                                  ...ownerUserEditForm,
+                                  experiences: [...(ownerUserEditForm.experiences || []), ownerNewExpInput.trim()]
+                                });
+                                setOwnerNewExpInput('');
+                              }}
+                              className="px-3 bg-[#3B6E5B] text-white rounded-xl font-bold"
+                            >
+                              + Add
+                            </button>
+                          </div>
+                          {(ownerUserEditForm.experiences || []).map((exp, idx) => (
+                            <div key={idx} className="flex justify-between items-center bg-white border p-2 rounded-xl mt-1">
+                              <span>ðŸ’¼ {exp}</span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setOwnerUserEditForm({
+                                    ...ownerUserEditForm,
+                                    experiences: ownerUserEditForm.experiences.filter((_, i) => i !== idx)
+                                  })
+                                }
+                                className="text-red-500 font-bold"
+                              >
+                                âœ•
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={isSaving}
+                        className="w-full py-3.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold text-sm shadow transition"
+                      >
+                        {isSaving ? 'â³ Syncing to Cloud...' : 'ðŸ’¾ Save All Changes to Firebase Cloud'}
+                      </button>
                     </form>
                   )}
                 </div>
@@ -3722,21 +3627,67 @@ export default function GuideLinkRwandaApp() {
           )}
 
           {ownerTab === 'overview' && (
-            <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-8 rounded-2xl text-center space-y-1">
-              <span className="text-xs uppercase text-emerald-200 font-bold">Total Platform Revenue</span>
-              <div className="text-4xl font-extrabold">RWF {grandTotalRevenue.toLocaleString()}</div>
+            <div className="space-y-4">
+              <div className="bg-gradient-to-r from-[#234E40] to-[#3B6E5B] text-white p-8 rounded-2xl text-center space-y-1">
+                <span className="text-xs uppercase text-emerald-200 font-bold">Total Platform Revenue</span>
+                <div className="text-4xl md:text-5xl font-extrabold">RWF {grandTotalRevenue.toLocaleString()}</div>
+                <p className="text-xs md:text-sm text-emerald-100">
+                  MoMo Code: {MOMO_PAYMENT_CODE} â€¢ Subscriptions: RWF {totalRegFees.toLocaleString()} â€¢ Commissions: RWF {totalDealCommissions.toLocaleString()}
+                </p>
+              </div>
             </div>
           )}
 
           {ownerTab === 'vip' && (
             <div className="space-y-3">
-              <h3 className="font-bold text-sm text-slate-900">⭐ VIP Access Control</h3>
+              <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl text-xs space-y-1">
+                <span className="font-bold text-amber-900">ðŸ”’ Confidential C.E.O Area</span>
+                <p className="text-amber-800">These 3 tiers are hidden from regular users. Revoking access instantly removes the user from the traveler directory.</p>
+              </div>
+              <h3 className="font-bold text-sm text-slate-900">â­ 3-Tier VIP Access Control</h3>
+              
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {exemptAccounts.map((acc) => (
-                  <div key={acc.id} className="bg-white p-5 rounded-2xl border space-y-2 text-xs">
-                    <p className="font-bold text-[#234E40]">{acc.tier}</p>
-                    <button onClick={() => toggleVipTierAccess(acc.id)} className={`w-full py-2.5 rounded-xl font-bold ${acc.confirmed ? 'bg-red-600 text-white' : 'bg-[#3B6E5B] text-white'}`}>
-                      {acc.confirmed ? 'Revoke' : 'Grant'}
+                  <div key={acc.id} className="bg-white p-5 rounded-2xl border border-slate-200 space-y-2.5 text-xs shadow-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-[#234E40] text-sm">{acc.tier}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${acc.confirmed ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
+                        {acc.confirmed ? 'ðŸŸ¢ Access Granted' : 'ðŸ”’ Access Revoked'}
+                      </span>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500">Partner Name / Title</label>
+                      <input
+                        type="text"
+                        value={acc.name}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setExemptAccounts(exemptAccounts.map(a => a.id === acc.id ? { ...a, name: val } : a));
+                        }}
+                        onBlur={() => handleSaveVipEdits(acc)}
+                        className="w-full mt-0.5 p-2.5 border rounded-xl bg-slate-50 text-xs font-semibold"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500">Contact / Phone</label>
+                      <input
+                        type="text"
+                        value={acc.contact}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setExemptAccounts(exemptAccounts.map(a => a.id === acc.id ? { ...a, contact: val } : a));
+                        }}
+                        onBlur={() => handleSaveVipEdits(acc)}
+                        className="w-full mt-0.5 p-2.5 border rounded-xl bg-slate-50 text-xs"
+                      />
+                    </div>
+                    <button
+                      onClick={() => toggleVipTierAccess(acc.id)}
+                      className={`w-full py-2.5 rounded-xl font-bold text-xs shadow transition ${
+                        acc.confirmed ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-[#3B6E5B] hover:bg-[#234E40] text-white'
+                      }`}
+                    >
+                      {acc.confirmed ? `Revoke Access for ${acc.tier}` : `âœ“ Grant Access for ${acc.tier}`}
                     </button>
                   </div>
                 ))}
@@ -3746,20 +3697,76 @@ export default function GuideLinkRwandaApp() {
 
           {ownerTab === 'deals' && (
             <div className="bg-white p-6 rounded-2xl border space-y-3 text-xs font-bold">
-              <h3 className="font-bold text-sm text-slate-900">🎛️ Preview Dashboards</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'graduate' }); setCurrentRole('graduate'); setActiveTab('jobs'); }} className="p-4 bg-emerald-50 text-[#234E40] border rounded-xl">🎓 Graduate</button>
-                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'agency' }); setCurrentRole('agency'); setActiveTab('jobs'); }} className="p-4 bg-emerald-50 text-[#234E40] border rounded-xl">🏢 Agency</button>
-                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'tour_company' }); setCurrentRole('tour_company'); setActiveTab('jobs'); }} className="p-4 bg-emerald-50 text-[#234E40] border rounded-xl">🚐 Tour Co.</button>
-                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'traveler' }); setCurrentRole('traveler'); setActiveTab('jobs'); }} className="p-4 bg-emerald-50 text-[#234E40] border rounded-xl">🧳 Traveler</button>
+              <h3 className="font-bold text-sm text-slate-900">ðŸŽ›ï¸ Preview All Standard & Custom Dashboards</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 pt-1">
+                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'graduate' }); setCurrentRole('graduate'); setActiveTab('jobs'); }} className="p-4 bg-emerald-50 text-[#234E40] border rounded-xl">ðŸŽ“ Graduate</button>
+                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'agency' }); setCurrentRole('agency'); setActiveTab('jobs'); }} className="p-4 bg-emerald-50 text-[#234E40] border rounded-xl">ðŸ¢ Agency</button>
+                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'tour_company' }); setCurrentRole('tour_company'); setActiveTab('jobs'); }} className="p-4 bg-emerald-50 text-[#234E40] border rounded-xl">ðŸš Tour Co.</button>
+                <button onClick={() => { setActiveUser({ name: ownerProfile.name, contact: ownerProfile.contact, role: 'traveler' }); setCurrentRole('traveler'); setActiveTab('jobs'); }} className="p-4 bg-emerald-50 text-[#234E40] border rounded-xl">ðŸ§³ Traveler</button>
+                {(appConfig.customDashboards || []).map((cd) => (
+                  <button
+                    key={cd.id}
+                    onClick={() => {
+                      setActiveCustomDashId(cd.id);
+                      setCurrentRole('custom_dashboard_view');
+                    }}
+                    className="p-4 bg-amber-50 text-amber-950 border border-amber-200 rounded-xl"
+                  >
+                    {cd.icon} {cd.name}
+                  </button>
+                ))}
               </div>
             </div>
           )}
 
           {ownerTab === 'owner_profile' && (
-            <div className="bg-white p-6 rounded-2xl border space-y-4 max-w-3xl">
-              <input type="text" value={ownerProfile.name} onChange={(e) => setOwnerProfile({ ...ownerProfile, name: e.target.value })} className="w-full p-3 border rounded-xl text-xs" />
-              <button type="button" onClick={() => handleSaveWithButton(ownerProfile)} className="w-full py-3 bg-[#3B6E5B] text-white rounded-xl font-bold text-xs">💾 Save C.E.O Profile</button>
+            <div className="bg-white p-6 rounded-2xl border space-y-4 w-full max-w-3xl">
+              <h3 className="font-bold text-base text-slate-900">ðŸ‘‘ C.E.O Profile & Photo</h3>
+              <div className="flex flex-col items-center space-y-2">
+                {ownerProfile.photo ? (
+                  <img src={ownerProfile.photo} alt="C.E.O" className="w-28 h-28 rounded-full object-cover border-4 border-[#3B6E5B] shadow-md" />
+                ) : (
+                  <div className="w-28 h-28 rounded-full bg-slate-200 flex items-center justify-center text-3xl">ðŸ‘‘</div>
+                )}
+                <label className="cursor-pointer bg-[#234E40] text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-slate-800 transition">
+                  ðŸ“· Upload C.E.O Photo
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, (imgData) => setOwnerProfile({ ...ownerProfile, photo: imgData }))} />
+                </label>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div>
+                  <label className="font-bold text-slate-700">Full Name</label>
+                  <input type="text" value={ownerProfile.name} onChange={(e) => setOwnerProfile({ ...ownerProfile, name: e.target.value })} className="w-full mt-1 p-3 border rounded-xl" />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700">Executive Title</label>
+                  <input type="text" value={ownerProfile.title} onChange={(e) => setOwnerProfile({ ...ownerProfile, title: e.target.value })} className="w-full mt-1 p-3 border rounded-xl" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-bold text-slate-700">Phone Number</label>
+                    <input type="text" value={ownerProfile.contact} onChange={(e) => setOwnerProfile({ ...ownerProfile, contact: e.target.value })} className="w-full mt-1 p-3 border rounded-xl" />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-700">Email Address</label>
+                    <input type="email" value={ownerProfile.email} onChange={(e) => setOwnerProfile({ ...ownerProfile, email: e.target.value })} className="w-full mt-1 p-3 border rounded-xl" />
+                  </div>
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700">Executive Bio</label>
+                  <textarea rows="3" value={ownerProfile.bio} onChange={(e) => setOwnerProfile({ ...ownerProfile, bio: e.target.value })} className="w-full mt-1 p-3 border rounded-xl" />
+                </div>
+                
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => handleSaveWithButton(ownerProfile)}
+                  className="w-full py-3.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold text-sm shadow transition"
+                >
+                  {isSaving ? 'â³ Saving...' : 'ðŸ’¾ Save C.E.O Profile & Photo'}
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -3778,6 +3785,7 @@ export default function GuideLinkRwandaApp() {
     return item.type === directoryFilter;
   });
 
+  // Dynamic C.E.O App Server Announcements, Features, Sections & Custom Fields for Current Role
   const roleAnnouncements = (appConfig.announcements || []).filter(
     (a) => a.targetRole === 'all' || a.targetRole === currentRole
   );
@@ -3791,6 +3799,7 @@ export default function GuideLinkRwandaApp() {
     (f) => f.targetRole === 'all' || f.targetRole === currentRole
   );
 
+  // Universal Search Results across Travel Agencies, Tour Companies & Graduates
   const searchedProviders = providerDirectory.filter((item) => {
     const matchesRole = searchRoleFilter === 'all' || item.type === searchRoleFilter;
     if (!matchesRole) return false;
@@ -3800,7 +3809,9 @@ export default function GuideLinkRwandaApp() {
       (item.name || '').toLowerCase().includes(q) ||
       (item.headline || '').toLowerCase().includes(q) ||
       (item.location || '').toLowerCase().includes(q) ||
-      (item.categoryLabel || '').toLowerCase().includes(q)
+      (item.categoryLabel || '').toLowerCase().includes(q) ||
+      (item.services || []).some((s) => s.toLowerCase().includes(q)) ||
+      (item.qualifications || []).some((deg) => deg.toLowerCase().includes(q))
     );
   });
 
@@ -3816,12 +3827,6 @@ export default function GuideLinkRwandaApp() {
       return msg.participants.includes(myChatId);
     }
     return normalizeContact(msg.senderId) === myChatId || normalizeContact(msg.recipientId) === myChatId;
-  });
-
-  // Check if there are any unread incoming messages from other peers
-  const hasUnreadChatNotification = myPrivateMessages.some((msg) => {
-    const msgSender = normalizeContact(msg.senderId || msg.sender);
-    return msgSender !== myChatId && normalizeContact(activeChatPeer.id) !== msgSender;
   });
 
   const activeRoomMessages = activePeerId
@@ -3852,8 +3857,7 @@ export default function GuideLinkRwandaApp() {
 
   return (
     <div className="min-h-screen w-screen bg-slate-100 flex flex-col justify-between font-sans overflow-x-hidden relative">
-      {renderPopupAdModal()}
-
+      
       {/* FULL-BLEED WIDESCREEN TOP HEADER & NAVIGATION BAR */}
       <div className="bg-white border-b sticky top-0 z-30 shadow-sm w-full">
         <div className="w-full px-6 md:px-12 py-3 flex justify-between items-center border-b border-slate-100">
@@ -3870,7 +3874,7 @@ export default function GuideLinkRwandaApp() {
               <p className="text-[11px] text-slate-500 capitalize">
                 {getRoleDisplayLabel(currentRole)}
                 {activeUser?.subscriptionPlanName && currentRole !== 'traveler'
-                  ? ` • ${activeUser.subscriptionPlanName}`
+                  ? ` â€¢ ${activeUser.subscriptionPlanName}`
                   : ''}
               </p>
             </div>
@@ -3891,59 +3895,45 @@ export default function GuideLinkRwandaApp() {
             ))}
             <button
               onClick={() => setActiveTab('search')}
-              title="Search"
+              title="Search Travel Agencies, Tour Companies & Graduates"
               className={`p-2 rounded-full text-xs font-bold transition ${
                 activeTab === 'search'
                   ? 'bg-[#234E40] text-white shadow-sm'
                   : 'bg-emerald-50 text-[#234E40] hover:bg-emerald-100'
               }`}
             >
-              🔍
+              ðŸ”
             </button>
             <button onClick={resetToWelcome} className="text-xs bg-slate-100 hover:bg-slate-200 px-4 py-1.5 rounded-full font-semibold transition">Sign Out</button>
           </div>
         </div>
 
-        {/* FULL-BLEED 5 TABS NAVIGATION (Includes Chat Notification Badge) */}
+        {/* FULL-BLEED 4 TABS NAVIGATION */}
         <div className="w-full px-6 md:px-12 py-1.5">
-          <div className="w-full grid grid-cols-5 gap-2 bg-slate-50 p-1 rounded-xl text-xs font-bold text-slate-600">
+          <div className="w-full grid grid-cols-4 gap-2 bg-slate-50 p-1 rounded-xl text-xs font-bold text-slate-600">
             <button
               onClick={() => setActiveTab('jobs')}
               className={`py-2.5 rounded-xl transition text-center ${activeTab === 'jobs' ? 'bg-[#234E40] text-white shadow-sm' : 'hover:bg-slate-200'}`}
             >
-              {currentRole === 'traveler' ? '🏠 Explore' : '🏠 Work'}
-            </button>
-            <button
-              onClick={() => setActiveTab('bookings')}
-              className={`py-2.5 rounded-xl transition text-center ${activeTab === 'bookings' ? 'bg-[#234E40] text-white shadow-sm' : 'hover:bg-slate-200'}`}
-            >
-              📅 Bookings
+              {currentRole === 'traveler' ? 'ðŸ  Explore' : 'ðŸ  Work'}
             </button>
             <button
               onClick={() => setActiveTab('search')}
               className={`py-2.5 rounded-xl transition text-center ${activeTab === 'search' ? 'bg-[#234E40] text-white shadow-sm' : 'hover:bg-slate-200'}`}
             >
-              🔍 Search
+              ðŸ” Search
             </button>
             <button
               onClick={() => setActiveTab('profile')}
               className={`py-2.5 rounded-xl transition text-center ${activeTab === 'profile' ? 'bg-[#234E40] text-white shadow-sm' : 'hover:bg-slate-200'}`}
             >
-              👤 Profile
+              ðŸ‘¤ Profile
             </button>
             <button
               onClick={() => setActiveTab('chat')}
-              className={`py-2.5 rounded-xl transition text-center relative flex items-center justify-center space-x-1 ${
-                activeTab === 'chat' ? 'bg-[#234E40] text-white shadow-sm' : 'hover:bg-slate-200'
-              }`}
+              className={`py-2.5 rounded-xl transition text-center relative ${activeTab === 'chat' ? 'bg-[#234E40] text-white shadow-sm' : 'hover:bg-slate-200'}`}
             >
-              <span>🔒 Chat</span>
-              {hasUnreadChatNotification && (
-                <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-ping absolute top-2 right-3"></span>
-              )}
-              {hasUnreadChatNotification && (
-                <span className="w-2 h-2 rounded-full bg-red-600 absolute top-2 right-3"></span>
-              )}
+              ðŸ”’ Chat
             </button>
           </div>
         </div>
@@ -3955,7 +3945,7 @@ export default function GuideLinkRwandaApp() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {roleAnnouncements.map((ann) => (
               <div key={ann.id} className="bg-amber-50 border border-amber-300 p-4 rounded-2xl text-xs shadow-sm">
-                <p className="font-bold text-amber-950">📢 {ann.title}</p>
+                <p className="font-bold text-amber-950">ðŸ“¢ {ann.title}</p>
                 <p className="text-amber-900 mt-0.5">{ann.body}</p>
               </div>
             ))}
@@ -3966,7 +3956,12 @@ export default function GuideLinkRwandaApp() {
           <div className="bg-white p-4 rounded-2xl border border-slate-200 flex justify-between items-center shadow-sm">
             <div>
               <p className="text-xs font-bold text-slate-900">
-                {currentProf.isAvailable !== false ? '🟢 Available for Bookings' : '🔴 Currently Busy'}
+                {currentProf.isAvailable !== false ? 'ðŸŸ¢ Available for Bookings' : 'ðŸ”´ Currently Busy'}
+              </p>
+              <p className="text-[11px] text-slate-500">
+                {activeUser?.subscriptionExpiresAt > 0
+                  ? `Plan valid until ${new Date(activeUser.subscriptionExpiresAt).toLocaleDateString()}`
+                  : 'Live status visible across platform'}
               </p>
             </div>
             <button
@@ -3980,9 +3975,119 @@ export default function GuideLinkRwandaApp() {
           </div>
         )}
 
-        {/* BOOKINGS MARKETPLACE TAB */}
-        {activeTab === 'bookings' && (
-          <BookingMarketplace currentUser={activeUser} currentRole={currentRole} />
+        {/* INTERACTIVE APP FEATURES ADDED BY OWNER IN APP SERVER */}
+        {activeTab === 'jobs' && roleCustomFeatures.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {roleCustomFeatures.map((feat) => (
+              <div key={feat.id} className="bg-white p-4 rounded-2xl border-2 border-[#3B6E5B]/30 shadow-sm text-xs space-y-2.5">
+                <div className="flex items-center space-x-2">
+                  <span className="text-lg">{feat.icon || 'âœ¨'}</span>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">{appConfig.appName} Feature</span>
+                    <h4 className="font-bold text-sm text-slate-900">{feat.title}</h4>
+                  </div>
+                </div>
+                {feat.description && <p className="text-slate-600">{feat.description}</p>}
+
+                {feat.featureType === 'calculator' && (
+                  <div className="bg-slate-50 p-3 rounded-xl border space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-slate-700">Quantity / Guests:</span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={calcQtyMap[feat.id] ?? 1}
+                        onChange={(e) => setCalcQtyMap({ ...calcQtyMap, [feat.id]: Math.max(1, Number(e.target.value)) })}
+                        className="w-20 p-1.5 border rounded-lg text-center font-bold bg-white"
+                      />
+                    </div>
+                    <div className="flex justify-between items-center pt-1 border-t">
+                      <span className="text-slate-500">Estimated Total:</span>
+                      <span className="font-extrabold text-sm text-[#234E40]">
+                        RWF {((calcQtyMap[feat.id] ?? 1) * (feat.unitPriceRwf || 0)).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {feat.featureType === 'checklist' && (
+                  <div className="space-y-1.5 bg-slate-50 p-3 rounded-xl border">
+                    {(feat.checklistItems || []).map((itemText, idx) => {
+                      const checkKey = `${feat.id}_${idx}`;
+                      return (
+                        <label key={idx} className="flex items-center space-x-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(checkedItemsMap[checkKey])}
+                            onChange={(e) => setCheckedItemsMap({ ...checkedItemsMap, [checkKey]: e.target.checked })}
+                          />
+                          <span className={checkedItemsMap[checkKey] ? 'line-through text-slate-400' : 'text-slate-800 font-medium'}>
+                            {itemText}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {feat.featureType === 'resource_link' && feat.linkUrl && (
+                  <a
+                    href={feat.linkUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block w-full py-2.5 bg-[#234E40] text-white text-center rounded-xl font-bold"
+                  >
+                    {feat.buttonLabel || 'Open Portal â†’'}
+                  </a>
+                )}
+
+                {feat.featureType === 'action_form' && (
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      placeholder="Enter your details or request..."
+                      value={featureInputs[feat.id] || ''}
+                      onChange={(e) => setFeatureInputs({ ...featureInputs, [feat.id]: e.target.value })}
+                      className="w-full p-2.5 border rounded-xl"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!(featureInputs[feat.id] || '').trim()) return;
+                        setFeatureSubmissions({
+                          ...featureSubmissions,
+                          [feat.id]: [...(featureSubmissions[feat.id] || []), featureInputs[feat.id].trim()]
+                        });
+                        setFeatureInputs({ ...featureInputs, [feat.id]: '' });
+                        alert(`âœ“ Submitted to ${feat.title}!`);
+                      }}
+                      className="w-full py-2.5 bg-[#3B6E5B] text-white rounded-xl font-bold"
+                    >
+                      {feat.buttonLabel || 'Submit'}
+                    </button>
+                    {(featureSubmissions[feat.id] || []).map((sub, i) => (
+                      <div key={i} className="bg-emerald-50 text-emerald-900 p-2 rounded-lg text-[11px] font-medium">
+                        âœ“ Sent: {sub}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Custom Info Sections Added by C.E.O in App Server */}
+        {activeTab === 'jobs' && roleCustomSections.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {roleCustomSections.map((sec) => (
+              <div key={sec.id} className="bg-white p-4 rounded-2xl border border-emerald-200 shadow-sm text-xs space-y-1">
+                <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">ðŸ“Œ {appConfig.appName} Notice</span>
+                <h4 className="font-bold text-sm text-slate-900">{sec.title}</h4>
+                <p className="text-slate-600 leading-relaxed whitespace-pre-line">{sec.content}</p>
+              </div>
+            ))}
+          </div>
         )}
 
         {/* UNIVERSAL SEARCH DIRECTORY TAB */}
@@ -3990,7 +4095,8 @@ export default function GuideLinkRwandaApp() {
           <div className="space-y-4">
             <div style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="text-white p-6 rounded-2xl shadow-sm space-y-1">
               <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Global Partner Directory</span>
-              <h3 className="font-bold text-base md:text-xl pt-1">🔍 Search Agencies, Tour Companies & Graduates</h3>
+              <h3 className="font-bold text-base md:text-xl pt-1">ðŸ” Search Agencies, Tour Companies & Graduates</h3>
+              <p className="text-xs md:text-sm text-emerald-100">Find any registered tourism partner in Rwanda by name, location, or service and book directly.</p>
             </div>
 
             <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3 shadow-sm">
@@ -3998,42 +4104,119 @@ export default function GuideLinkRwandaApp() {
                 <input
                   type="text"
                   autoFocus
-                  placeholder="Search name or city..."
+                  placeholder="Search name, city (e.g. Kigali, Musanze), or service..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-8 py-3 border border-slate-300 rounded-xl text-xs md:text-sm font-medium"
                 />
-                <span className="absolute left-3 top-3 text-sm">🔍</span>
+                <span className="absolute left-3 top-3 text-sm">ðŸ”</span>
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-2.5 text-xs text-slate-400 hover:text-slate-700 font-bold"
+                  >
+                    âœ•
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-4 gap-2 bg-slate-100 p-1 rounded-xl text-[10px] md:text-xs font-bold text-center">
+                <button
+                  type="button"
+                  onClick={() => setSearchRoleFilter('all')}
+                  className={`py-2 rounded-lg ${searchRoleFilter === 'all' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}
+                >
+                  All ({providerDirectory.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSearchRoleFilter('agency')}
+                  className={`py-2 rounded-lg ${searchRoleFilter === 'agency' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}
+                >
+                  Agencies
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSearchRoleFilter('tour_company')}
+                  className={`py-2 rounded-lg ${searchRoleFilter === 'tour_company' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}
+                >
+                  Tour Co.
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSearchRoleFilter('graduate')}
+                  className={`py-2 rounded-lg ${searchRoleFilter === 'graduate' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}
+                >
+                  Graduates
+                </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {searchedProviders.map((prov) => (
-                <div key={prov.id} className="bg-white p-4 rounded-2xl border space-y-3 shadow-sm text-xs flex flex-col justify-between">
-                  <div className="space-y-2.5">
-                    <h4 className="font-bold text-sm text-slate-900">{prov.name}</h4>
-                    <p className="text-slate-700 font-medium">{prov.headline}</p>
+            {searchedProviders.length === 0 ? (
+              <div className="bg-white p-8 rounded-2xl border text-center text-xs text-slate-500 space-y-1">
+                <p className="font-bold text-slate-700">No matching partners found</p>
+                <p>Try clearing your search filter or searching another keyword.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {searchedProviders.map((prov) => (
+                  <div key={prov.id} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3 shadow-sm text-xs flex flex-col justify-between">
+                    <div className="space-y-2.5">
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center space-x-2.5">
+                          {prov.photo ? (
+                            <img src={prov.photo} alt={prov.name} className="w-11 h-11 rounded-full object-cover border" />
+                          ) : (
+                            <div className="w-11 h-11 rounded-full bg-emerald-100 text-[#234E40] flex items-center justify-center font-bold text-base">
+                              {prov.type === 'graduate' ? 'ðŸŽ“' : prov.type === 'agency' ? 'ðŸ¢' : 'ðŸš'}
+                            </div>
+                          )}
+                          <div>
+                            <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">{prov.categoryLabel}</span>
+                            <h4 className="font-bold text-sm text-slate-900">{prov.name}</h4>
+                            <p className="text-[11px] text-slate-500">ðŸ“ {prov.location} â€¢ ðŸ’° {prov.rate}</p>
+                          </div>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${prov.isAvailable ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                          {prov.isAvailable ? 'ðŸŸ¢ Available' : 'ðŸŸ¡ Busy'}
+                        </span>
+                      </div>
+
+                      <p className="text-slate-700 font-medium">{prov.headline}</p>
+
+                      {prov.services && prov.services.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {prov.services.map((srv, idx) => (
+                            <span key={idx} className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-semibold">
+                              âœ“ {srv}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex space-x-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => openConfidentialChat(prov.contactId, prov.name, prov.categoryLabel)}
+                        className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold flex items-center justify-center space-x-1"
+                      >
+                        <span>ðŸ”’</span>
+                        <span>Private Chat</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBookingTarget(prov)}
+                        className="flex-1 py-2 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold shadow-sm"
+                      >
+                        ðŸ“… Book Now â†’
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex space-x-2 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => openConfidentialChat(prov.contactId, prov.name, prov.categoryLabel)}
-                      className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold flex items-center justify-center space-x-1"
-                    >
-                      <span>🔒</span>
-                      <span>Private Chat</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setBookingTarget(prov)}
-                      className="flex-1 py-2 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold shadow-sm"
-                    >
-                      📅 Book Now →
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -4041,47 +4224,94 @@ export default function GuideLinkRwandaApp() {
         {activeTab === 'jobs' && currentRole === 'graduate' && (
           <div className="space-y-5">
             <div style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="text-white p-6 rounded-2xl shadow-sm space-y-1">
-              <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Graduate Opportunity Hub • 0% Commission</span>
+              <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Graduate Opportunity Hub</span>
               <h3 className="font-bold text-base md:text-xl pt-1">Guiding Jobs, Consultant Roles & Freelance Travelers</h3>
+              <p className="text-xs md:text-sm text-emerald-100">Review qualifications, tour schedules, and accept assignments suited for tourism professionals.</p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               <div className="lg:col-span-5 space-y-3">
-                <h3 className="font-bold text-sm text-slate-900">🧳 Freelance Traveler Requests ({matchingTravelerRequests.length})</h3>
-                {matchingTravelerRequests.map((req) => (
-                  <div key={req.id} className="bg-white p-4 rounded-2xl border-2 border-amber-300 space-y-2 shadow-sm text-xs">
-                    <h4 className="font-bold text-sm text-slate-900">{req.destination} ({req.guests} Guests)</h4>
-                    <div className="flex space-x-2 pt-1">
-                      <button
-                        onClick={() => openConfidentialChat(req.travelerContact || req.travelerName, req.travelerName, 'Traveler')}
-                        className="flex-1 py-2 bg-slate-100 rounded-xl font-bold text-xs"
-                      >
-                        🔒 Private Chat
-                      </button>
-                      {req.status !== 'confirmed' && (
-                        <button
-                          onClick={() => handleConfirmTravelerRequest(req.id)}
-                          className="flex-1 py-2 bg-[#234E40] text-white rounded-xl font-bold text-xs"
-                        >
-                          ✓ Confirm Deal
-                        </button>
-                      )}
-                    </div>
+                <div className="flex justify-between items-center">
+                  <h3 className="font-bold text-sm text-slate-900">ðŸ§³ Freelance Traveler Requests ({matchingTravelerRequests.length})</h3>
+                  <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">Action Needed</span>
+                </div>
+
+                {matchingTravelerRequests.length === 0 ? (
+                  <div className="bg-white p-5 rounded-2xl border border-slate-200 text-xs text-slate-500 text-center">
+                    No direct freelance traveler requests right now.
                   </div>
-                ))}
+                ) : (
+                  matchingTravelerRequests.map((req) => (
+                    <div key={req.id} className="bg-white p-4 rounded-2xl border-2 border-amber-300 space-y-2 shadow-sm text-xs">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="text-[10px] font-bold uppercase text-amber-700">Traveler Expectation / Request</span>
+                          <h4 className="font-bold text-sm text-slate-900">{req.destination} ({req.guests} Guests)</h4>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          req.status === 'confirmed' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          {req.status === 'confirmed' ? 'âœ“ Confirmed' : 'â³ Pending'}
+                        </span>
+                      </div>
+                      <p className="text-slate-600">ðŸ‘¤ Traveler: <strong>{req.travelerName}</strong> ({req.travelerContact})</p>
+                      <p className="text-slate-500">ðŸ“… Dates: {req.dates}</p>
+                      {req.notes && <p className="text-slate-500 italic bg-slate-50 p-2 rounded-lg">&quot;{req.notes}&quot;</p>}
+
+                      <div className="flex space-x-2 pt-1">
+                        <button
+                          onClick={() => openConfidentialChat(req.travelerContact || req.travelerName, req.travelerName, 'Traveler')}
+                          className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold text-xs"
+                        >
+                          ðŸ”’ Private Chat
+                        </button>
+                        {req.status !== 'confirmed' && (
+                          <button
+                            onClick={() => handleConfirmTravelerRequest(req.id)}
+                            className="flex-1 py-2 bg-[#234E40] text-white rounded-xl font-bold text-xs shadow transition"
+                          >
+                            âœ“ Confirm Deal
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
 
               <div className="lg:col-span-7 space-y-3">
-                <h3 className="font-bold text-sm text-slate-900">📋 Available Guiding & Consultant Jobs</h3>
+                <h3 className="font-bold text-sm text-slate-900">ðŸ“‹ Available Guiding & Consultant Jobs</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {tasks.map((task) => (
-                    <div key={task.id} className="bg-white p-4 rounded-2xl border space-y-2.5 shadow-sm text-xs flex flex-col justify-between">
-                      <h4 className="text-slate-900 font-bold">{task.title}</h4>
-                      {task.status === 'open' && (
-                        <button onClick={() => handleAcceptTask(task.id)} className="w-full py-2.5 bg-[#3B6E5B] text-white rounded-xl font-bold">
-                          Accept Assignment →
-                        </button>
-                      )}
+                    <div key={task.id} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2.5 shadow-sm text-xs flex flex-col justify-between">
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-start font-bold text-sm">
+                          <div>
+                            <span className="text-[10px] font-semibold text-[#3B6E5B] uppercase">{task.category || 'Guiding Job'}</span>
+                            <h4 className="text-slate-900">{task.title}</h4>
+                          </div>
+                          <span className="text-[#234E40] bg-emerald-50 px-2.5 py-1 rounded-lg shrink-0">{task.pay}</span>
+                        </div>
+                        <p className="text-slate-500">ðŸ¢ {task.agency} â€¢ ðŸ“ {task.location} â€¢ ðŸ“… {task.date}</p>
+                      </div>
+                      
+                      <div className="pt-2">
+                        {task.status === 'open' && (
+                          <button onClick={() => handleAcceptTask(task.id)} className="w-full py-2.5 bg-[#3B6E5B] text-white rounded-xl font-bold">
+                            Accept Assignment â†’
+                          </button>
+                        )}
+                        {task.status === 'accepted' && (
+                          <button onClick={() => handleCompleteTask(task.id)} className="w-full py-2.5 bg-amber-500 text-slate-900 rounded-xl font-bold">
+                            âœ“ Complete & Settle (MoMo {MOMO_PAYMENT_CODE})
+                          </button>
+                        )}
+                        {task.status === 'done' && (
+                          <div className="bg-emerald-50 text-emerald-800 p-2 rounded-xl font-bold text-center">
+                            âœ“ Settled (Net Payout: RWF {task.netGuidePayout?.toLocaleString()})
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -4096,20 +4326,75 @@ export default function GuideLinkRwandaApp() {
             <div style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="text-white p-6 rounded-2xl shadow-sm space-y-1">
               <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Travel Agency Hub</span>
               <h3 className="font-bold text-base md:text-xl pt-1">Explore Travel Consultants, Guides & Tourists</h3>
+              <p className="text-xs md:text-sm text-emerald-100">Review availability, qualifications, and post consultant/guiding assignments.</p>
             </div>
+
+            {matchingTravelerRequests.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="font-bold text-sm text-slate-900">ðŸ§³ Direct Traveler Expectations & Bookings</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {matchingTravelerRequests.map((req) => (
+                    <div key={req.id} className="bg-white p-4 rounded-2xl border-2 border-amber-300 space-y-2 text-xs">
+                      <div className="flex justify-between font-bold">
+                        <span>{req.destination} ({req.guests} Guests)</span>
+                        <span>{req.status === 'confirmed' ? 'âœ“ Confirmed' : 'â³ Pending'}</span>
+                      </div>
+                      <p className="text-slate-600">Traveler: {req.travelerName} ({req.travelerContact}) â€¢ {req.dates}</p>
+                      <div className="flex space-x-2 pt-1">
+                        <button
+                          onClick={() => openConfidentialChat(req.travelerContact || req.travelerName, req.travelerName, 'Traveler')}
+                          className="flex-1 py-2 bg-slate-100 rounded-xl font-bold"
+                        >
+                          ðŸ”’ Private Chat
+                        </button>
+                        {req.status !== 'confirmed' && (
+                          <button onClick={() => handleConfirmTravelerRequest(req.id)} className="flex-1 py-2 bg-[#234E40] text-white rounded-xl font-bold">
+                            âœ“ Confirm Deal
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               <div className="lg:col-span-7 space-y-3">
-                <h3 className="font-bold text-sm text-slate-900">👥 Available Consultants & Guides</h3>
+                <h3 className="font-bold text-sm text-slate-900">ðŸ‘¥ Available Consultants, Guides & Partners</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {filteredProviders.filter(p => p.type === 'graduate').map((prov) => (
                     <div key={prov.id} className="bg-white p-4 rounded-2xl border space-y-2 shadow-sm text-xs flex flex-col justify-between">
-                      <h4 className="font-bold text-sm text-slate-900">{prov.name}</h4>
-                      <button
-                        onClick={() => openConfidentialChat(prov.contactId, prov.name, prov.categoryLabel)}
-                        className="w-full py-2 bg-slate-100 rounded-xl font-bold"
-                      >
-                        🔒 Private Chat
-                      </button>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-start">
+                          <div className="flex items-center space-x-2.5">
+                            <div className="w-10 h-10 rounded-full bg-emerald-100 text-[#234E40] flex items-center justify-center font-bold text-sm">ðŸŽ“</div>
+                            <div>
+                              <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">Travel / Tour Consultant & Guide</span>
+                              <h4 className="font-bold text-sm text-slate-900">{prov.name}</h4>
+                            </div>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${prov.isAvailable ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                            {prov.isAvailable ? 'ðŸŸ¢ Available' : 'ðŸŸ¡ Busy'}
+                          </span>
+                        </div>
+                        <p className="text-slate-700">{prov.headline}</p>
+                        <p className="text-slate-500">ðŸ“ {prov.location} â€¢ ðŸ’° {prov.rate}</p>
+                      </div>
+                      <div className="flex space-x-2 pt-2">
+                        <button
+                          onClick={() => openConfidentialChat(prov.contactId, prov.name, prov.categoryLabel)}
+                          className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold"
+                        >
+                          ðŸ”’ Private Chat
+                        </button>
+                        <button
+                          onClick={() => setBookingTarget(prov)}
+                          className="flex-1 py-2 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold"
+                        >
+                          Book Now â†’
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -4117,24 +4402,54 @@ export default function GuideLinkRwandaApp() {
 
               <div className="lg:col-span-5">
                 <form onSubmit={handlePostNewTask} className="bg-white p-6 rounded-2xl border space-y-3 shadow-sm text-xs">
-                  <h3 className="font-bold text-sm text-slate-900">📢 Post Assignment</h3>
+                  <h3 className="font-bold text-sm text-slate-900">ðŸ“¢ Post Consultant or Guiding Assignment</h3>
+                  <div>
+                    <label className="font-bold text-slate-700">Job Category</label>
+                    <select
+                      value={newTaskForm.category}
+                      onChange={(e) => setNewTaskForm({ ...newTaskForm, category: e.target.value })}
+                      className="w-full mt-1 p-2.5 border rounded-xl bg-white font-semibold"
+                    >
+                      <option value="Consultant Job">Consultant Job</option>
+                      <option value="Guiding Job">Guiding Job</option>
+                      <option value="Tourism Service">Tourism Service</option>
+                    </select>
+                  </div>
                   <input
                     type="text"
                     required
-                    placeholder="Title"
+                    placeholder="Title (e.g. Senior Itinerary Consultant)"
                     value={newTaskForm.title}
                     onChange={(e) => setNewTaskForm({ ...newTaskForm, title: e.target.value })}
                     className="w-full p-2.5 border rounded-xl"
                   />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      placeholder="Location"
+                      value={newTaskForm.location}
+                      onChange={(e) => setNewTaskForm({ ...newTaskForm, location: e.target.value })}
+                      className="p-2.5 border rounded-xl"
+                    />
+                    <input
+                      type="number"
+                      required
+                      placeholder="Fee in RWF"
+                      value={newTaskForm.rawPay}
+                      onChange={(e) => setNewTaskForm({ ...newTaskForm, rawPay: e.target.value })}
+                      className="p-2.5 border rounded-xl"
+                    />
+                  </div>
                   <input
-                    type="number"
-                    required
-                    placeholder="Fee in RWF"
-                    value={newTaskForm.rawPay}
-                    onChange={(e) => setNewTaskForm({ ...newTaskForm, rawPay: e.target.value })}
+                    type="text"
+                    placeholder="Date & Duration"
+                    value={newTaskForm.date}
+                    onChange={(e) => setNewTaskForm({ ...newTaskForm, date: e.target.value })}
                     className="w-full p-2.5 border rounded-xl"
                   />
-                  <button type="submit" className="w-full py-3 bg-[#234E40] text-white rounded-xl font-bold shadow">+ Publish</button>
+                  <button type="submit" className="w-full py-3 bg-[#234E40] text-white rounded-xl font-bold shadow">
+                    + Publish Opportunity
+                  </button>
                 </form>
               </div>
             </div>
@@ -4146,7 +4461,133 @@ export default function GuideLinkRwandaApp() {
           <div className="space-y-5">
             <div style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="text-white p-6 rounded-2xl shadow-sm space-y-1">
               <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Tour Company Hub</span>
-              <h3 className="font-bold text-base md:text-xl pt-1">Explore Tour Consultants & Guides</h3>
+              <h3 className="font-bold text-base md:text-xl pt-1">Explore Tour Consultants, Guides, Tourists & Graduates</h3>
+              <p className="text-xs md:text-sm text-emerald-100">Review live availability, safari qualifications, and publish expedition gigs.</p>
+            </div>
+
+            {matchingTravelerRequests.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="font-bold text-sm text-slate-900">ðŸ§³ Direct Traveler Expectations & Requests</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {matchingTravelerRequests.map((req) => (
+                    <div key={req.id} className="bg-white p-4 rounded-2xl border-2 border-amber-300 space-y-2 text-xs">
+                      <div className="flex justify-between font-bold">
+                        <span>{req.destination} ({req.guests} Guests)</span>
+                        <span>{req.status === 'confirmed' ? 'âœ“ Confirmed' : 'â³ Pending'}</span>
+                      </div>
+                      <p className="text-slate-600">Traveler: {req.travelerName} ({req.travelerContact}) â€¢ {req.dates}</p>
+                      <div className="flex space-x-2 pt-1">
+                        <button
+                          onClick={() => openConfidentialChat(req.travelerContact || req.travelerName, req.travelerName, 'Traveler')}
+                          className="flex-1 py-2 bg-slate-100 rounded-xl font-bold"
+                        >
+                          ðŸ”’ Private Chat
+                        </button>
+                        {req.status !== 'confirmed' && (
+                          <button onClick={() => handleConfirmTravelerRequest(req.id)} className="flex-1 py-2 bg-[#234E40] text-white rounded-xl font-bold">
+                            âœ“ Confirm Deal
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <div className="lg:col-span-7 space-y-3">
+                <h3 className="font-bold text-sm text-slate-900">ðŸš Available Tour Consultants, Guides & Graduates</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {filteredProviders.filter(p => p.type === 'graduate' || p.type === 'tour_company').map((prov) => (
+                    <div key={prov.id} className="bg-white p-4 rounded-2xl border space-y-2 shadow-sm text-xs flex flex-col justify-between">
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-start">
+                          <div className="flex items-center space-x-2.5">
+                            <div className="w-10 h-10 rounded-full bg-emerald-100 text-[#234E40] flex items-center justify-center font-bold text-sm">ðŸš</div>
+                            <div>
+                              <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">Tour Consultant & Safari Guide</span>
+                              <h4 className="font-bold text-sm text-slate-900">{prov.name}</h4>
+                            </div>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${prov.isAvailable ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                            {prov.isAvailable ? 'ðŸŸ¢ Available' : 'ðŸŸ¡ Busy'}
+                          </span>
+                        </div>
+                        <p className="text-slate-700">{prov.headline}</p>
+                        <p className="text-slate-500">ðŸ“ {prov.location} â€¢ ðŸ’° {prov.rate}</p>
+                      </div>
+                      <div className="flex space-x-2 pt-2">
+                        <button
+                          onClick={() => openConfidentialChat(prov.contactId, prov.name, prov.categoryLabel)}
+                          className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold"
+                        >
+                          ðŸ”’ Private Chat
+                        </button>
+                        <button
+                          onClick={() => setBookingTarget(prov)}
+                          className="flex-1 py-2 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold"
+                        >
+                          Book Now â†’
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="lg:col-span-5">
+                <form onSubmit={handlePostNewTask} className="bg-white p-6 rounded-2xl border space-y-3 shadow-sm text-xs">
+                  <h3 className="font-bold text-sm text-slate-900">ðŸ“¢ Post Tour Expedition or Guiding Job</h3>
+                  <div>
+                    <label className="font-bold text-slate-700">Job Category</label>
+                    <select
+                      value={newTaskForm.category}
+                      onChange={(e) => setNewTaskForm({ ...newTaskForm, category: e.target.value })}
+                      className="w-full mt-1 p-2.5 border rounded-xl bg-white font-semibold"
+                    >
+                      <option value="Guiding Job">Guiding Job</option>
+                      <option value="Consultant Job">Tour Consultant Job</option>
+                      <option value="Safari Expedition">Safari Expedition</option>
+                    </select>
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Title (e.g. Akagera 3-Day Safari Escort)"
+                    value={newTaskForm.title}
+                    onChange={(e) => setNewTaskForm({ ...newTaskForm, title: e.target.value })}
+                    className="w-full p-2.5 border rounded-xl"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      placeholder="Location"
+                      value={newTaskForm.location}
+                      onChange={(e) => setNewTaskForm({ ...newTaskForm, location: e.target.value })}
+                      className="p-2.5 border rounded-xl"
+                    />
+                    <input
+                      type="number"
+                      required
+                      placeholder="Fee in RWF"
+                      value={newTaskForm.rawPay}
+                      onChange={(e) => setNewTaskForm({ ...newTaskForm, rawPay: e.target.value })}
+                      className="p-2.5 border rounded-xl"
+                    />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Date & Duration"
+                    value={newTaskForm.date}
+                    onChange={(e) => setNewTaskForm({ ...newTaskForm, date: e.target.value })}
+                    className="w-full p-2.5 border rounded-xl"
+                  />
+                  <button type="submit" className="w-full py-3 bg-[#234E40] text-white rounded-xl font-bold shadow">
+                    + Publish Assignment
+                  </button>
+                </form>
+              </div>
             </div>
           </div>
         )}
@@ -4157,19 +4598,101 @@ export default function GuideLinkRwandaApp() {
             <div style={{ backgroundColor: appConfig.primaryColor || '#234E40' }} className="text-white p-6 rounded-2xl shadow-sm space-y-1">
               <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded-full">Free Traveler Account</span>
               <h3 className="font-bold text-base md:text-xl pt-1">Choose Your Travel Partner in Rwanda</h3>
+              <p className="text-xs md:text-sm text-emerald-100">Browse live availability, graduate qualifications, and travel agency expectations.</p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {filteredProviders.map((prov) => (
-                <div key={prov.id} className="bg-white p-4 rounded-2xl border space-y-2.5 shadow-sm text-xs flex flex-col justify-between">
-                  <h4 className="font-bold text-sm text-slate-900">{prov.name}</h4>
-                  <button
-                    onClick={() => openConfidentialChat(prov.contactId, prov.name, prov.categoryLabel)}
-                    className="w-full py-2 bg-slate-100 rounded-xl font-bold"
-                  >
-                    🔒 Private Chat
-                  </button>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <div className="lg:col-span-8 space-y-4">
+                <div className="grid grid-cols-4 gap-2 bg-white p-1.5 rounded-2xl border text-[10px] md:text-xs font-bold text-center">
+                  <button onClick={() => setDirectoryFilter('all')} className={`py-2 rounded-xl ${directoryFilter === 'all' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}>All</button>
+                  <button onClick={() => setDirectoryFilter('graduate')} className={`py-2 rounded-xl ${directoryFilter === 'graduate' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}>Graduates</button>
+                  <button onClick={() => setDirectoryFilter('agency')} className={`py-2 rounded-xl ${directoryFilter === 'agency' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}>Agencies</button>
+                  <button onClick={() => setDirectoryFilter('tour_company')} className={`py-2 rounded-xl ${directoryFilter === 'tour_company' ? 'bg-[#234E40] text-white' : 'text-slate-600'}`}>Tour Co.</button>
                 </div>
-              ))}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {filteredProviders.map((prov) => (
+                    <div key={prov.id} className="bg-white p-4 rounded-2xl border space-y-2.5 shadow-sm text-xs flex flex-col justify-between">
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-start">
+                          <div className="flex items-center space-x-2.5">
+                            {prov.photo ? (
+                              <img src={prov.photo} alt={prov.name} className="w-10 h-10 rounded-full object-cover border" />
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-emerald-100 text-[#234E40] flex items-center justify-center font-bold text-sm">
+                                {prov.type === 'graduate' ? 'ðŸŽ“' : prov.type === 'agency' ? 'ðŸ¢' : 'ðŸš'}
+                              </div>
+                            )}
+                            <div>
+                              <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">{prov.categoryLabel}</span>
+                              <h4 className="font-bold text-sm text-slate-900">{prov.name}</h4>
+                            </div>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${prov.isAvailable ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                            {prov.isAvailable ? 'ðŸŸ¢ Available' : 'ðŸŸ¡ Busy'}
+                          </span>
+                        </div>
+
+                        <p className="text-slate-700 font-medium">{prov.headline}</p>
+                      </div>
+
+                      <div className="flex space-x-2 pt-2">
+                        <button
+                          onClick={() => openConfidentialChat(prov.contactId, prov.name, prov.categoryLabel)}
+                          className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold flex items-center justify-center space-x-1"
+                        >
+                          <span>ðŸ”’</span>
+                          <span>Private Chat</span>
+                        </button>
+                        <button
+                          onClick={() => setBookingTarget(prov)}
+                          className="flex-1 py-2 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold"
+                        >
+                          Book Now â†’
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="lg:col-span-4">
+                <form onSubmit={handleCreateTripRequest} className="bg-white p-6 rounded-2xl border space-y-3 shadow-sm">
+                  <h4 className="font-bold text-sm text-slate-900">ðŸ—ºï¸ Request Custom Trip</h4>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600">Partner Category</label>
+                    <select
+                      value={tripRequestForm.preferredCategory}
+                      onChange={(e) => setTripRequestForm({ ...tripRequestForm, preferredCategory: e.target.value })}
+                      className="w-full mt-1 p-2.5 border rounded-xl text-xs bg-white font-semibold text-[#234E40]"
+                    >
+                      <option value="graduate">ðŸŽ“ Tourism Graduate (Guide / Consultant)</option>
+                      <option value="agency">ðŸ¢ Travel Agency</option>
+                      <option value="tour_company">ðŸš Tour Company (Safari Operator)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600">Destination</label>
+                    <select
+                      value={tripRequestForm.destination}
+                      onChange={(e) => setTripRequestForm({ ...tripRequestForm, destination: e.target.value })}
+                      className="w-full mt-1 p-2.5 border rounded-xl text-xs bg-white"
+                    >
+                      {(appConfig.destinations || []).map((dest, idx) => (
+                        <option key={idx} value={dest}>{dest}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input type="text" placeholder="Dates" value={tripRequestForm.dates} onChange={(e) => setTripRequestForm({ ...tripRequestForm, dates: e.target.value })} className="p-2.5 border rounded-xl text-xs" />
+                    <input type="number" min="1" placeholder="Guests" value={tripRequestForm.guests} onChange={(e) => setTripRequestForm({ ...tripRequestForm, guests: e.target.value })} className="p-2.5 border rounded-xl text-xs" />
+                  </div>
+                  <textarea rows="2" placeholder="Notes..." value={tripRequestForm.notes} onChange={(e) => setTripRequestForm({ ...tripRequestForm, notes: e.target.value })} className="w-full p-2.5 border rounded-xl text-xs" />
+                  <button type="submit" className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-xs">
+                    Broadcast Request â†’
+                  </button>
+                </form>
+              </div>
             </div>
           </div>
         )}
@@ -4178,99 +4701,242 @@ export default function GuideLinkRwandaApp() {
         {activeTab === 'profile' && currentProf && (
           <div className="w-full max-w-4xl mx-auto space-y-4">
             <div className="bg-white p-6 md:p-8 rounded-2xl border space-y-4 shadow-sm">
-              <input type="text" value={currentProf.name} onChange={(e) => updateCurrentProfile({ name: e.target.value })} className="w-full p-3 border rounded-xl text-xs" />
-              <button
-                type="button"
-                disabled={isSaving}
-                onClick={() => handleSaveWithButton(currentProf)}
-                className="w-full py-3.5 bg-[#234E40] text-white rounded-xl font-bold text-xs shadow"
-              >
-                💾 Save Profile
-              </button>
+              <div className="flex flex-col items-center space-y-2">
+                {currentProf.photo ? (
+                  <img src={currentProf.photo} alt="Avatar" className="w-24 h-24 rounded-full object-cover border-4 border-[#3B6E5B]" />
+                ) : (
+                  <div className="w-24 h-24 rounded-full bg-emerald-100 text-[#234E40] flex items-center justify-center font-bold text-2xl">
+                    {currentProf.name.charAt(0)}
+                  </div>
+                )}
+                <label className="cursor-pointer bg-[#3B6E5B] text-white px-4 py-2 rounded-xl text-xs font-bold">
+                  ðŸ“· Upload Profile Photo
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, (imgData) => updateCurrentProfile({ photo: imgData }))} />
+                </label>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-bold text-slate-700">Name / Company Name</label>
+                    <input type="text" value={currentProf.name} onChange={(e) => updateCurrentProfile({ name: e.target.value })} className="w-full mt-1 p-3 border rounded-xl" />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-700">Location</label>
+                    <input type="text" value={currentProf.location} onChange={(e) => updateCurrentProfile({ location: e.target.value })} className="w-full mt-1 p-3 border rounded-xl" />
+                  </div>
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700">Headline / Tagline</label>
+                  <input type="text" value={currentProf.headline} onChange={(e) => updateCurrentProfile({ headline: e.target.value })} className="w-full mt-1 p-3 border rounded-xl" />
+                </div>
+
+                {roleCustomFields.length > 0 && (
+                  <div className="space-y-2.5 pt-2 border-t border-slate-100">
+                    <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">Additional Verified Details</span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {roleCustomFields.map((fld) => (
+                        <div key={fld.id}>
+                          <label className="font-bold text-slate-700">{fld.label}</label>
+                          <input
+                            type="text"
+                            placeholder={fld.placeholder || ''}
+                            value={(currentProf.customData || {})[fld.id] ?? customFieldValues[fld.id] ?? ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setCustomFieldValues({ ...customFieldValues, [fld.id]: val });
+                              updateCurrentProfile({
+                                customData: { ...(currentProf.customData || {}), [fld.id]: val }
+                              });
+                            }}
+                            className="w-full mt-1 p-2.5 border rounded-xl"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {isPartnerRole && (
+                  <div className="space-y-4 pt-3 border-t">
+                    <div>
+                      <label className="font-bold text-slate-700">ðŸ’° Standard Rate / Pricing</label>
+                      <input type="text" value={currentProf.rateInfo || ''} onChange={(e) => updateCurrentProfile({ rateInfo: e.target.value })} className="w-full mt-1 p-3 border rounded-xl" />
+                    </div>
+
+                    <div className="space-y-2 bg-slate-50 p-4 rounded-xl border">
+                      <label className="font-bold text-[#234E40] block">ðŸ› ï¸ Services Offered</label>
+                      <div className="flex space-x-2">
+                        <input type="text" placeholder="e.g. Gorilla Trekking Escort" value={newServiceInput} onChange={(e) => setNewServiceInput(e.target.value)} className="flex-1 p-2.5 border rounded-xl bg-white" />
+                        <button type="button" onClick={() => { if (!newServiceInput.trim()) return; updateCurrentProfile({ servicesOffered: [...(currentProf.servicesOffered || []), newServiceInput.trim()] }); setNewServiceInput(''); }} className="px-4 bg-[#234E40] text-white rounded-xl font-bold">+ Add</button>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {(currentProf.servicesOffered || []).map((srv, idx) => (
+                          <span key={idx} className="inline-flex items-center space-x-1 bg-white border text-[#234E40] px-2.5 py-1 rounded-lg">
+                            <span>âœ“ {srv}</span>
+                            <button type="button" onClick={() => updateCurrentProfile({ servicesOffered: currentProf.servicesOffered.filter((_, i) => i !== idx) })} className="text-red-500 font-bold ml-1">âœ•</button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 bg-slate-50 p-4 rounded-xl border">
+                      <label className="font-bold text-[#234E40] block">ðŸŽ“ Qualifications & Degrees</label>
+                      <div className="flex space-x-2">
+                        <input type="text" placeholder="e.g. Advanced Diploma in Tours & Travel (RP Kitabi)" value={newDegreeInput} onChange={(e) => setNewDegreeInput(e.target.value)} className="flex-1 p-2.5 border rounded-xl bg-white" />
+                        <button type="button" onClick={() => { if (!newDegreeInput.trim()) return; updateCurrentProfile({ degrees: [...(currentProf.degrees || []), newDegreeInput.trim()] }); setNewDegreeInput(''); }} className="px-4 bg-[#3B6E5B] text-white rounded-xl font-bold">+ Add</button>
+                      </div>
+                      {(currentProf.degrees || []).map((deg, idx) => (
+                        <div key={idx} className="flex justify-between items-center bg-white border p-2.5 rounded-xl mt-1">
+                          <span>ðŸŽ“ {deg}</span>
+                          <button type="button" onClick={() => updateCurrentProfile({ degrees: currentProf.degrees.filter((_, i) => i !== idx) })} className="text-red-500 font-bold">âœ•</button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="space-y-2 bg-slate-50 p-4 rounded-xl border">
+                      <label className="font-bold text-[#234E40] block">ðŸ’¼ Experience</label>
+                      <div className="flex space-x-2">
+                        <input type="text" placeholder="e.g. 4 Years Safari Guiding" value={newExperienceInput} onChange={(e) => setNewExperienceInput(e.target.value)} className="flex-1 p-2.5 border rounded-xl bg-white" />
+                        <button type="button" onClick={() => { if (!newExperienceInput.trim()) return; updateCurrentProfile({ experiences: [...(currentProf.experiences || []), newExperienceInput.trim()] }); setNewExperienceInput(''); }} className="px-4 bg-[#3B6E5B] text-white rounded-xl font-bold">+ Add</button>
+                      </div>
+                      {(currentProf.experiences || []).map((exp, idx) => (
+                        <div key={idx} className="flex justify-between items-center bg-white border p-2.5 rounded-xl mt-1">
+                          <span>ðŸ’¼ {exp}</span>
+                          <button type="button" onClick={() => updateCurrentProfile({ experiences: currentProf.experiences.filter((_, i) => i !== idx) })} className="text-red-500 font-bold">âœ•</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <button type="button" disabled={isSaving} onClick={() => handleSaveWithButton(currentProf)} className="w-full py-3.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold text-sm shadow transition">
+                  {isSaving ? 'â³ Saving...' : 'ðŸ’¾ Save Profile to Firebase'}
+                </button>
+              </div>
             </div>
           </div>
         )}
 
-        {/* CONFIDENTIAL 1-ON-1 PRIVATE CHAT */}
+        {/* Strictly Confidential 1-on-1 Private Chat Tab */}
         {activeTab === 'chat' && (
-          <div className="w-full max-w-4xl mx-auto space-y-3">
-            <div className="bg-slate-900 text-white p-4 rounded-2xl text-xs flex items-center space-x-2.5 shadow-sm">
-              <span className="text-base">🔒</span>
-              <div>
-                <p className="font-bold">Confidential 1-on-1 Direct Messaging</p>
-                <p className="text-[11px] text-slate-300">Private end-to-end conversations visible ONLY to you and your chosen recipient.</p>
+          <div className="w-full bg-white p-6 rounded-2xl border space-y-3 shadow-sm flex flex-col h-[540px]">
+            <div className="border-b pb-2.5 space-y-2">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="font-bold text-sm md:text-base text-slate-900">ðŸ”’ Confidential 1-on-1 Chat</h3>
+                  <p className="text-[11px] text-emerald-700 font-medium">
+                    End-to-end role privacy: Only you and your chat partner see this thread.
+                  </p>
+                </div>
               </div>
+
+              {myPrivateConversations.length > 0 && (
+                <div className="flex items-center space-x-1.5 overflow-x-auto pb-1">
+                  <span className="text-[10px] font-bold text-slate-400 shrink-0">My Chats:</span>
+                  {myPrivateConversations.map((conv) => (
+                    <button
+                      key={conv.id}
+                      type="button"
+                      onClick={() => openConfidentialChat(conv.id, conv.name)}
+                      className={`px-3 py-1 rounded-full text-xs font-bold shrink-0 transition ${
+                        activePeerId === conv.id
+                          ? 'bg-[#234E40] text-white'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      {conv.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {activeChatPeer.name && (
+                <div className="bg-emerald-50 border border-emerald-200 px-3.5 py-2 rounded-xl flex justify-between items-center text-xs">
+                  <span>
+                    Private Room with: <strong className="text-[#234E40]">{activeChatPeer.name}</strong>
+                    {activeChatPeer.role ? ` (${activeChatPeer.role})` : ''}
+                  </span>
+                  <span className="text-[10px] font-bold text-emerald-800">ðŸ” Private</span>
+                </div>
+              )}
             </div>
 
-            {myPrivateConversations.length > 0 && (
-              <div className="flex space-x-1.5 overflow-x-auto pb-1">
-                {myPrivateConversations.map((conv) => (
-                  <button
-                    key={conv.id}
-                    type="button"
-                    onClick={() => setActiveChatPeer({ id: conv.id, name: conv.name, role: '' })}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition ${
-                      activePeerId === conv.id
-                        ? 'bg-[#234E40] text-white shadow-sm'
-                        : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-                    }`}
-                  >
-                    💬 {conv.name}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {!activePeerId ? (
-              <div className="bg-white p-8 rounded-2xl border text-center space-y-2.5 shadow-sm">
-                <h4 className="font-bold text-sm text-slate-900">No Active Private Chat Selected</h4>
-                <p className="text-xs text-slate-500">Tap <strong>&quot;🔒 Private Chat&quot;</strong> on any member or request to start messaging.</p>
-              </div>
-            ) : (
-              <div className="bg-white rounded-2xl border flex flex-col h-[500px] overflow-hidden shadow-sm">
-                <div className="p-3.5 bg-[#234E40] text-white flex justify-between items-center">
-                  <h4 className="font-bold text-sm">💬 {activeChatPeer.name}</h4>
-                  <button onClick={() => setActiveChatPeer({ id: '', name: '', role: '' })} className="text-[11px] bg-black/25 px-3 py-1 rounded-full">Close</button>
+            <div className="flex-1 overflow-y-auto space-y-2.5 p-4 bg-slate-50 rounded-xl text-xs">
+              {!activeChatPeer.id ? (
+                <div className="text-center text-slate-500 py-16 space-y-2 px-4">
+                  <p className="font-bold text-slate-700 text-sm">No Private Room Selected</p>
+                  <p className="text-xs">
+                    Click <strong>&quot;ðŸ”’ Private Chat&quot;</strong> on any Guide, Travel Agency, Tour Company, or Traveler card to start a confidential 1-on-1 conversation.
+                  </p>
                 </div>
-
-                <div className="flex-1 p-4 space-y-2.5 overflow-y-auto text-xs bg-slate-50">
-                  {activeRoomMessages.map((msg) => {
-                    const isMine = normalizeContact(msg.senderId || msg.sender) === myChatId;
-                    return (
-                      <div key={msg.id} className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
-                        <div className={`px-3.5 py-2 rounded-2xl max-w-[80%] ${isMine ? 'bg-[#234E40] text-white' : 'bg-white border text-slate-800'}`}>
-                          {msg.text}
-                        </div>
+              ) : activeRoomMessages.length === 0 ? (
+                <div className="text-center text-slate-400 py-16 space-y-1">
+                  <p className="font-semibold text-slate-600 text-sm">Private conversation with {activeChatPeer.name}</p>
+                  <p className="text-xs">Third parties (such as agencies or other guides) cannot view this chat.</p>
+                </div>
+              ) : (
+                activeRoomMessages.map((msg) => {
+                  const isMine = normalizeContact(msg.senderId) === myChatId;
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`p-3 rounded-xl max-w-[70%] ${
+                        isMine ? 'bg-[#234E40] text-white ml-auto' : 'bg-white border text-slate-800'
+                      }`}
+                    >
+                      <div className="flex justify-between text-[10px] opacity-75 mb-1 font-semibold space-x-2">
+                        <span>{msg.sender} ({msg.role})</span>
+                        <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
-                    );
-                  })}
-                </div>
+                      <p className="text-xs md:text-sm">{msg.text}</p>
+                    </div>
+                  );
+                })
+              )}
+            </div>
 
-                <form onSubmit={handleSendChatMessage} className="p-3 border-t bg-white flex space-x-2">
-                  <input
-                    type="text"
-                    placeholder="Type message..."
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    className="flex-1 p-2.5 border rounded-xl text-xs"
-                  />
-                  <button type="submit" className="px-5 bg-[#3B6E5B] text-white rounded-xl font-bold text-xs">Send</button>
-                </form>
-              </div>
+            {activeChatPeer.id && (
+              <form onSubmit={handleSendChatMessage} className="flex space-x-2 pt-1">
+                <input
+                  type="text"
+                  required
+                  placeholder={`Message ${activeChatPeer.name} privately...`}
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  className="flex-1 p-3.5 border rounded-xl text-xs md:text-sm"
+                />
+                <button type="submit" className="px-6 py-3.5 bg-[#234E40] text-white rounded-xl font-bold text-xs md:text-sm">
+                  Send
+                </button>
+              </form>
             )}
           </div>
         )}
       </div>
 
-      {/* Direct Booking Modal */}
       {bookingTarget && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleDirectProviderBooking} className="bg-white rounded-2xl p-6 w-full max-w-md space-y-3 text-xs shadow-xl">
-            <h3 className="font-bold text-base text-slate-900">Book {bookingTarget.name}</h3>
-            <input type="text" required placeholder="Travel Dates" value={bookingDetails.dates} onChange={(e) => setBookingDetails({ ...bookingDetails, dates: e.target.value })} className="w-full p-2.5 border rounded-xl" />
-            <div className="flex space-x-2 pt-2">
-              <button type="button" onClick={() => setBookingTarget(null)} className="flex-1 py-2.5 bg-slate-100 rounded-xl font-bold">Cancel</button>
-              <button type="submit" className="flex-1 py-2.5 bg-[#234E40] text-white rounded-xl font-bold">Confirm Booking</button>
+          <form onSubmit={handleDirectProviderBooking} className="bg-white rounded-2xl p-6 w-full max-w-md space-y-3.5 shadow-xl text-xs">
+            <div>
+              <span className="text-[10px] font-bold uppercase text-[#3B6E5B]">{bookingTarget.categoryLabel}</span>
+              <h3 className="font-bold text-base text-slate-900">Book {bookingTarget.name}</h3>
+            </div>
+            <div>
+              <label className="font-bold text-slate-700">Travel Dates</label>
+              <input type="text" required placeholder="e.g. 12 Dec - 15 Dec 2026" value={bookingDetails.dates} onChange={(e) => setBookingDetails({ ...bookingDetails, dates: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
+            </div>
+            <div>
+              <label className="font-bold text-slate-700">Number of Travelers</label>
+              <input type="number" min="1" required value={bookingDetails.guests} onChange={(e) => setBookingDetails({ ...bookingDetails, guests: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
+            </div>
+            <div>
+              <label className="font-bold text-slate-700">Notes</label>
+              <textarea rows="2" value={bookingDetails.notes} onChange={(e) => setBookingDetails({ ...bookingDetails, notes: e.target.value })} className="w-full mt-1 p-2.5 border rounded-xl" />
+            </div>
+            <div className="flex space-x-2 pt-1">
+              <button type="button" onClick={() => setBookingTarget(null)} className="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-semibold">Cancel</button>
+              <button type="submit" className="flex-1 py-2.5 bg-[#234E40] text-white rounded-xl font-bold">Confirm Request</button>
             </div>
           </form>
         </div>
