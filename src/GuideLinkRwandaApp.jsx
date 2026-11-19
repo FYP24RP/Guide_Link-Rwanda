@@ -159,6 +159,9 @@ const DEFAULT_APP_SERVER_CONFIG = {
   maintenanceMode: false,
   maintenanceMessage: 'Platform maintenance in progress. Please check back shortly.',
   welcomeBannerText: '',
+  adPopupEnabled: false,
+  adPopupTitle: 'Featured Partner Spotlight',
+  adPopupMessage: '',
   destinations: [
     'Volcanoes National Park / Musanze',
     'Nyungwe Forest & Lake Kivu (Rusizi / Karongi)',
@@ -173,33 +176,9 @@ const DEFAULT_APP_SERVER_CONFIG = {
 };
 
 // =========================================================================
-// LANGUAGE TRANSLATIONS (ENG, FR, KINY)
+// LANGUAGE LABELS (KINY, ENG, FRA)
 // =========================================================================
 const LANGUAGE_LABELS = {
-  ENG: {
-    signIn: 'Sign In',
-    createAccount: 'Create Account (New Sign Up)',
-    signOut: 'Sign Out',
-    allCategories: 'All Categories',
-    graduate: 'Tourism Graduate / Guide',
-    agency: 'Travel Agency',
-    tourCompany: 'Tour Company',
-    carRental: 'CAR RENTALS Company',
-    traveler: 'Traveler',
-    owner: 'C.E.O & Administrator HQ'
-  },
-  FR: {
-    signIn: 'Se connecter',
-    createAccount: 'Créer un compte (Nouvelle inscription)',
-    signOut: 'Déconnexion',
-    allCategories: 'Toutes les catégories',
-    graduate: 'Diplômé en tourisme / Guide',
-    agency: 'Agence de voyage',
-    tourCompany: 'Entreprise de circuits',
-    carRental: 'CAR RENTALS Company',
-    traveler: 'Voyageur',
-    owner: 'PDG & Administrateur HQ'
-  },
   KINY: {
     signIn: 'Injira',
     createAccount: 'Fungura Konti Nshya',
@@ -208,9 +187,33 @@ const LANGUAGE_LABELS = {
     graduate: 'Uwize Ubukerarugendo / Guide',
     agency: 'Agence y’Ingendo',
     tourCompany: 'Sosiyete y’Ubukerarugendo',
-    carRental: 'CAR RENTALS Company',
+    carRental: 'CAR RENTALS COMPANY',
     traveler: 'Umukerarugendo',
-    owner: 'Umuyobozi Mukuru (C.E.O)'
+    owner: 'C.E.O & Administrator HQ'
+  },
+  ENG: {
+    signIn: 'Sign In',
+    createAccount: 'Create Account (New Sign Up)',
+    signOut: 'Sign Out',
+    allCategories: 'All Categories',
+    graduate: 'Tourism Graduate / Guide',
+    agency: 'Travel Agency',
+    tourCompany: 'Tour Company',
+    carRental: 'CAR RENTALS COMPANY',
+    traveler: 'Traveler',
+    owner: 'C.E.O & Administrator HQ'
+  },
+  FRA: {
+    signIn: 'Se connecter',
+    createAccount: 'Créer un compte (Nouvelle inscription)',
+    signOut: 'Déconnexion',
+    allCategories: 'Toutes les catégories',
+    graduate: 'Diplômé en tourisme / Guide',
+    agency: 'Agence de voyage',
+    tourCompany: 'Entreprise de circuits',
+    carRental: 'CAR RENTALS COMPANY',
+    traveler: 'Voyageur',
+    owner: 'C.E.O & Administrator HQ'
   }
 };
 
@@ -236,7 +239,7 @@ export default function GuideLinkRwandaApp() {
     }
   }, []);
 
-  // Language switcher state (ENG, FR, KINY)
+  // Language state (KINY, ENG, FRA)
   const [language, setLanguage] = useState('ENG');
   const langText = LANGUAGE_LABELS[language] || LANGUAGE_LABELS.ENG;
 
@@ -255,6 +258,10 @@ export default function GuideLinkRwandaApp() {
   const [newAnnouncementForm, setNewAnnouncementForm] = useState({ title: '', body: '', targetRole: 'all' });
   const [newCustomFieldForm, setNewCustomFieldForm] = useState({ label: '', placeholder: '', targetRole: 'all', required: false });
   const [newCustomSectionForm, setNewCustomSectionForm] = useState({ title: '', content: '', targetRole: 'all' });
+
+  // 1-minute Ad Pop-up State when enabled by owner
+  const [showAdPopup, setShowAdPopup] = useState(false);
+  const [activeAdIndex, setActiveAdIndex] = useState(0);
 
   // No-Code New Dashboard Builder State
   const [newDashboardForm, setNewDashboardForm] = useState({
@@ -344,7 +351,7 @@ export default function GuideLinkRwandaApp() {
   const [registeredUsers, setRegisteredUsers] = useState([
     {
       id: 'car-rentals-company',
-      name: 'CAR RENTALS Company',
+      name: 'CAR RENTALS COMPANY',
       contact: '+250788558555',
       password: '',
       role: 'car_rental',
@@ -359,15 +366,15 @@ export default function GuideLinkRwandaApp() {
 
   const [userProfiles, setUserProfiles] = useState({
     '+250788558555': {
-      name: 'CAR RENTALS Company',
+      name: 'CAR RENTALS COMPANY',
       contact: '+250788558555',
       role: 'car_rental',
       photo: '',
       isAvailable: true,
-      headline: 'Car Rentals & Tourism Fleet Services in Rwanda',
+      headline: 'CAR RENTALS COMPANY & Tourism Fleet Services in Rwanda',
       location: 'Kigali, Rwanda',
       rateInfo: 'Custom Rental Rates',
-      bio: 'CAR RENTALS Company providing vehicles for travel, tours, and transfers across Rwanda.',
+      bio: 'CAR RENTALS COMPANY providing vehicles for travel, tours, and transfers across Rwanda.',
       degrees: [],
       servicesOffered: [],
       experiences: [],
@@ -440,6 +447,28 @@ export default function GuideLinkRwandaApp() {
     });
     setActiveTab('chat');
   };
+
+  // Every 1 minute (60,000 ms), pop up ad if owner enabled ads
+  useEffect(() => {
+    const hasAdContent =
+      Boolean(appConfig.adPopupEnabled) &&
+      (Boolean((appConfig.adPopupMessage || '').trim()) ||
+        (Array.isArray(appConfig.announcements) && appConfig.announcements.length > 0));
+
+    if (!hasAdContent) {
+      setShowAdPopup(false);
+      return;
+    }
+
+    const adInterval = setInterval(() => {
+      if (Array.isArray(appConfig.announcements) && appConfig.announcements.length > 0) {
+        setActiveAdIndex((prev) => (prev + 1) % appConfig.announcements.length);
+      }
+      setShowAdPopup(true);
+    }, 60000);
+
+    return () => clearInterval(adInterval);
+  }, [appConfig.adPopupEnabled, appConfig.adPopupMessage, appConfig.announcements]);
 
   const loadFirebaseData = async () => {
     const [profilesDocs, vipDocs, tasksDocs, tripsDocs, chatDocs, plansDocs, configDocs] = await Promise.all([
@@ -594,7 +623,7 @@ export default function GuideLinkRwandaApp() {
           : activeUser.role === 'tour_company'
           ? 'Licensed Safari & Tour Company'
           : activeUser.role === 'car_rental'
-          ? 'Car Rentals & Fleet Services'
+          ? 'CAR RENTALS COMPANY & Fleet Services'
           : 'Explorer & Verified Traveler',
       location: 'Kigali, Rwanda',
       rateInfo: activeUser.role === 'graduate' ? 'RWF 35,000 / day' : 'Custom Packages',
@@ -674,6 +703,9 @@ export default function GuideLinkRwandaApp() {
       maintenanceMode: Boolean(payload.maintenanceMode),
       maintenanceMessage: payload.maintenanceMessage || '',
       welcomeBannerText: payload.welcomeBannerText || '',
+      adPopupEnabled: Boolean(payload.adPopupEnabled),
+      adPopupTitle: payload.adPopupTitle || 'Featured Partner Spotlight',
+      adPopupMessage: payload.adPopupMessage || '',
       destinations: payload.destinations || [],
       announcements: payload.announcements || [],
       customFields: payload.customFields || [],
@@ -960,45 +992,58 @@ export default function GuideLinkRwandaApp() {
     setActiveTab('jobs');
   };
 
-  const renderLanguageSelector = () => (
-    <div style={{ display: 'inline-flex', gap: '4px', alignItems: 'center' }}>
-      {['ENG', 'FR', 'KINY'].map((code) => (
-        <button
-          key={code}
-          type="button"
-          onClick={() => setLanguage(code)}
-          style={{
-            padding: '4px 8px',
-            borderRadius: '6px',
-            border: '1px solid #cbd5d1',
-            background: language === code ? '#234E40' : '#ffffff',
-            color: language === code ? '#ffffff' : '#234E40',
-            fontWeight: '700',
-            fontSize: '12px',
-            cursor: 'pointer'
-          }}
-        >
-          {code}
-        </button>
-      ))}
-    </div>
-  );
+  const activeAnnouncement =
+    Array.isArray(appConfig.announcements) && appConfig.announcements.length > 0
+      ? appConfig.announcements[activeAdIndex % appConfig.announcements.length]
+      : null;
 
   return (
     <div style={{ minHeight: '100vh', padding: '24px' }}>
-      <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
-        <div>
-          <strong>{appConfig.appName}</strong> — <span>{appConfig.tagline}</span>
+      {/* Welcome Tab Top Bar with Language Switcher (KINY, ENG, FRA) */}
+      {currentRole === 'welcome' && (
+        <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+          <div>
+            <strong>{appConfig.appName}</strong> — <span>{appConfig.tagline}</span>
+          </div>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }} role="group" aria-label="Language Switcher">
+            {['KINY', 'ENG', 'FRA'].map((code) => (
+              <button
+                key={code}
+                type="button"
+                onClick={() => setLanguage(code)}
+                style={{
+                  padding: '5px 10px',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5d1',
+                  background: language === code ? (appConfig.primaryColor || '#234E40') : '#ffffff',
+                  color: language === code ? '#ffffff' : (appConfig.primaryColor || '#234E40'),
+                  fontWeight: '700',
+                  fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                {code}
+              </button>
+            ))}
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          {renderLanguageSelector()}
-          {currentRole !== 'welcome' && (
-            <button type="button" onClick={resetToWelcome}>
-              {langText.signOut}
-            </button>
-          )}
+      )}
+
+      {/* 1-Minute Timed Ad Pop-up when enabled by Owner */}
+      {showAdPopup && Boolean(appConfig.adPopupEnabled) && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
+          <div style={{ background: '#fff', padding: '22px', borderRadius: '12px', maxWidth: '440px', width: '92%', boxShadow: '0 10px 30px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <strong>{activeAnnouncement?.title || appConfig.adPopupTitle || 'Sponsored Ad'}</strong>
+              <button type="button" onClick={() => setShowAdPopup(false)}>✕</button>
+            </div>
+            <p style={{ margin: '0 0 14px', fontSize: '14px', lineHeight: 1.5 }}>
+              {activeAnnouncement?.body || appConfig.adPopupMessage}
+            </p>
+            <button type="button" onClick={() => setShowAdPopup(false)}>Close</button>
+          </div>
         </div>
-      </div>
+      )}
 
       {currentRole === 'welcome' && (
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
