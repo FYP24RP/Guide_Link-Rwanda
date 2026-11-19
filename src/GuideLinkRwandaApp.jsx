@@ -101,7 +101,7 @@ const firestoreDeleteDoc = async (collectionName, docId) => {
 };
 
 // =========================================================================
-// DEFAULT CONFIGURATIONS
+// DEFAULT CONFIGURATIONS (Preserved Intact)
 // =========================================================================
 const DEFAULT_SUBSCRIPTION_PLANS = [
   { id: 'monthly', name: 'Starter Monthly', badge: 'Monthly', durationLabel: '1 Month (30 Days)', days: 30, price: 15000, order: 1 },
@@ -137,6 +137,93 @@ const DEFAULT_APP_SERVER_CONFIG = {
   customFeatures: []
 };
 
+// =========================================================================
+// LANGUAGE TRANSLATIONS (ENG, FR, KINY)
+// =========================================================================
+const TRANSLATIONS = {
+  ENG: {
+    createAccount: 'Create Account',
+    signInTitle: 'Sign In to Your Dashboard',
+    phoneOrEmail: 'Phone Number or Email',
+    password: 'Password',
+    signInBtn: 'Sign In',
+    newToPlatform: 'New to',
+    createAccountBtn: 'Create Account (New Sign Up)',
+    explorePartners: 'Explore Verified Guides, Agencies, Tour & Car Rental Companies',
+    allCategories: 'All Categories',
+    graduates: 'Tourism Graduates',
+    agencies: 'Travel Agencies',
+    tourCompanies: 'Tour Companies',
+    carRentals: 'Car Rentals Companies',
+    signOut: 'Sign Out',
+    tabJobs: 'Jobs & Trip Requests',
+    tabRequestTrip: 'Request a Trip',
+    tabDirectory: 'Partner Directory',
+    tabChat: 'Confidential Chat',
+    tabProfile: 'My Profile & Credentials',
+    roleGraduate: 'Tourism Graduate / Guide',
+    roleAgency: 'Travel Agency',
+    roleTourCompany: 'Tour Company',
+    roleCarRental: 'CAR RENTALS Company',
+    roleTraveler: 'Traveler',
+    roleOwner: 'Platform C.E.O'
+  },
+  FR: {
+    createAccount: 'Créer un compte',
+    signInTitle: 'Connexion à votre tableau de bord',
+    phoneOrEmail: 'Numéro de téléphone ou e-mail',
+    password: 'Mot de passe',
+    signInBtn: 'Se connecter',
+    newToPlatform: 'Nouveau sur',
+    createAccountBtn: 'Créer un compte (Nouvelle inscription)',
+    explorePartners: 'Découvrir Guides, Agences, Tours et Sociétés de Location de Voitures',
+    allCategories: 'Toutes les catégories',
+    graduates: 'Diplômés en tourisme',
+    agencies: 'Agences de voyage',
+    tourCompanies: 'Entreprises de circuits',
+    carRentals: 'Sociétés de location de voitures',
+    signOut: 'Déconnexion',
+    tabJobs: 'Offres & Demandes',
+    tabRequestTrip: 'Demander un voyage',
+    tabDirectory: 'Annuaire des partenaires',
+    tabChat: 'Chat confidentiel',
+    tabProfile: 'Mon profil & diplômes',
+    roleGraduate: 'Diplômé en tourisme / Guide',
+    roleAgency: 'Agence de voyage',
+    roleTourCompany: 'Entreprise de circuits',
+    roleCarRental: 'CAR RENTALS Company (Location de voitures)',
+    roleTraveler: 'Voyageur',
+    roleOwner: 'PDG de la plateforme'
+  },
+  KINY: {
+    createAccount: 'Fungura konti',
+    signInTitle: 'Injira kuri konti yawe',
+    phoneOrEmail: 'Telefoni cyangwa Imeli',
+    password: 'Ijambo ry’ibanga',
+    signInBtn: 'Injira',
+    newToPlatform: 'Urimo mushya kuri',
+    createAccountBtn: 'Fungura Konti Nshya',
+    explorePartners: 'Shakisha Abayobozi b’Abakerarugendo, Ama-Agence, Amasosiyete y’Ubukerarugendo n’Impanuka/Gukodesha Imodoka',
+    allCategories: 'Ibyiciro byose',
+    graduates: 'Abize ubukerarugendo',
+    agencies: 'Ama-Agence y’ingendo',
+    tourCompanies: 'Amasosiyete y’ubukerarugendo',
+    carRentals: 'Amasosiyete yo gukodesha imodoka (Car Rentals)',
+    signOut: 'Sohoka',
+    tabJobs: 'Imirimo n’Ingendo',
+    tabRequestTrip: 'Saba Urugendo',
+    tabDirectory: 'Urutonde rw’Abafatanyabikorwa',
+    tabChat: 'Ubutumwa bw’Ibanga',
+    tabProfile: 'Umwirondoro & Impamyabumenyi',
+    roleGraduate: 'Uwize Ubukerarugendo / Guide',
+    roleAgency: 'Agence y’Ingendo',
+    roleTourCompany: 'Sosiyete y’Ubukerarugendo',
+    roleCarRental: 'CAR RENTALS Company (Gukodesha Imodoka)',
+    roleTraveler: 'Umukerarugendo / Umugenzi',
+    roleOwner: 'Umuyobozi Mukuru (C.E.O)'
+  }
+};
+
 export default function GuideLinkRwandaApp() {
   useEffect(() => {
     const styleId = 'guidelink-fullscreen-override';
@@ -162,8 +249,12 @@ export default function GuideLinkRwandaApp() {
     }
   }, []);
 
+  // Language State (ENG | FR | KINY)
+  const [language, setLanguage] = useState('ENG');
+  const t = TRANSLATIONS[language] || TRANSLATIONS.ENG;
+
   // Core Navigation & Auth State
-  const [currentRole, setCurrentRole] = useState('welcome'); // 'welcome' | 'signup' | 'renew_sub' | 'owner' | 'graduate' | 'agency' | 'tour_company' | 'traveler' | customDashId
+  const [currentRole, setCurrentRole] = useState('welcome');
   const [ownerTab, setOwnerTab] = useState('pending');
   const [activeTab, setActiveTab] = useState('jobs');
   const [activeCustomDashId, setActiveCustomDashId] = useState('');
@@ -246,14 +337,47 @@ export default function GuideLinkRwandaApp() {
     { id: 'vip3', name: 'VIP Partner Tier 3 (Silver)', contact: '+250783333333', role: 'tour_company', tier: 'Tier 3 - Silver Partner', confirmed: false }
   ]);
 
-  const [registeredUsers, setRegisteredUsers] = useState([]);
-  const [userProfiles, setUserProfiles] = useState({});
+  const [registeredUsers, setRegisteredUsers] = useState([
+    {
+      id: 'car-rentals-company',
+      name: 'CAR RENTALS Company',
+      contact: '+250788558555',
+      password: '',
+      role: 'car_rental',
+      feePaid: 0,
+      momoRef: 'CAR-RENTALS-HQ',
+      status: 'approved',
+      subscriptionPlanId: 'gold_platinum_year',
+      subscriptionPlanName: 'GOLD-PLATINUM',
+      subscriptionExpiresAt: 0
+    }
+  ]);
+
+  const [userProfiles, setUserProfiles] = useState({
+    '+250788558555': {
+      name: 'CAR RENTALS Company',
+      contact: '+250788558555',
+      role: 'car_rental',
+      photo: '',
+      isAvailable: true,
+      headline: '4x4 Safari Vehicles, Airport Transfers & Self-Drive Car Rentals in Rwanda',
+      location: 'Kigali, Rwanda',
+      rateInfo: 'From RWF 45,000 / day',
+      bio: 'Reliable car rental fleet across Kigali, Volcanoes National Park, Nyungwe, and Akagera.',
+      degrees: [],
+      servicesOffered: ['4x4 Land Cruiser Safari Rental', 'Airport Pickup & Drop-off', 'Chauffeur & Self-Drive'],
+      experiences: ['Fleet operations & tourism transport across Rwanda'],
+      skills: ['English', 'French', 'Kinyarwanda'],
+      customData: {}
+    }
+  });
+
   const [activeUser, setActiveUser] = useState(null);
 
   // Auth Forms
   const [signInContact, setSignInContact] = useState('');
   const [signInPassword, setSignInPassword] = useState('');
-  const [regStep, setRegStep] = useState('details'); // 'details' | 'payment' | 'submitted'
+  const [regStep, setRegStep] = useState('details');
   const [regForm, setRegForm] = useState({
     name: '', contact: '', password: '', confirmPassword: '',
     role: 'traveler', subscriptionPlanId: 'monthly', momoRef: ''
@@ -307,18 +431,19 @@ export default function GuideLinkRwandaApp() {
   };
 
   const getRoleDisplayLabel = (role) => {
-    if (role === 'graduate') return 'Tourism Graduate / Guide';
-    if (role === 'agency') return 'Travel Agency';
-    if (role === 'tour_company') return 'Tour Company';
-    if (role === 'traveler') return 'Traveler';
-    if (role === 'owner') return 'Platform C.E.O';
+    if (role === 'graduate') return t.roleGraduate;
+    if (role === 'agency') return t.roleAgency;
+    if (role === 'tour_company') return t.roleTourCompany;
+    if (role === 'car_rental') return t.roleCarRental;
+    if (role === 'traveler') return t.roleTraveler;
+    if (role === 'owner') return t.roleOwner;
     const customDash = (appConfig.customDashboards || []).find((d) => d.id === role);
     if (customDash) return customDash.name;
     return role;
   };
 
   // =========================================================================
-  // FIREBASE SYNC LOOP
+  // FIREBASE SYNC LOOP (Preserves Existing Data Without Overwriting)
   // =========================================================================
   const loadFirebaseData = async () => {
     const [profilesDocs, vipDocs, tasksDocs, tripsDocs, chatDocs, plansDocs, configDocs] = await Promise.all([
@@ -404,8 +529,21 @@ export default function GuideLinkRwandaApp() {
           };
         }
       });
-      setRegisteredUsers(users);
-      setUserProfiles(profs);
+
+      setRegisteredUsers((prev) => {
+        const merged = [...users];
+        prev.forEach((localUser) => {
+          if (!merged.some((u) => normalizeContact(u.contact) === normalizeContact(localUser.contact))) {
+            merged.push(localUser);
+          }
+        });
+        return merged;
+      });
+
+      setUserProfiles((prev) => ({
+        ...prev,
+        ...profs
+      }));
     }
 
     if (vipDocs.length > 0) {
@@ -448,9 +586,11 @@ export default function GuideLinkRwandaApp() {
           ? 'Licensed Travel Agency'
           : activeUser.role === 'tour_company'
           ? 'Licensed Safari & Tour Company'
+          : activeUser.role === 'car_rental'
+          ? '4x4 Safari & Car Rental Fleet'
           : 'Explorer & Verified Traveler',
       location: 'Kigali, Rwanda',
-      rateInfo: activeUser.role === 'graduate' ? 'RWF 35,000 / day' : 'Custom Packages',
+      rateInfo: activeUser.role === 'graduate' ? 'RWF 35,000 / day' : activeUser.role === 'car_rental' ? 'From RWF 45,000 / day' : 'Custom Packages',
       bio: '',
       degrees: [],
       servicesOffered: [],
@@ -690,14 +830,6 @@ export default function GuideLinkRwandaApp() {
     alert(`✓ Login info, subscription & profile for ${cleanFields.name} updated in Firebase!`);
   };
 
-  const handleImageUpload = (e, onSuccess) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => onSuccess(reader.result);
-    reader.readAsDataURL(file);
-  };
-
   const resetToWelcome = () => {
     setCurrentRole('welcome');
     setActiveTab('jobs');
@@ -831,7 +963,6 @@ export default function GuideLinkRwandaApp() {
       return;
     }
 
-    // Travelers register for FREE immediately
     if (regForm.role === 'traveler') {
       setIsSaving(true);
       const newUserObj = {
@@ -871,7 +1002,6 @@ export default function GuideLinkRwandaApp() {
       return;
     }
 
-    // Paid Partner Roles proceed to Mobile Money Payment Step
     setUssdTriggered(false);
     setRegStep('payment');
   };
@@ -1000,7 +1130,7 @@ export default function GuideLinkRwandaApp() {
     setTasks([jobObj, ...tasks]);
     setNewTaskForm({ title: '', date: '', rawPay: '', location: 'Kigali', category: 'Guiding Job' });
     await firestoreSaveDoc('tasks', newId, jobObj);
-    alert('✓ Job published to the live marketplace!');
+    alert('✓ Job / rental listing published to the live marketplace!');
   };
 
   const handleAcceptJob = async (task) => {
@@ -1039,7 +1169,7 @@ export default function GuideLinkRwandaApp() {
     setTripRequests([reqObj, ...tripRequests]);
     setTripRequestForm({ ...tripRequestForm, dates: '', notes: '' });
     await firestoreSaveDoc('tripRequests', newId, reqObj);
-    alert('✓ Custom trip request broadcast to verified partners!');
+    alert('✓ Custom trip & transport request broadcast to verified partners!');
   };
 
   const handleDirectBookPartner = async (e) => {
@@ -1092,7 +1222,7 @@ export default function GuideLinkRwandaApp() {
   };
 
   // =========================================================================
-  // STYLING CONSTANTS
+  // STYLING & LANGUAGE SWITCHER HELPER
   // =========================================================================
   const primary = appConfig.primaryColor || '#234E40';
   const secondary = appConfig.secondaryColor || '#3B6E5B';
@@ -1138,6 +1268,33 @@ export default function GuideLinkRwandaApp() {
     marginBottom: '12px'
   };
 
+  const renderLanguageSwitcher = (darkBg = true) => (
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: darkBg ? 'rgba(255,255,255,0.14)' : '#eef3f1', padding: '4px', borderRadius: '8px' }}>
+      {['ENG', 'FR', 'KINY'].map((langCode) => {
+        const active = language === langCode;
+        return (
+          <button
+            key={langCode}
+            type="button"
+            onClick={() => setLanguage(langCode)}
+            style={{
+              border: 'none',
+              borderRadius: '6px',
+              padding: '5px 9px',
+              fontSize: '12px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              background: active ? '#ffffff' : 'transparent',
+              color: active ? primary : darkBg ? '#ffffff' : primary
+            }}
+          >
+            {langCode}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   // =========================================================================
   // VIEW 1: WELCOME / SIGN IN LANDING PORTAL
   // =========================================================================
@@ -1169,12 +1326,13 @@ export default function GuideLinkRwandaApp() {
             <h1 style={{ margin: 0, fontSize: '22px', letterSpacing: '-0.3px' }}>🇷🇼 {appConfig.appName}</h1>
             <span style={{ fontSize: '12px', opacity: 0.85 }}>{appConfig.tagline}</span>
           </div>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+            {renderLanguageSwitcher(true)}
             <span style={{ background: 'rgba(255,255,255,0.18)', padding: '5px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '600' }}>
               {appConfig.travelerFreeBadge}
             </span>
             <button onClick={() => { setRegStep('details'); setCurrentRole('signup'); }} style={{ background: '#fff', color: primary, border: 'none', borderRadius: '8px', padding: '9px 16px', fontWeight: '700', cursor: 'pointer' }}>
-              Create Account
+              {t.createAccount}
             </button>
           </div>
         </header>
@@ -1202,7 +1360,7 @@ export default function GuideLinkRwandaApp() {
 
               {/* Public Partner Search */}
               <div style={cardStyle}>
-                <h3 style={{ marginTop: 0, color: primary }}>🔍 Explore Verified Guides, Agencies & Tour Companies</h3>
+                <h3 style={{ marginTop: 0, color: primary }}>🔍 {t.explorePartners}</h3>
                 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '14px' }}>
                   <input
                     type="text"
@@ -1216,21 +1374,22 @@ export default function GuideLinkRwandaApp() {
                     onChange={(e) => setSearchRoleFilter(e.target.value)}
                     style={{ ...inputStyle, flex: 1, margin: 0 }}
                   >
-                    <option value="all">All Categories</option>
-                    <option value="graduate">Tourism Graduates</option>
-                    <option value="agency">Travel Agencies</option>
-                    <option value="tour_company">Tour Companies</option>
+                    <option value="all">{t.allCategories}</option>
+                    <option value="graduate">{t.graduates}</option>
+                    <option value="agency">{t.agencies}</option>
+                    <option value="tour_company">{t.tourCompanies}</option>
+                    <option value="car_rental">{t.carRentals}</option>
                   </select>
                 </div>
 
                 {filteredDirectory.length === 0 ? (
                   <p style={{ color: '#6b7c75', fontSize: '14px' }}>No matching verified partners listed yet. Sign up to be featured!</p>
                 ) : (
-                  <div style={{ display: 'grid', gap: '10px', maxHeight: '320px', overflowY: 'auto' }}>
+                  <div style={{ display: 'grid', gap: '10px', maxHeight: '340px', overflowY: 'auto' }}>
                     {filteredDirectory.map((partner) => {
                       const prof = userProfiles[normalizeContact(partner.contact)] || {};
                       return (
-                        <div key={partner.id} style={{ padding: '12px', borderRadius: '10px', border: '1px solid #e1e8e5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div key={partner.id} style={{ padding: '12px', borderRadius: '10px', border: '1px solid #e1e8e5', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
                           <div>
                             <div style={{ fontWeight: '700', color: primary }}>{partner.name}</div>
                             <div style={{ fontSize: '12px', color: '#52635d' }}>
@@ -1238,7 +1397,7 @@ export default function GuideLinkRwandaApp() {
                             </div>
                           </div>
                           <button onClick={() => { setRegStep('details'); setCurrentRole('signup'); }} style={btnSecondary}>
-                            Sign In to Connect
+                            {t.signInBtn}
                           </button>
                         </div>
                       );
@@ -1250,9 +1409,9 @@ export default function GuideLinkRwandaApp() {
 
             {/* Right Sign In Box */}
             <div style={cardStyle}>
-              <h3 style={{ marginTop: 0, color: primary, fontSize: '20px' }}>🔐 Sign In to Your Dashboard</h3>
+              <h3 style={{ marginTop: 0, color: primary, fontSize: '20px' }}>🔐 {t.signInTitle}</h3>
               <form onSubmit={handleSignInSubmit}>
-                <label style={{ fontSize: '13px', fontWeight: '600' }}>Phone Number or Email</label>
+                <label style={{ fontSize: '13px', fontWeight: '600' }}>{t.phoneOrEmail}</label>
                 <input
                   type="text"
                   placeholder="e.g. +250780000000 or name@email.com"
@@ -1262,7 +1421,7 @@ export default function GuideLinkRwandaApp() {
                   required
                 />
 
-                <label style={{ fontSize: '13px', fontWeight: '600' }}>Password</label>
+                <label style={{ fontSize: '13px', fontWeight: '600' }}>{t.password}</label>
                 <input
                   type="password"
                   placeholder="Enter your password"
@@ -1273,19 +1432,19 @@ export default function GuideLinkRwandaApp() {
                 />
 
                 <button type="submit" style={{ ...btnPrimary, width: '100%', padding: '12px', fontSize: '15px' }}>
-                  Sign In
+                  {t.signInBtn}
                 </button>
               </form>
 
               <hr style={{ border: 'none', borderTop: '1px solid #e5ebe8', margin: '20px 0' }} />
 
               <div style={{ textAlign: 'center' }}>
-                <p style={{ fontSize: '13px', color: '#52635d', marginBottom: '10px' }}>New to {appConfig.appName}?</p>
+                <p style={{ fontSize: '13px', color: '#52635d', marginBottom: '10px' }}>{t.newToPlatform} {appConfig.appName}?</p>
                 <button
                   onClick={() => { setRegStep('details'); setCurrentRole('signup'); }}
                   style={{ ...btnSecondary, width: '100%', padding: '11px' }}
                 >
-                  Create Account (New Sign Up)
+                  {t.createAccountBtn}
                 </button>
               </div>
             </div>
@@ -1342,13 +1501,14 @@ export default function GuideLinkRwandaApp() {
 
     return (
       <div style={{ minHeight: '100vh', padding: '30px 20px', maxWidth: '640px', margin: '0 auto' }}>
-        <button onClick={resetToWelcome} style={{ ...btnSecondary, marginBottom: '18px' }}>
-          ← Back to Home
-        </button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+          <button onClick={resetToWelcome} style={btnSecondary}>← Back to Home</button>
+          {renderLanguageSwitcher(false)}
+        </div>
 
         {regStep === 'details' && (
           <div style={cardStyle}>
-            <h2 style={{ marginTop: 0, color: primary }}>Create Your {appConfig.appName} Account</h2>
+            <h2 style={{ marginTop: 0, color: primary }}>{t.createAccount} — {appConfig.appName}</h2>
             <form onSubmit={handleSignUpSubmit}>
               <label style={{ fontSize: '13px', fontWeight: '600' }}>Select Account Category</label>
               <select
@@ -1356,10 +1516,11 @@ export default function GuideLinkRwandaApp() {
                 onChange={(e) => setRegForm({ ...regForm, role: e.target.value })}
                 style={inputStyle}
               >
-                <option value="traveler">Traveler / Tourist (FREE Access)</option>
-                <option value="graduate">Tourism Graduate / Tour Guide</option>
-                <option value="agency">Travel Agency</option>
-                <option value="tour_company">Tour & Safari Company</option>
+                <option value="traveler">{t.roleTraveler} (FREE)</option>
+                <option value="graduate">{t.roleGraduate}</option>
+                <option value="agency">{t.roleAgency}</option>
+                <option value="tour_company">{t.roleTourCompany}</option>
+                <option value="car_rental">{t.roleCarRental}</option>
                 {(appConfig.customDashboards || []).map((cd) => (
                   <option key={cd.id} value={cd.id}>{cd.name}</option>
                 ))}
@@ -1368,14 +1529,14 @@ export default function GuideLinkRwandaApp() {
               <label style={{ fontSize: '13px', fontWeight: '600' }}>Full Name or Company Name</label>
               <input
                 type="text"
-                placeholder="e.g. Jean Bosco / Volcanoes Safaris"
+                placeholder="e.g. CAR RENTALS Company"
                 value={regForm.name}
                 onChange={(e) => setRegForm({ ...regForm, name: e.target.value })}
                 style={inputStyle}
                 required
               />
 
-              <label style={{ fontSize: '13px', fontWeight: '600' }}>Phone Number (MTN/Airtel) or Email</label>
+              <label style={{ fontSize: '13px', fontWeight: '600' }}>{t.phoneOrEmail}</label>
               <input
                 type="text"
                 placeholder="e.g. +250788000000"
@@ -1402,7 +1563,6 @@ export default function GuideLinkRwandaApp() {
                 </>
               )}
 
-              {/* Dynamic Custom Registration Fields from Owner CMS */}
               {(appConfig.customFields || [])
                 .filter((cf) => cf.targetRole === 'all' || cf.targetRole === regForm.role)
                 .map((cf, idx) => (
@@ -1419,7 +1579,7 @@ export default function GuideLinkRwandaApp() {
                   </div>
                 ))}
 
-              <label style={{ fontSize: '13px', fontWeight: '600' }}>Create Password</label>
+              <label style={{ fontSize: '13px', fontWeight: '600' }}>{t.password}</label>
               <input
                 type="password"
                 value={regForm.password}
@@ -1448,6 +1608,7 @@ export default function GuideLinkRwandaApp() {
           <div style={cardStyle}>
             <h2 style={{ marginTop: 0, color: primary }}>💳 Partner Subscription Payment</h2>
             <p style={{ fontSize: '14px', color: '#4a5a54' }}>
+              Account: <strong>{regForm.name}</strong> ({getRoleDisplayLabel(regForm.role)})<br />
               Plan: <strong>{selectedPlan.name}</strong> ({selectedPlan.durationLabel})<br />
               Amount Due: <strong style={{ color: primary, fontSize: '18px' }}>RWF {Number(selectedPlan.price).toLocaleString()}</strong>
             </p>
@@ -1519,7 +1680,7 @@ export default function GuideLinkRwandaApp() {
     const chosenRenewPlan = getPlanById(renewalPlanId);
     return (
       <div style={{ minHeight: '100vh', padding: '30px 20px', maxWidth: '600px', margin: '0 auto' }}>
-        <button onClick={resetToWelcome} style={{ ...btnSecondary, marginBottom: '18px' }}>← Sign Out</button>
+        <button onClick={resetToWelcome} style={{ ...btnSecondary, marginBottom: '18px' }}>← {t.signOut}</button>
         <div style={cardStyle}>
           <h2 style={{ marginTop: 0, color: '#b91c1c' }}>⏳ Subscription Expired</h2>
           <p style={{ fontSize: '14px', color: '#4a5a54' }}>
@@ -1586,12 +1747,14 @@ export default function GuideLinkRwandaApp() {
             <h2 style={{ margin: 0, fontSize: '20px' }}>🛡️ {appConfig.appName} — C.E.O & Administrator HQ</h2>
             <span style={{ fontSize: '12px', opacity: 0.85 }}>{ownerProfile.name} • {ownerProfile.title}</span>
           </div>
-          <button onClick={resetToWelcome} style={{ background: '#dc2626', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', fontWeight: '600', cursor: 'pointer' }}>
-            Sign Out
-          </button>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            {renderLanguageSwitcher(true)}
+            <button onClick={resetToWelcome} style={{ background: '#dc2626', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', fontWeight: '600', cursor: 'pointer' }}>
+              {t.signOut}
+            </button>
+          </div>
         </header>
 
-        {/* Owner Navigation Tabs */}
         <nav style={{ background: '#fff', borderBottom: '1px solid #dce4e0', padding: '10px 28px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           {[
             { id: 'pending', label: `💳 Payment Approvals (${pendingUsers.length})` },
@@ -1620,7 +1783,6 @@ export default function GuideLinkRwandaApp() {
         </nav>
 
         <main style={{ maxWidth: '1200px', width: '100%', margin: '24px auto', padding: '0 20px', flex: 1 }}>
-          {/* TAB: PENDING PAYMENT APPROVALS */}
           {ownerTab === 'pending' && (
             <div style={cardStyle}>
               <h3 style={{ marginTop: 0, color: primary }}>💳 Pending Partner Subscriptions & Renewals</h3>
@@ -1640,12 +1802,8 @@ export default function GuideLinkRwandaApp() {
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <button onClick={() => handleApproveUserPayment(u)} style={btnPrimary}>
-                          ✓ Approve & Activate
-                        </button>
-                        <button onClick={() => handleDeleteUserAccount(u.id, u.name)} style={{ ...btnSecondary, color: '#dc2626', borderColor: '#dc2626' }}>
-                          Reject / Delete
-                        </button>
+                        <button onClick={() => handleApproveUserPayment(u)} style={btnPrimary}>✓ Approve & Activate</button>
+                        <button onClick={() => handleDeleteUserAccount(u.id, u.name)} style={{ ...btnSecondary, color: '#dc2626', borderColor: '#dc2626' }}>Reject / Delete</button>
                       </div>
                     </div>
                   ))}
@@ -1654,7 +1812,6 @@ export default function GuideLinkRwandaApp() {
             </div>
           )}
 
-          {/* TAB: MANAGE ALL USERS */}
           {ownerTab === 'users' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
               <div style={cardStyle}>
@@ -1698,6 +1855,15 @@ export default function GuideLinkRwandaApp() {
                     <label style={{ fontSize: '12px', fontWeight: '600' }}>Full Name</label>
                     <input type="text" value={ownerUserEditForm.name} onChange={(e) => setOwnerUserEditForm({ ...ownerUserEditForm, name: e.target.value })} style={inputStyle} />
 
+                    <label style={{ fontSize: '12px', fontWeight: '600' }}>Role</label>
+                    <select value={ownerUserEditForm.role} onChange={(e) => setOwnerUserEditForm({ ...ownerUserEditForm, role: e.target.value })} style={inputStyle}>
+                      <option value="traveler">{t.roleTraveler}</option>
+                      <option value="graduate">{t.roleGraduate}</option>
+                      <option value="agency">{t.roleAgency}</option>
+                      <option value="tour_company">{t.roleTourCompany}</option>
+                      <option value="car_rental">{t.roleCarRental}</option>
+                    </select>
+
                     <label style={{ fontSize: '12px', fontWeight: '600' }}>Contact (Phone/Email)</label>
                     <input type="text" value={ownerUserEditForm.contact} onChange={(e) => setOwnerUserEditForm({ ...ownerUserEditForm, contact: e.target.value })} style={inputStyle} />
 
@@ -1712,13 +1878,6 @@ export default function GuideLinkRwandaApp() {
                       <option value="revoked">Revoked / Suspended</option>
                     </select>
 
-                    <label style={{ fontSize: '12px', fontWeight: '600' }}>Subscription Plan</label>
-                    <select value={ownerUserEditForm.subscriptionPlanId} onChange={(e) => setOwnerUserEditForm({ ...ownerUserEditForm, subscriptionPlanId: e.target.value })} style={inputStyle}>
-                      {subscriptionPlans.map((p) => (
-                        <option key={p.id} value={p.id}>{p.name} (RWF {p.price})</option>
-                      ))}
-                    </select>
-
                     <button type="submit" disabled={isSaving} style={{ ...btnPrimary, width: '100%' }}>
                       {isSaving ? 'Saving...' : 'Save Changes to Firebase'}
                     </button>
@@ -1728,7 +1887,6 @@ export default function GuideLinkRwandaApp() {
             </div>
           )}
 
-          {/* TAB: SUBSCRIPTION PLANS */}
           {ownerTab === 'plans' && (
             <div style={cardStyle}>
               <h3 style={{ marginTop: 0, color: primary }}>💎 Customize Subscription Tiers & Pricing (RWF)</h3>
@@ -1757,17 +1915,6 @@ export default function GuideLinkRwandaApp() {
                       }}
                       style={inputStyle}
                     />
-                    <label style={{ fontSize: '12px', fontWeight: '600' }}>Duration (Days)</label>
-                    <input
-                      type="number"
-                      value={plan.days}
-                      onChange={(e) => {
-                        const updated = [...subscriptionPlans];
-                        updated[index] = { ...plan, days: Number(e.target.value) };
-                        setSubscriptionPlans(updated);
-                      }}
-                      style={inputStyle}
-                    />
                   </div>
                 ))}
               </div>
@@ -1777,7 +1924,6 @@ export default function GuideLinkRwandaApp() {
             </div>
           )}
 
-          {/* TAB: NO-CODE APP SERVER CMS */}
           {ownerTab === 'server' && (
             <div style={cardStyle}>
               <h3 style={{ marginTop: 0, color: primary }}>⚙️ Live App Server & Branding Controls</h3>
@@ -1800,17 +1946,6 @@ export default function GuideLinkRwandaApp() {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '20px', margin: '12px 0 20px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600' }}>
-                  <input type="checkbox" checked={appConfig.allowNewSignups} onChange={(e) => setAppConfig({ ...appConfig, allowNewSignups: e.target.checked })} />
-                  Allow New User Registrations
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600', color: '#b91c1c' }}>
-                  <input type="checkbox" checked={appConfig.maintenanceMode} onChange={(e) => setAppConfig({ ...appConfig, maintenanceMode: e.target.checked })} />
-                  Enable Maintenance Mode
-                </label>
-              </div>
-
               <button
                 onClick={async () => {
                   await handleSaveAppServerConfig();
@@ -1824,20 +1959,19 @@ export default function GuideLinkRwandaApp() {
             </div>
           )}
 
-          {/* TAB: MARKETPLACE OVERSIGHT */}
           {ownerTab === 'marketplace' && (
             <div style={cardStyle}>
               <h3 style={{ marginTop: 0, color: primary }}>📋 Active Jobs & Traveler Trip Requests</h3>
-              <h4>Posted Guiding & Consultant Jobs ({tasks.length})</h4>
-              {tasks.map((t) => (
-                <div key={t.id} style={{ padding: '12px', borderBottom: '1px solid #e5ebe8', display: 'flex', justifyContent: 'space-between' }}>
+              <h4>Posted Assignments ({tasks.length})</h4>
+              {tasks.map((tItem) => (
+                <div key={tItem.id} style={{ padding: '12px', borderBottom: '1px solid #e5ebe8', display: 'flex', justifyContent: 'space-between' }}>
                   <div>
-                    <strong>{t.title}</strong> — {t.agency} ({t.pay}) • Status: <strong>{t.status.toUpperCase()}</strong>
+                    <strong>{tItem.title}</strong> — {tItem.agency} ({tItem.pay}) • Status: <strong>{tItem.status.toUpperCase()}</strong>
                   </div>
                   <button
                     onClick={async () => {
-                      setTasks(tasks.filter((item) => item.id !== t.id));
-                      await firestoreDeleteDoc('tasks', t.id);
+                      setTasks(tasks.filter((item) => item.id !== tItem.id));
+                      await firestoreDeleteDoc('tasks', tItem.id);
                     }}
                     style={{ color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', fontWeight: '600' }}
                   >
@@ -1848,7 +1982,6 @@ export default function GuideLinkRwandaApp() {
             </div>
           )}
 
-          {/* TAB: C.E.O PROFILE */}
           {ownerTab === 'profile' && (
             <div style={cardStyle}>
               <h3 style={{ marginTop: 0, color: primary }}>👤 C.E.O & Founder Profile</h3>
@@ -1871,18 +2004,16 @@ export default function GuideLinkRwandaApp() {
   }
 
   // =========================================================================
-  // VIEW 5: AUTHENTICATED USER DASHBOARDS (Graduate, Agency, Tour Co, Traveler)
+  // VIEW 5: AUTHENTICATED USER DASHBOARDS (Graduate, Agency, Tour Co, Car Rental, Traveler)
   // =========================================================================
   const profile = getCurrentProfile();
   const myCleanId = normalizeContact(activeUser ? activeUser.contact : ownerProfile.contact);
   const currentRoomId = activeChatPeer.id ? getPrivateRoomId(myCleanId, activeChatPeer.id) : '';
   const activeConversation = chatMessages.filter((m) => m.roomId === currentRoomId);
-
   const verifiedDirectory = registeredUsers.filter((u) => u.status === 'approved' && u.id !== myCleanId);
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Top User Bar */}
       <header style={{ background: primary, color: '#fff', padding: '16px 28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h2 style={{ margin: 0, fontSize: '20px' }}>🇷🇼 {appConfig.appName}</h2>
@@ -1890,47 +2021,47 @@ export default function GuideLinkRwandaApp() {
             Welcome, <strong>{activeUser?.name}</strong> ({getRoleDisplayLabel(currentRole)})
           </span>
         </div>
-        <button onClick={resetToWelcome} style={{ background: 'rgba(255,255,255,0.18)', color: '#fff', border: '1px solid rgba(255,255,255,0.4)', borderRadius: '8px', padding: '8px 14px', fontWeight: '600', cursor: 'pointer' }}>
-          Sign Out
-        </button>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          {renderLanguageSwitcher(true)}
+          <button onClick={resetToWelcome} style={{ background: 'rgba(255,255,255,0.18)', color: '#fff', border: '1px solid rgba(255,255,255,0.4)', borderRadius: '8px', padding: '8px 14px', fontWeight: '600', cursor: 'pointer' }}>
+            {t.signOut}
+          </button>
+        </div>
       </header>
 
-      {/* Dashboard Navigation */}
       <nav style={{ background: '#fff', borderBottom: '1px solid #dce4e0', padding: '10px 28px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
         <button
           onClick={() => setActiveTab('jobs')}
           style={{ padding: '9px 15px', borderRadius: '8px', border: 'none', fontWeight: '600', cursor: 'pointer', background: activeTab === 'jobs' ? primary : '#eef3f1', color: activeTab === 'jobs' ? '#fff' : primary }}
         >
-          {currentRole === 'traveler' ? '🗺️ Request a Trip' : '💼 Jobs & Trip Requests'}
+          {currentRole === 'traveler' ? `🗺️ ${t.tabRequestTrip}` : `💼 ${t.tabJobs}`}
         </button>
         <button
           onClick={() => setActiveTab('directory')}
           style={{ padding: '9px 15px', borderRadius: '8px', border: 'none', fontWeight: '600', cursor: 'pointer', background: activeTab === 'directory' ? primary : '#eef3f1', color: activeTab === 'directory' ? '#fff' : primary }}
         >
-          🤝 Partner Directory
+          🤝 {t.tabDirectory}
         </button>
         <button
           onClick={() => setActiveTab('chat')}
           style={{ padding: '9px 15px', borderRadius: '8px', border: 'none', fontWeight: '600', cursor: 'pointer', background: activeTab === 'chat' ? primary : '#eef3f1', color: activeTab === 'chat' ? '#fff' : primary }}
         >
-          🔒 Confidential Chat
+          🔒 {t.tabChat}
         </button>
         <button
           onClick={() => setActiveTab('profile')}
           style={{ padding: '9px 15px', borderRadius: '8px', border: 'none', fontWeight: '600', cursor: 'pointer', background: activeTab === 'profile' ? primary : '#eef3f1', color: activeTab === 'profile' ? '#fff' : primary }}
         >
-          👤 My Profile & Credentials
+          👤 {t.tabProfile}
         </button>
       </nav>
 
       <main style={{ maxWidth: '1150px', width: '100%', margin: '24px auto', padding: '0 20px', flex: 1 }}>
-        {/* TAB 1: JOBS & TRIP MARKETPLACE */}
         {activeTab === 'jobs' && (
           <div>
-            {/* Traveler Trip Request Form */}
             {currentRole === 'traveler' && (
               <div style={cardStyle}>
-                <h3 style={{ marginTop: 0, color: primary }}>🗺️ Plan Your Custom Rwanda Experience</h3>
+                <h3 style={{ marginTop: 0, color: primary }}>🗺️ {t.tabRequestTrip}</h3>
                 <form onSubmit={handleSubmitTripRequest}>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
                     <div>
@@ -1952,9 +2083,10 @@ export default function GuideLinkRwandaApp() {
                         onChange={(e) => setTripRequestForm({ ...tripRequestForm, preferredCategory: e.target.value })}
                         style={inputStyle}
                       >
-                        <option value="graduate">Certified Tourism Graduate / Guide</option>
-                        <option value="tour_company">Tour & Safari Company</option>
-                        <option value="agency">Travel Agency</option>
+                        <option value="graduate">{t.roleGraduate}</option>
+                        <option value="tour_company">{t.roleTourCompany}</option>
+                        <option value="agency">{t.roleAgency}</option>
+                        <option value="car_rental">{t.roleCarRental}</option>
                       </select>
                     </div>
                     <div>
@@ -1978,10 +2110,10 @@ export default function GuideLinkRwandaApp() {
                       />
                     </div>
                   </div>
-                  <label style={{ fontSize: '13px', fontWeight: '600' }}>Itinerary Notes & Special Requests</label>
+                  <label style={{ fontSize: '13px', fontWeight: '600' }}>Itinerary & Vehicle Notes</label>
                   <textarea
                     rows="3"
-                    placeholder="Tell us about your interests (gorilla trekking, cultural tours, transport needs)..."
+                    placeholder="Tell us about your trip, guide needs, or car rental preferences..."
                     value={tripRequestForm.notes}
                     onChange={(e) => setTripRequestForm({ ...tripRequestForm, notes: e.target.value })}
                     style={inputStyle}
@@ -1991,17 +2123,22 @@ export default function GuideLinkRwandaApp() {
               </div>
             )}
 
-            {/* Agency / Tour Company Post Job Form */}
-            {(currentRole === 'agency' || currentRole === 'tour_company') && (
+            {(currentRole === 'agency' || currentRole === 'tour_company' || currentRole === 'car_rental') && (
               <div style={cardStyle}>
-                <h3 style={{ marginTop: 0, color: primary }}>📢 Post a Guiding or Tourism Consultant Assignment</h3>
+                <h3 style={{ marginTop: 0, color: primary }}>
+                  {currentRole === 'car_rental'
+                    ? '🚗 Post Vehicle Rental Offer or Transport Assignment'
+                    : '📢 Post a Guiding or Tourism Consultant Assignment'}
+                </h3>
                 <form onSubmit={handlePostNewJob}>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
                     <div>
-                      <label style={{ fontSize: '13px', fontWeight: '600' }}>Assignment Title</label>
+                      <label style={{ fontSize: '13px', fontWeight: '600' }}>
+                        {currentRole === 'car_rental' ? 'Vehicle / Rental Package Title' : 'Assignment Title'}
+                      </label>
                       <input
                         type="text"
-                        placeholder="e.g. 3-Day Akagera Safari Bilingual Guide"
+                        placeholder={currentRole === 'car_rental' ? 'e.g. 4x4 Toyota Land Cruiser Prado (Daily)' : 'e.g. 3-Day Akagera Safari Bilingual Guide'}
                         value={newTaskForm.title}
                         onChange={(e) => setNewTaskForm({ ...newTaskForm, title: e.target.value })}
                         style={inputStyle}
@@ -2009,7 +2146,7 @@ export default function GuideLinkRwandaApp() {
                       />
                     </div>
                     <div>
-                      <label style={{ fontSize: '13px', fontWeight: '600' }}>Compensation (RWF)</label>
+                      <label style={{ fontSize: '13px', fontWeight: '600' }}>Rate / Compensation (RWF)</label>
                       <input
                         type="number"
                         placeholder="e.g. 50000"
@@ -2029,7 +2166,7 @@ export default function GuideLinkRwandaApp() {
                       />
                     </div>
                     <div>
-                      <label style={{ fontSize: '13px', fontWeight: '600' }}>Dates / Schedule</label>
+                      <label style={{ fontSize: '13px', fontWeight: '600' }}>Dates / Availability</label>
                       <input
                         type="text"
                         placeholder="e.g. Sat 28 Nov, 08:00"
@@ -2039,15 +2176,14 @@ export default function GuideLinkRwandaApp() {
                       />
                     </div>
                   </div>
-                  <button type="submit" style={btnPrimary}>Publish Assignment</button>
+                  <button type="submit" style={btnPrimary}>Publish to Marketplace</button>
                 </form>
               </div>
             )}
 
-            {/* Live Jobs Feed */}
             {currentRole !== 'traveler' && (
               <div style={cardStyle}>
-                <h3 style={{ marginTop: 0, color: primary }}>💼 Available Guiding & Tourism Assignments</h3>
+                <h3 style={{ marginTop: 0, color: primary }}>💼 Live Assignments & Fleet Listings</h3>
                 <div style={{ display: 'grid', gap: '12px' }}>
                   {tasks.map((task) => (
                     <div key={task.id} style={{ padding: '16px', borderRadius: '10px', border: '1px solid #dce4e0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
@@ -2070,7 +2206,7 @@ export default function GuideLinkRwandaApp() {
                           </button>
                         ) : (
                           <span style={{ fontSize: '13px', fontWeight: '600', color: task.status === 'open' ? '#15803d' : '#52635d' }}>
-                            {task.status === 'open' ? 'Open for Graduates' : `Assigned to ${task.assignedTo}`}
+                            {task.status === 'open' ? 'Open' : `Assigned to ${task.assignedTo}`}
                           </span>
                         )}
                       </div>
@@ -2080,7 +2216,6 @@ export default function GuideLinkRwandaApp() {
               </div>
             )}
 
-            {/* Live Traveler Trip Requests Feed */}
             <div style={cardStyle}>
               <h3 style={{ marginTop: 0, color: primary }}>🌍 Live Traveler Trip Requests</h3>
               {tripRequests.length === 0 ? (
@@ -2098,7 +2233,7 @@ export default function GuideLinkRwandaApp() {
                       </div>
                       {currentRole !== 'traveler' && req.travelerContact && (
                         <button
-                          onClick={() => openConfidentialChat(req.travelerContact, req.travelerName, 'Traveler')}
+                          onClick={() => openConfidentialChat(req.travelerContact, req.travelerName, t.roleTraveler)}
                           style={btnPrimary}
                         >
                           Message Traveler
@@ -2112,10 +2247,9 @@ export default function GuideLinkRwandaApp() {
           </div>
         )}
 
-        {/* TAB 2: PARTNER DIRECTORY */}
         {activeTab === 'directory' && (
           <div style={cardStyle}>
-            <h3 style={{ marginTop: 0, color: primary }}>🤝 Verified Tourism Network Directory</h3>
+            <h3 style={{ marginTop: 0, color: primary }}>🤝 {t.tabDirectory}</h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
               {verifiedDirectory.map((member) => {
                 const prof = userProfiles[normalizeContact(member.contact)] || {};
@@ -2149,7 +2283,6 @@ export default function GuideLinkRwandaApp() {
               })}
             </div>
 
-            {/* Direct Booking Modal */}
             {bookingTarget && (
               <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
                 <div style={{ ...cardStyle, maxWidth: '420px', width: '90%' }}>
@@ -2159,7 +2292,7 @@ export default function GuideLinkRwandaApp() {
                     <input type="text" placeholder="e.g. Jan 10 - Jan 12" value={bookingDetails.dates} onChange={(e) => setBookingDetails({ ...bookingDetails, dates: e.target.value })} style={inputStyle} required />
                     <label style={{ fontSize: '13px', fontWeight: '600' }}>Guests</label>
                     <input type="number" min="1" value={bookingDetails.guests} onChange={(e) => setBookingDetails({ ...bookingDetails, guests: e.target.value })} style={inputStyle} required />
-                    <label style={{ fontSize: '13px', fontWeight: '600' }}>Trip Notes</label>
+                    <label style={{ fontSize: '13px', fontWeight: '600' }}>Trip / Vehicle Notes</label>
                     <textarea rows="3" value={bookingDetails.notes} onChange={(e) => setBookingDetails({ ...bookingDetails, notes: e.target.value })} style={inputStyle} />
                     <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
                       <button type="button" onClick={() => setBookingTarget(null)} style={btnSecondary}>Cancel</button>
@@ -2172,7 +2305,6 @@ export default function GuideLinkRwandaApp() {
           </div>
         )}
 
-        {/* TAB 3: CONFIDENTIAL 1-ON-1 CHAT */}
         {activeTab === 'chat' && (
           <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '18px' }}>
             <div style={cardStyle}>
@@ -2246,10 +2378,9 @@ export default function GuideLinkRwandaApp() {
           </div>
         )}
 
-        {/* TAB 4: MY PROFILE & CREDENTIALS */}
         {activeTab === 'profile' && (
           <div style={cardStyle}>
-            <h3 style={{ marginTop: 0, color: primary }}>👤 My Professional Profile & Portfolio</h3>
+            <h3 style={{ marginTop: 0, color: primary }}>👤 {t.tabProfile}</h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
               <div>
                 <label style={{ fontSize: '13px', fontWeight: '600' }}>Display Name</label>
