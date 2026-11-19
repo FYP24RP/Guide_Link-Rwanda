@@ -1,7 +1,13 @@
 /**
  * GuideLink Rwanda - Core Application Script
- * Features: Firebase Sync, USSD Mobile Money Gateway, C.E.O Server Controls,
- * Secure 1-on-1 Chat, Multi-Language Support (EN / RW / FR), & Car Rental Onboarding.
+ * Features:
+ * - Firebase Sync & Auth
+ * - USSD Mobile Money Gateway (*182#)
+ * - C.E.O Server Controls
+ * - Confidential 1-on-1 Realtime Chat
+ * - Multi-Language Support (EN / RW / FR)
+ * - Car Rental Company Registration
+ * - Scheduled Popup Ads (Triggers after 3 minutes / 180,000 ms)
  */
 
 class GuideLinkApp {
@@ -12,6 +18,34 @@ class GuideLinkApp {
         this.serverStatus = "ONLINE"; // ONLINE, MAINTENANCE, SECURE_LOCKDOWN
         this.firebaseConnected = true;
         this.registeredCompanies = [];
+
+        // Popup Ads Configuration (3 minutes = 180,000 milliseconds)
+        this.adDelayMs = 3 * 60 * 1000;
+        this.adTimer = null;
+        this.currentAdIndex = 0;
+        this.popupAds = [
+            {
+                badge: "SPONSORED PARTNER",
+                title: "Explore Rwanda with Verified 4x4 Car Rentals",
+                description: "Book reliable Toyota RAV4s, Land Cruisers, and safari vans across Kigali, Musanze, Nyungwe, and Akagera.",
+                ctaText: "Browse Car Rentals →",
+                actionType: "car_rental"
+            },
+            {
+                badge: "TOURISM OPPORTUNITY",
+                title: "Hire Certified Tourism Graduates & Safari Guides",
+                description: "Connect directly with multilingual Rwandan tour guides and travel consultants for your next expedition.",
+                ctaText: "Connect Now →",
+                actionType: "chat"
+            },
+            {
+                badge: "INSTANT PAYMENT",
+                title: "Fast & Secure Mobile Money Checkout (*182#)",
+                description: "Pay for tours, permits, and car rentals seamlessly using MTN Mobile Money or Airtel Money.",
+                ctaText: "Pay via USSD →",
+                actionType: "ussd"
+            }
+        ];
 
         // Supported languages: 'en' (English), 'rw' (Kinyarwanda), 'fr' (French)
         this.currentLanguage = localStorage.getItem("guidelink_lang") || "en";
@@ -34,7 +68,9 @@ class GuideLinkApp {
                 companyPhonePrompt: "Enter Company Contact Phone (e.g., 078XXXXXXX):",
                 companyFleetPrompt: "Enter available vehicles (comma-separated, e.g., Toyota RAV4, Suzuki Vitara):",
                 companyRegistered: "Car Rental Company '{name}' registered and synced!",
-                languageChanged: "Language switched to English."
+                languageChanged: "Language switched to English.",
+                addCarRentalBtn: "+ Register Car Rental Company",
+                closeAdBtn: "Close Ad"
             },
             rw: {
                 welcomeBack: "Murakaza neza, {name}! Mwahujwe neza kandi mu buryo bwizewe.",
@@ -54,7 +90,9 @@ class GuideLinkApp {
                 companyPhonePrompt: "Andika nimero ya telefone y'ikigo (urugero: 078XXXXXXX):",
                 companyFleetPrompt: "Andika amamodoka ahari (atandukanijwe n'uturingushyo, urugero: Toyota RAV4, Suzuki Vitara):",
                 companyRegistered: "Ikigo gikodesha imodoka '{name}' cyanditswe kandi cyahujwe na Firebase!",
-                languageChanged: "Ururimi rwahinduwe rwashyirwa mu Kinyarwanda."
+                languageChanged: "Ururimi rwahinduwe rwashyirwa mu Kinyarwanda.",
+                addCarRentalBtn: "+ Andikisha Ikigo cy'Imodoka",
+                closeAdBtn: "Funga Itangazo"
             },
             fr: {
                 welcomeBack: "Bon retour, {name} ! Connexion sécurisée établie.",
@@ -74,13 +112,153 @@ class GuideLinkApp {
                 companyPhonePrompt: "Entrez le téléphone de contact de l'entreprise (ex. : 078XXXXXXX) :",
                 companyFleetPrompt: "Entrez les véhicules disponibles (séparés par des virgules, ex. : Toyota RAV4, Suzuki Vitara) :",
                 companyRegistered: "L'entreprise de location de voitures « {name} » a été enregistrée et synchronisée !",
-                languageChanged: "La langue a été changée en français."
+                languageChanged: "La langue a été changée en français.",
+                addCarRentalBtn: "+ Inscrire Location de Voitures",
+                closeAdBtn: "Fermer la pub"
             }
         };
 
+        this.ensureDefaultControls();
         this.initEventListeners();
         this.applyLanguage(this.currentLanguage, false);
         this.checkServerHealth();
+        this.startPopupAdTimer();
+    }
+
+    /**
+     * Ensures Language Switcher, Car Rental Registration button, and Popup Ad Modal
+     * exist in the DOM even if not manually added to HTML.
+     */
+    ensureDefaultControls() {
+        if (!document.getElementById("language-select") || !document.getElementById("add-car-rental-btn")) {
+            const floatingBar = document.createElement("div");
+            floatingBar.id = "guidelink-quick-bar";
+            floatingBar.style.cssText = [
+                "position: fixed",
+                "bottom: 16px",
+                "right: 16px",
+                "z-index: 9990",
+                "display: flex",
+                "gap: 8px",
+                "align-items: center",
+                "background: #ffffff",
+                "padding: 8px 12px",
+                "border-radius: 12px",
+                "box-shadow: 0 6px 20px rgba(0,0,0,0.15)",
+                "border: 1px solid #e2e8f0",
+                "font-family: system-ui, -apple-system, sans-serif"
+            ].join(";");
+
+            if (!document.getElementById("language-select")) {
+                const select = document.createElement("select");
+                select.id = "language-select";
+                select.style.cssText = "padding: 6px 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 12px; font-weight: 600; cursor: pointer;";
+                select.innerHTML = `
+                    <option value="en">🇬🇧 English</option>
+                    <option value="rw">🇷🇼 Kinyarwanda</option>
+                    <option value="fr">🇫🇷 Français</option>
+                `;
+                floatingBar.appendChild(select);
+            }
+
+            if (!document.getElementById("add-car-rental-btn")) {
+                const btn = document.createElement("button");
+                btn.id = "add-car-rental-btn";
+                btn.type = "button";
+                btn.setAttribute("data-i18n", "addCarRentalBtn");
+                btn.textContent = this.t("addCarRentalBtn");
+                btn.style.cssText = "padding: 7px 12px; border-radius: 8px; border: none; background: #234E40; color: #ffffff; font-size: 12px; font-weight: 700; cursor: pointer;";
+                floatingBar.appendChild(btn);
+            }
+
+            if (floatingBar.children.length > 0 && document.body) {
+                document.body.appendChild(floatingBar);
+            }
+        }
+    }
+
+    /**
+     * Popup Ads Scheduler: Displays a popup ad after 3 minutes (180,000 ms),
+     * and repeats every 3 minutes after dismissal.
+     */
+    startPopupAdTimer(delayMs = this.adDelayMs) {
+        if (this.adTimer) {
+            clearTimeout(this.adTimer);
+        }
+        this.adTimer = setTimeout(() => {
+            this.showPopupAd();
+        }, delayMs);
+    }
+
+    showPopupAd() {
+        // Avoid stacking multiple popups if one is already open
+        if (document.getElementById("guidelink-popup-ad")) return;
+
+        const ad = this.popupAds[this.currentAdIndex % this.popupAds.length];
+        this.currentAdIndex += 1;
+
+        const overlay = document.createElement("div");
+        overlay.id = "guidelink-popup-ad";
+        overlay.style.cssText = [
+            "position: fixed",
+            "inset: 0",
+            "background: rgba(15, 23, 42, 0.65)",
+            "z-index: 10000",
+            "display: flex",
+            "align-items: center",
+            "justify-content: center",
+            "padding: 16px",
+            "font-family: system-ui, -apple-system, sans-serif"
+        ].join(";");
+
+        overlay.innerHTML = `
+            <div style="background: #ffffff; max-width: 420px; width: 100%; border-radius: 18px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.25); position: relative; border: 1px solid #e2e8f0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <span style="background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 800; padding: 4px 10px; border-radius: 999px; letter-spacing: 0.05em;">
+                        ${ad.badge}
+                    </span>
+                    <button id="guidelink-ad-close-x" type="button" style="background: #f1f5f9; border: none; width: 28px; height: 28px; border-radius: 50%; font-weight: 700; cursor: pointer; color: #475569;">
+                        ✕
+                    </button>
+                </div>
+                <h3 style="margin: 0 0 8px 0; font-size: 18px; font-weight: 800; color: #0f172a; line-height: 1.3;">
+                    ${ad.title}
+                </h3>
+                <p style="margin: 0 0 18px 0; font-size: 13px; color: #475569; line-height: 1.5;">
+                    ${ad.description}
+                </p>
+                <div style="display: flex; gap: 10px;">
+                    <button id="guidelink-ad-cta" type="button" style="flex: 2; padding: 11px 14px; border-radius: 10px; border: none; background: #234E40; color: #ffffff; font-size: 13px; font-weight: 700; cursor: pointer;">
+                        ${ad.ctaText}
+                    </button>
+                    <button id="guidelink-ad-dismiss" type="button" style="flex: 1; padding: 11px 12px; border-radius: 10px; border: 1px solid #cbd5e1; background: #f8fafc; color: #334155; font-size: 12px; font-weight: 600; cursor: pointer;">
+                        ${this.t("closeAdBtn")}
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        const closeAd = () => {
+            const modal = document.getElementById("guidelink-popup-ad");
+            if (modal) modal.remove();
+            // Schedule the next popup ad in another 3 minutes
+            this.startPopupAdTimer(this.adDelayMs);
+        };
+
+        document.getElementById("guidelink-ad-close-x")?.addEventListener("click", closeAd);
+        document.getElementById("guidelink-ad-dismiss")?.addEventListener("click", closeAd);
+        document.getElementById("guidelink-ad-cta")?.addEventListener("click", () => {
+            closeAd();
+            if (ad.actionType === "car_rental") {
+                this.registerCarRentalCompany();
+            } else if (ad.actionType === "ussd") {
+                this.initiateUSSDPayment();
+            } else if (ad.actionType === "chat") {
+                this.openSecureChat("support_desk", "GuideLink Support");
+            }
+        });
     }
 
     /**
@@ -359,7 +537,15 @@ class GuideLinkApp {
     }
 }
 
-// Initialize Application on Window Load
-window.addEventListener("DOMContentLoaded", () => {
-    window.guideLinkApp = new GuideLinkApp();
-});
+// Initialize Application Safely (works whether script loads before or after DOMContentLoaded)
+const initGuideLinkApp = () => {
+    if (!window.guideLinkApp) {
+        window.guideLinkApp = new GuideLinkApp();
+    }
+};
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initGuideLinkApp);
+} else {
+    initGuideLinkApp();
+}
