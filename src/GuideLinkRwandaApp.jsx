@@ -173,10 +173,11 @@ const DEFAULT_APP_SERVER_CONFIG = {
 };
 
 // =========================================================================
-// PROFILE EDITOR & SUMMARY (Added for Owner & All Users)
+// PROFILE EDITOR & SUMMARY (Added for Owner & All Users + Profile Photo)
 // =========================================================================
 function UserAndOwnerProfileSection({ profileData, label, onSave, isSaving }) {
   const [form, setForm] = useState({
+    photoUrl: '',
     name: '',
     title: '',
     contact: '',
@@ -202,6 +203,7 @@ function UserAndOwnerProfileSection({ profileData, label, onSave, isSaving }) {
 
   useEffect(() => {
     setForm({
+      photoUrl: profileData?.photoUrl || '',
       name: profileData?.name || '',
       title: profileData?.title || '',
       contact: profileData?.contact || '',
@@ -218,6 +220,22 @@ function UserAndOwnerProfileSection({ profileData, label, onSave, isSaving }) {
         : []
     });
   }, [profileData]);
+
+  const handlePhotoFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 900 * 1024) {
+      alert('Please choose an image under 900KB or paste a photo URL.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setForm((prev) => ({ ...prev, photoUrl: reader.result }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const addService = () => {
     if (!serviceInput.trim()) return;
@@ -294,13 +312,26 @@ function UserAndOwnerProfileSection({ profileData, label, onSave, isSaving }) {
       className="bg-white p-6 rounded-2xl border shadow-sm space-y-5 text-xs"
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
-        <div>
-          <span className="text-[10px] font-extrabold uppercase text-[#3B6E5B]">
-            {label || 'Profile'}
-          </span>
-          <h3 className="text-base font-black text-slate-900">
-            Edit Profile, What You Provide, Experience &amp; Qualifications
-          </h3>
+        <div className="flex items-center gap-3">
+          {form.photoUrl ? (
+            <img
+              src={form.photoUrl}
+              alt="Profile"
+              className="w-14 h-14 rounded-2xl object-cover border-2 border-[#234E40]"
+            />
+          ) : (
+            <div className="w-14 h-14 rounded-2xl bg-emerald-50 border flex items-center justify-center text-xl font-black text-[#234E40]">
+              {(form.name || 'U').charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div>
+            <span className="text-[10px] font-extrabold uppercase text-[#3B6E5B]">
+              {label || 'Profile'}
+            </span>
+            <h3 className="text-base font-black text-slate-900">
+              Edit Profile Photo, What You Provide, Experience &amp; Qualifications
+            </h3>
+          </div>
         </div>
         <button
           type="submit"
@@ -309,6 +340,40 @@ function UserAndOwnerProfileSection({ profileData, label, onSave, isSaving }) {
         >
           {isSaving ? 'Saving...' : 'Save Profile Changes'}
         </button>
+      </div>
+
+      {/* Profile Photo Upload & URL */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-xl border">
+        <div>
+          <label className="font-bold text-slate-700">Upload Profile Photo</label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handlePhotoFileChange}
+            className="w-full mt-1 p-2 border rounded-xl bg-white"
+          />
+        </div>
+        <div>
+          <label className="font-bold text-slate-700">Or Paste Profile Photo URL</label>
+          <div className="flex gap-2 mt-1">
+            <input
+              type="text"
+              value={form.photoUrl}
+              onChange={(e) => setForm({ ...form, photoUrl: e.target.value })}
+              placeholder="https://example.com/photo.jpg"
+              className="flex-1 p-2.5 border rounded-xl bg-white"
+            />
+            {form.photoUrl && (
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, photoUrl: '' })}
+                className="px-3 py-2 bg-red-100 text-red-700 rounded-xl font-bold"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Basic Profile Info */}
@@ -1132,10 +1197,22 @@ export default function GuideLinkRwandaApp() {
   const [currentRole, setCurrentRole] = useState('welcome');
   const [ownerTab, setOwnerTab] = useState('pending');
   const [showUserProfileEditor, setShowUserProfileEditor] = useState(false);
+  const [selectedInspectedUser, setSelectedInspectedUser] = useState(null);
   const [showOwnerPinModal, setShowOwnerPinModal] = useState(false);
   const [ownerPinInput, setOwnerPinInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [activePopupAd, setActivePopupAd] = useState(null);
+
+  const [newAdForm, setNewAdForm] = useState({
+    advertiserName: '',
+    advertiserContact: '',
+    headline: '',
+    description: '',
+    badge: 'Paid Partner',
+    ctaLabel: 'Learn More',
+    targetAudience: 'all',
+    active: true
+  });
 
   const [appConfig, setAppConfig] = useState(DEFAULT_APP_SERVER_CONFIG);
   const [subscriptionPlans, setSubscriptionPlans] = useState(DEFAULT_SUBSCRIPTION_PLANS);
@@ -1229,17 +1306,15 @@ export default function GuideLinkRwandaApp() {
     setIsSaving(false);
   };
 
-  // Save Owner Profile (what owner provides, experience, qualifications) onto appConfig without altering existing fields
   const handleSaveOwnerProfile = async (updatedOwnerProfile) => {
     const nextConfig = {
       ...appConfig,
       ownerProfile: updatedOwnerProfile
     };
     await saveAppServerConfig(nextConfig);
-    alert('✓ Owner profile, offerings, experience & qualifications saved!');
+    alert('✓ Owner profile, photo, offerings, experience & qualifications saved!');
   };
 
-  // Save Any User Profile (what user provides, experience, qualifications)
   const handleSaveUserProfile = async (updatedProfile) => {
     setIsSaving(true);
     if (currentUser?.id) {
@@ -1262,7 +1337,57 @@ export default function GuideLinkRwandaApp() {
       setCurrentUser(guestProfile);
     }
     setIsSaving(false);
-    alert('✓ Profile, offerings, experience & qualifications saved!');
+    alert('✓ Profile, photo, offerings, experience & qualifications saved!');
+  };
+
+  const handleCreatePaidAd = async (e) => {
+    e.preventDefault();
+    if (!newAdForm.headline.trim() || !newAdForm.advertiserName.trim()) {
+      alert('Please enter the Paid Company name and Ad Headline.');
+      return;
+    }
+    const createdAd = {
+      id: `ad-${Date.now()}`,
+      advertiserName: newAdForm.advertiserName.trim(),
+      advertiserContact: newAdForm.advertiserContact.trim(),
+      headline: newAdForm.headline.trim(),
+      description: newAdForm.description.trim(),
+      badge: newAdForm.badge.trim() || 'Paid Partner',
+      ctaLabel: newAdForm.ctaLabel.trim() || 'Learn More',
+      targetAudience: newAdForm.targetAudience || 'all',
+      active: Boolean(newAdForm.active),
+      createdAt: new Date().toISOString()
+    };
+
+    const nextConfig = {
+      ...appConfig,
+      ads: [createdAd, ...(appConfig.ads || [])]
+    };
+    await saveAppServerConfig(nextConfig);
+    setNewAdForm({
+      advertiserName: '',
+      advertiserContact: '',
+      headline: '',
+      description: '',
+      badge: 'Paid Partner',
+      ctaLabel: 'Learn More',
+      targetAudience: 'all',
+      active: true
+    });
+    alert('✓ Paid company advertisement saved!');
+  };
+
+  const handleToggleAdActive = async (adId) => {
+    const nextAds = (appConfig.ads || []).map((a) =>
+      a.id === adId ? { ...a, active: !a.active } : a
+    );
+    await saveAppServerConfig({ ...appConfig, ads: nextAds });
+  };
+
+  const handleDeleteAd = async (adId) => {
+    if (!window.confirm('Delete this advertisement?')) return;
+    const nextAds = (appConfig.ads || []).filter((a) => a.id !== adId);
+    await saveAppServerConfig({ ...appConfig, ads: nextAds });
   };
 
   const handleOwnerLogin = (e) => {
@@ -1316,6 +1441,7 @@ export default function GuideLinkRwandaApp() {
       role: selectedRoleForAuth,
       institution: authInstitutionInput.trim(),
       license: authLicenseInput.trim(),
+      photoUrl: '',
       servicesProvided: [],
       experiences: [],
       qualifications: [],
@@ -1354,7 +1480,7 @@ export default function GuideLinkRwandaApp() {
     await firestoreSaveDoc('subscribers', sub.id, updated);
   };
 
-  const handleSuspendSubscriber = async (sub) => {
+  const handleRevokeSubscriber = async (sub) => {
     const updated = { ...sub, status: 'suspended' };
     setSubscribers(subscribers.map((s) => (s.id === sub.id ? updated : s)));
     await firestoreSaveDoc('subscribers', sub.id, updated);
@@ -1363,6 +1489,9 @@ export default function GuideLinkRwandaApp() {
   const handleDeleteSubscriber = async (subId) => {
     if (!window.confirm('Permanently delete this user account from Firebase?')) return;
     setSubscribers(subscribers.filter((s) => s.id !== subId));
+    if (selectedInspectedUser?.id === subId) {
+      setSelectedInspectedUser(null);
+    }
     await firestoreDeleteDoc('subscribers', subId);
   };
 
@@ -1377,6 +1506,8 @@ export default function GuideLinkRwandaApp() {
   const visibleAnnouncements = (appConfig.announcements || []).filter(
     (ann) => ann.targetRole === 'all' || ann.targetRole === currentRole
   );
+
+  const pendingSignupsCount = subscribers.filter((s) => s.status === 'pending').length;
 
   if (appConfig.maintenanceMode && currentRole !== 'owner') {
     return (
@@ -1438,9 +1569,23 @@ export default function GuideLinkRwandaApp() {
             onClick={() => setCurrentRole('welcome')}
             className="cursor-pointer flex items-center space-x-3"
           >
-            <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 font-black flex items-center justify-center text-lg shadow">
-              GL
-            </div>
+            {currentRole === 'owner' && appConfig.ownerProfile?.photoUrl ? (
+              <img
+                src={appConfig.ownerProfile.photoUrl}
+                alt="Owner"
+                className="w-10 h-10 rounded-xl object-cover border-2 border-amber-400 shadow"
+              />
+            ) : currentUser?.photoUrl ? (
+              <img
+                src={currentUser.photoUrl}
+                alt="User"
+                className="w-10 h-10 rounded-xl object-cover border-2 border-amber-400 shadow"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 font-black flex items-center justify-center text-lg shadow">
+                GL
+              </div>
+            )}
             <div>
               <h1 className="font-extrabold text-base md:text-lg leading-tight">
                 {appConfig.appName}
@@ -1729,13 +1874,26 @@ export default function GuideLinkRwandaApp() {
         {['graduate', 'agency', 'tour_company', 'traveler'].includes(currentRole) && (
           <div className="space-y-6">
             <div className="bg-white p-5 rounded-2xl border shadow-sm flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <span className="text-[11px] font-bold uppercase text-[#3B6E5B]">
-                  {roleLabelMap[currentRole]}
-                </span>
-                <h2 className="text-xl font-black text-slate-900">
-                  Welcome, {currentUser?.name || 'Guest Traveler'}
-                </h2>
+              <div className="flex items-center gap-3">
+                {currentUser?.photoUrl ? (
+                  <img
+                    src={currentUser.photoUrl}
+                    alt={currentUser.name || 'User'}
+                    className="w-12 h-12 rounded-2xl object-cover border"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center font-black text-[#234E40] text-lg">
+                    {(currentUser?.name || 'G').charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div>
+                  <span className="text-[11px] font-bold uppercase text-[#3B6E5B]">
+                    {roleLabelMap[currentRole]}
+                  </span>
+                  <h2 className="text-xl font-black text-slate-900">
+                    Welcome, {currentUser?.name || 'Guest Traveler'}
+                  </h2>
+                </div>
               </div>
 
               <div className="flex items-center gap-2">
@@ -1775,19 +1933,48 @@ export default function GuideLinkRwandaApp() {
         {currentRole === 'owner' && (
           <div className="space-y-6">
             <div className="bg-slate-900 text-white p-6 rounded-3xl shadow-md flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <span className="text-[10px] font-extrabold uppercase bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full">
-                  C.E.O. Control Center
-                </span>
-                <h2 className="text-xl md:text-2xl font-black mt-1">
-                  RUTUNGURA Bonheur — Platform Owner Dashboard
-                </h2>
-                <p className="text-xs text-slate-300">
-                  Contact: +250780558555 • Email: rutungurab5@gmail.com • MoMo Code: {appConfig.momoCode}
-                </p>
+              <div className="flex items-center gap-4">
+                {appConfig.ownerProfile?.photoUrl ? (
+                  <img
+                    src={appConfig.ownerProfile.photoUrl}
+                    alt="Owner"
+                    className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-400"
+                  />
+                ) : (
+                  <div className="w-14 h-14 rounded-2xl bg-amber-400 text-slate-950 font-black flex items-center justify-center text-xl">
+                    RB
+                  </div>
+                )}
+                <div>
+                  <span className="text-[10px] font-extrabold uppercase bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full">
+                    C.E.O. Control Center
+                  </span>
+                  <h2 className="text-xl md:text-2xl font-black mt-1">
+                    {appConfig.ownerProfile?.name || 'RUTUNGURA Bonheur'} — Platform Owner Dashboard
+                  </h2>
+                  <p className="text-xs text-slate-300">
+                    Contact: {appConfig.ownerProfile?.contact || '+250780558555'} • Email:{' '}
+                    {appConfig.ownerProfile?.email || 'rutungurab5@gmail.com'} • MoMo Code:{' '}
+                    {appConfig.momoCode}
+                  </p>
+                </div>
               </div>
 
               <div className="flex flex-wrap gap-2 text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setOwnerTab('signups')}
+                  className={`px-4 py-2 rounded-xl flex items-center gap-1.5 ${
+                    ownerTab === 'signups'
+                      ? 'bg-amber-400 text-slate-950'
+                      : 'bg-white/10 text-white'
+                  }`}
+                >
+                  <span>📝 Signups</span>
+                  <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-black/25">
+                    {pendingSignupsCount}
+                  </span>
+                </button>
                 <button
                   type="button"
                   onClick={() => setOwnerTab('pending')}
@@ -1797,7 +1984,18 @@ export default function GuideLinkRwandaApp() {
                       : 'bg-white/10 text-white'
                   }`}
                 >
-                  Subscribers ({subscribers.length})
+                  👥 All Users ({subscribers.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOwnerTab('ads')}
+                  className={`px-4 py-2 rounded-xl ${
+                    ownerTab === 'ads'
+                      ? 'bg-amber-400 text-slate-950'
+                      : 'bg-white/10 text-white'
+                  }`}
+                >
+                  📢 Ads ({(appConfig.ads || []).length})
                 </button>
                 <button
                   type="button"
@@ -1808,7 +2006,7 @@ export default function GuideLinkRwandaApp() {
                       : 'bg-white/10 text-white'
                   }`}
                 >
-                  Owner Profile &amp; CV
+                  🪪 Owner Profile &amp; CV
                 </button>
                 <button
                   type="button"
@@ -1819,16 +2017,115 @@ export default function GuideLinkRwandaApp() {
                       : 'bg-white/10 text-white'
                   }`}
                 >
-                  App Server Settings
+                  ⚙️ Server Settings
                 </button>
               </div>
             </div>
 
+            {/* SIGNUPS TAB: VIEW ALL NEW SIGNUPS & APPROVE (ACCESS) / REVOKE / DELETE */}
+            {ownerTab === 'signups' && (
+              <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-4 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
+                  <div>
+                    <h3 className="font-bold text-base text-slate-900">
+                      📝 New Signups &amp; Access Control
+                    </h3>
+                    <p className="text-slate-500">
+                      Review new registrations and grant access, revoke access, or delete accounts.
+                    </p>
+                  </div>
+                  <span className="px-3 py-1 bg-amber-100 text-amber-900 rounded-full font-bold">
+                    Pending Signups: {pendingSignupsCount}
+                  </span>
+                </div>
+
+                {subscribers.length === 0 ? (
+                  <p className="text-slate-500">No signups recorded yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {subscribers.map((sub) => (
+                      <div
+                        key={sub.id}
+                        className="p-4 rounded-2xl border bg-slate-50 flex flex-wrap items-center justify-between gap-3"
+                      >
+                        <div className="flex items-center gap-3">
+                          {sub.photoUrl ? (
+                            <img
+                              src={sub.photoUrl}
+                              alt={sub.name}
+                              className="w-11 h-11 rounded-xl object-cover border"
+                            />
+                          ) : (
+                            <div className="w-11 h-11 rounded-xl bg-emerald-100 text-[#234E40] font-black flex items-center justify-center text-sm">
+                              {(sub.name || 'U').charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-extrabold text-sm text-slate-900">{sub.name}</p>
+                              <span
+                                className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
+                                  sub.status === 'approved'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : sub.status === 'suspended'
+                                    ? 'bg-red-100 text-red-800'
+                                    : 'bg-amber-100 text-amber-800'
+                                }`}
+                              >
+                                {sub.status || 'pending'}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-600">
+                              Role: <strong>{roleLabelMap[sub.role] || sub.role}</strong> • Contact:{' '}
+                              <strong>{sub.contact}</strong> • Plan:{' '}
+                              <strong>{sub.planName || 'Starter'}</strong>
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleApproveSubscriber(sub)}
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold"
+                          >
+                            ✓ Grant Access
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRevokeSubscriber(sub)}
+                            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold"
+                          >
+                            ⛔ Revoke Access
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSubscriber(sub.id)}
+                            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold"
+                          >
+                            🗑 Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ALL USERS TAB: FULL OWNER ACCESS TO INSPECT & MANAGE ANY USER */}
             {ownerTab === 'pending' && (
               <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-4 text-xs">
-                <h3 className="font-bold text-base text-slate-900">
-                  Registered Subscribers &amp; Payment Approvals
-                </h3>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="font-bold text-base text-slate-900">
+                      All Registered Users — Full Owner Access
+                    </h3>
+                    <p className="text-slate-500">
+                      Click &quot;Inspect User&quot; to view or manage any user&apos;s full profile, services, experience &amp; qualifications.
+                    </p>
+                  </div>
+                </div>
 
                 {subscribers.length === 0 ? (
                   <p className="text-slate-500">No subscribers registered yet.</p>
@@ -1837,7 +2134,7 @@ export default function GuideLinkRwandaApp() {
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="border-b text-slate-500 uppercase text-[10px]">
-                          <th className="py-2.5">Name / Entity</th>
+                          <th className="py-2.5">User</th>
                           <th className="py-2.5">Role</th>
                           <th className="py-2.5">Contact</th>
                           <th className="py-2.5">Plan</th>
@@ -1848,7 +2145,18 @@ export default function GuideLinkRwandaApp() {
                       <tbody className="divide-y">
                         {subscribers.map((sub) => (
                           <tr key={sub.id}>
-                            <td className="py-3 font-bold text-slate-900">{sub.name}</td>
+                            <td className="py-3 font-bold text-slate-900">
+                              <div className="flex items-center gap-2">
+                                {sub.photoUrl && (
+                                  <img
+                                    src={sub.photoUrl}
+                                    alt={sub.name}
+                                    className="w-8 h-8 rounded-lg object-cover border"
+                                  />
+                                )}
+                                <span>{sub.name}</span>
+                              </div>
+                            </td>
                             <td className="py-3">{sub.role}</td>
                             <td className="py-3">{sub.contact}</td>
                             <td className="py-3">
@@ -1870,17 +2178,24 @@ export default function GuideLinkRwandaApp() {
                             <td className="py-3 text-right space-x-1.5">
                               <button
                                 type="button"
-                                onClick={() => handleApproveSubscriber(sub)}
-                                className="px-2.5 py-1 bg-emerald-600 text-white rounded-lg font-bold"
+                                onClick={() => setSelectedInspectedUser(sub)}
+                                className="px-2.5 py-1 bg-slate-800 text-white rounded-lg font-bold"
                               >
-                                Approve
+                                Inspect User
                               </button>
                               <button
                                 type="button"
-                                onClick={() => handleSuspendSubscriber(sub)}
+                                onClick={() => handleApproveSubscriber(sub)}
+                                className="px-2.5 py-1 bg-emerald-600 text-white rounded-lg font-bold"
+                              >
+                                Access
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRevokeSubscriber(sub)}
                                 className="px-2.5 py-1 bg-amber-500 text-white rounded-lg font-bold"
                               >
-                                Suspend
+                                Revoke
                               </button>
                               <button
                                 type="button"
@@ -1896,6 +2211,286 @@ export default function GuideLinkRwandaApp() {
                     </table>
                   </div>
                 )}
+
+                {selectedInspectedUser && (
+                  <div className="p-5 rounded-2xl border-2 border-[#234E40] bg-emerald-50/40 space-y-3">
+                    <div className="flex items-center justify-between border-b pb-2">
+                      <div className="flex items-center gap-3">
+                        {selectedInspectedUser.photoUrl && (
+                          <img
+                            src={selectedInspectedUser.photoUrl}
+                            alt={selectedInspectedUser.name}
+                            className="w-12 h-12 rounded-xl object-cover border"
+                          />
+                        )}
+                        <div>
+                          <h4 className="font-extrabold text-sm text-slate-900">
+                            {selectedInspectedUser.name} ({selectedInspectedUser.role})
+                          </h4>
+                          <p className="text-[11px] text-slate-600">
+                            Contact: {selectedInspectedUser.contact} • Email:{' '}
+                            {selectedInspectedUser.email || 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedInspectedUser(null)}
+                        className="px-3 py-1 bg-slate-200 rounded-lg font-bold"
+                      >
+                        Close
+                      </button>
+                    </div>
+
+                    {selectedInspectedUser.bio && (
+                      <p className="text-slate-700">{selectedInspectedUser.bio}</p>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="bg-white p-3 rounded-xl border">
+                        <p className="font-bold text-[#234E40] mb-1">Services Provided</p>
+                        {(selectedInspectedUser.servicesProvided || []).length === 0 ? (
+                          <p className="text-slate-400 italic">None listed</p>
+                        ) : (
+                          <ul className="space-y-1">
+                            {(selectedInspectedUser.servicesProvided || []).map((s, i) => (
+                              <li key={i}>• {s}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+
+                      <div className="bg-white p-3 rounded-xl border">
+                        <p className="font-bold text-[#234E40] mb-1">Experience</p>
+                        {(selectedInspectedUser.experiences || []).length === 0 ? (
+                          <p className="text-slate-400 italic">None listed</p>
+                        ) : (
+                          <ul className="space-y-1">
+                            {(selectedInspectedUser.experiences || []).map((exp, i) => (
+                              <li key={exp.id || i}>
+                                <strong>{exp.role}</strong>
+                                {exp.organization ? ` @ ${exp.organization}` : ''}
+                                {exp.duration ? ` (${exp.duration})` : ''}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+
+                      <div className="bg-white p-3 rounded-xl border">
+                        <p className="font-bold text-[#234E40] mb-1">Qualifications</p>
+                        {(selectedInspectedUser.qualifications || []).length === 0 ? (
+                          <p className="text-slate-400 italic">None listed</p>
+                        ) : (
+                          <ul className="space-y-1">
+                            {(selectedInspectedUser.qualifications || []).map((q, i) => (
+                              <li key={q.id || i}>
+                                🎓 <strong>{q.title}</strong>
+                                {q.institution ? ` — ${q.institution}` : ''}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ADS TAB: SET ADVERTISING FOR PAID COMPANIES */}
+            {ownerTab === 'ads' && (
+              <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-6 text-xs">
+                <div>
+                  <h3 className="font-bold text-base text-slate-900">
+                    📢 Set Advertising for Paid Companies
+                  </h3>
+                  <p className="text-slate-500">
+                    Create and toggle pop-up advertisements for paid partner companies.
+                  </p>
+                </div>
+
+                <form
+                  onSubmit={handleCreatePaidAd}
+                  className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-2xl border"
+                >
+                  <div>
+                    <label className="font-bold text-slate-700">Paid Company Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={newAdForm.advertiserName}
+                      onChange={(e) =>
+                        setNewAdForm({ ...newAdForm, advertiserName: e.target.value })
+                      }
+                      placeholder="e.g. Echo Travels Ltd"
+                      className="w-full mt-1 p-2.5 border rounded-xl bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-700">Company Contact</label>
+                    <input
+                      type="text"
+                      value={newAdForm.advertiserContact}
+                      onChange={(e) =>
+                        setNewAdForm({ ...newAdForm, advertiserContact: e.target.value })
+                      }
+                      placeholder="+250780558555"
+                      className="w-full mt-1 p-2.5 border rounded-xl bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-700">Target Audience</label>
+                    <select
+                      value={newAdForm.targetAudience}
+                      onChange={(e) =>
+                        setNewAdForm({ ...newAdForm, targetAudience: e.target.value })
+                      }
+                      className="w-full mt-1 p-2.5 border rounded-xl bg-white"
+                    >
+                      <option value="all">All Users &amp; Visitors</option>
+                      <option value="traveler">Travelers</option>
+                      <option value="graduate">Tourism Graduates / Guides</option>
+                      <option value="agency">Travel Agencies</option>
+                      <option value="tour_company">Tour Companies</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-slate-700">Ad Headline *</label>
+                    <input
+                      type="text"
+                      required
+                      value={newAdForm.headline}
+                      onChange={(e) =>
+                        setNewAdForm({ ...newAdForm, headline: e.target.value })
+                      }
+                      placeholder="e.g. Discounted Volcanoes & Kivu Packages"
+                      className="w-full mt-1 p-2.5 border rounded-xl bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-slate-700">Badge Label</label>
+                    <input
+                      type="text"
+                      value={newAdForm.badge}
+                      onChange={(e) =>
+                        setNewAdForm({ ...newAdForm, badge: e.target.value })
+                      }
+                      placeholder="Paid Partner"
+                      className="w-full mt-1 p-2.5 border rounded-xl bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-slate-700">Button / CTA Label</label>
+                    <input
+                      type="text"
+                      value={newAdForm.ctaLabel}
+                      onChange={(e) =>
+                        setNewAdForm({ ...newAdForm, ctaLabel: e.target.value })
+                      }
+                      placeholder="Book Now"
+                      className="w-full mt-1 p-2.5 border rounded-xl bg-white"
+                    />
+                  </div>
+
+                  <div className="md:col-span-3">
+                    <label className="font-bold text-slate-700">Ad Description</label>
+                    <input
+                      type="text"
+                      value={newAdForm.description}
+                      onChange={(e) =>
+                        setNewAdForm({ ...newAdForm, description: e.target.value })
+                      }
+                      placeholder="Describe the company's offer or promotion..."
+                      className="w-full mt-1 p-2.5 border rounded-xl bg-white"
+                    />
+                  </div>
+
+                  <div className="md:col-span-3 flex items-center justify-between pt-1">
+                    <label className="inline-flex items-center gap-2 font-bold text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={newAdForm.active}
+                        onChange={(e) =>
+                          setNewAdForm({ ...newAdForm, active: e.target.checked })
+                        }
+                      />
+                      <span>Active (Show in pop-up rotation)</span>
+                    </label>
+                    <button
+                      type="submit"
+                      disabled={isSaving}
+                      className="px-5 py-2.5 bg-[#234E40] hover:bg-slate-900 text-white font-bold rounded-xl shadow"
+                    >
+                      {isSaving ? 'Saving...' : '+ Publish Paid Company Ad'}
+                    </button>
+                  </div>
+                </form>
+
+                <div className="space-y-2.5">
+                  <h4 className="font-bold text-sm text-slate-800">
+                    Configured Company Ads ({(appConfig.ads || []).length})
+                  </h4>
+                  {(appConfig.ads || []).length === 0 ? (
+                    <p className="text-slate-400 italic">No ads created yet.</p>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {(appConfig.ads || []).map((ad) => (
+                        <div
+                          key={ad.id}
+                          className="p-4 rounded-2xl border bg-slate-50 flex flex-col justify-between gap-2"
+                        >
+                          <div>
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[10px] font-extrabold uppercase bg-amber-300 text-slate-950 px-2 py-0.5 rounded-full">
+                                {ad.badge || 'Paid Partner'}
+                              </span>
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                  ad.active
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : 'bg-slate-200 text-slate-600'
+                                }`}
+                              >
+                                {ad.active ? '● Active' : '○ Paused'}
+                              </span>
+                            </div>
+                            <h5 className="font-extrabold text-sm text-slate-900 mt-1.5">
+                              {ad.headline}
+                            </h5>
+                            <p className="text-[11px] text-slate-600">
+                              Company: <strong>{ad.advertiserName}</strong> • Audience:{' '}
+                              {ad.targetAudience}
+                            </p>
+                            {ad.description && (
+                              <p className="text-slate-600 mt-1">{ad.description}</p>
+                            )}
+                          </div>
+
+                          <div className="flex justify-end gap-2 pt-2 border-t">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleAdActive(ad.id)}
+                              className="px-3 py-1 bg-slate-800 text-white rounded-lg font-bold"
+                            >
+                              {ad.active ? 'Pause' : 'Activate'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteAd(ad.id)}
+                              className="px-3 py-1 bg-red-600 text-white rounded-lg font-bold"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
