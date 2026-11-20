@@ -242,6 +242,7 @@ const DEFAULT_APP_SERVER_CONFIG = {
     'Connecting Tourism Graduates, Travel Agencies, Tour Companies, Car Rentals Companies, and Travelers across Rwanda.',
   footerLocation: 'Kigali, Rwanda',
   momoCode: '612771',
+  ownerPassword: 'FYP$2026',
   primaryColor: '#234E40',
   secondaryColor: '#3B6E5B',
   travelerFreeBadge: 'Travelers: FREE',
@@ -1091,7 +1092,9 @@ function TravelerAvailabilityAndPackages({
   currentUser,
   travelerPI,
   onRequirePI,
-  onBookPackageOrProvider
+  onBookPackageOrProvider,
+  externalBookingItem,
+  onClearExternalBookingItem
 }) {
   const [roleFilter, setRoleFilter] = useState('all');
   const [selectedBookingItem, setSelectedBookingItem] = useState(null);
@@ -1110,6 +1113,21 @@ function TravelerAvailabilityAndPackages({
       travelerPhone: travelerPI?.phone || prev.travelerPhone || currentUser?.contact || ''
     }));
   }, [travelerPI, currentUser]);
+
+  useEffect(() => {
+    if (externalBookingItem) {
+      setBookingForm((prev) => ({
+        ...prev,
+        travelerName: travelerPI?.fullName || prev.travelerName || currentUser?.name || '',
+        travelerPhone: travelerPI?.phone || prev.travelerPhone || currentUser?.contact || '',
+        notes: externalBookingItem.notes || prev.notes
+      }));
+      setSelectedBookingItem(externalBookingItem);
+      if (onClearExternalBookingItem) {
+        onClearExternalBookingItem();
+      }
+    }
+  }, [externalBookingItem]);
 
   const providers = subscribers.filter((s) =>
     ['graduate', 'agency', 'tour_company', 'car_rental'].includes((s.role || '').toLowerCase())
@@ -1139,7 +1157,7 @@ function TravelerAvailabilityAndPackages({
   const openBookingModal = (item, type) => {
     if (!travelerPI?.fullName || !travelerPI?.phone) {
       if (onRequirePI) {
-        onRequirePI();
+        onRequirePI(item, type);
       } else {
         alert('Please submit your Personal Information (PI) before requesting a booking.');
       }
@@ -1330,7 +1348,7 @@ function TravelerAvailabilityAndPackages({
         )}
       </div>
 
-      {/* BOOKING MODAL FOR TRAVELERS */}
+      {/* BOOKING MODAL FOR TRAVELERS / ADS */}
       {selectedBookingItem && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <form
@@ -1339,19 +1357,23 @@ function TravelerAvailabilityAndPackages({
           >
             <div className="border-b pb-2">
               <span className="text-[10px] font-extrabold uppercase text-[#3B6E5B]">
-                Direct Traveler Booking
+                Direct Booking Form
               </span>
               <h3 className="text-base font-black text-slate-900">
-                {selectedBookingItem.bookingType === 'package'
+                {selectedBookingItem.bookingType === 'ad'
+                  ? `Book Ad Offer: ${selectedBookingItem.headline || selectedBookingItem.name}`
+                  : selectedBookingItem.bookingType === 'package'
                   ? `Book Offer: ${selectedBookingItem.title}`
                   : `Book Provider: ${selectedBookingItem.name}`}
               </h3>
             </div>
 
-            <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200 text-[11px] text-slate-700">
-              <strong>Your PI on file:</strong> {travelerPI?.fullName} • {travelerPI?.phone} •{' '}
-              {travelerPI?.nationality || 'Rwanda'}
-            </div>
+            {travelerPI?.fullName && (
+              <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200 text-[11px] text-slate-700">
+                <strong>Your PI on file:</strong> {travelerPI.fullName} • {travelerPI.phone} •{' '}
+                {travelerPI.nationality || 'Rwanda'}
+              </div>
+            )}
 
             <div>
               <label className="font-bold text-slate-700">Your Name *</label>
@@ -2387,9 +2409,12 @@ export default function GuideLinkRwandaApp() {
 
   const [currentRole, setCurrentRole] = useState('welcome');
   const [ownerTab, setOwnerTab] = useState('pending');
+  const [allRolesFilter, setAllRolesFilter] = useState('all');
   const [showUserProfileEditor, setShowUserProfileEditor] = useState(false);
   const [showChangePasswordBox, setShowChangePasswordBox] = useState(false);
   const [showPiFormModal, setShowPiFormModal] = useState(false);
+  const [pendingPiAction, setPendingPiAction] = useState(null);
+  const [externalBookingItem, setExternalBookingItem] = useState(null);
   const [travelerPI, setTravelerPI] = useState(null);
   const [travelersDirectory, setTravelersDirectory] = useState([]);
   const [externalChatTarget, setExternalChatTarget] = useState(null);
@@ -2397,6 +2422,11 @@ export default function GuideLinkRwandaApp() {
   const [currentPasswordInput, setCurrentPasswordInput] = useState('');
   const [newPasswordInput, setNewPasswordInput] = useState('');
   const [confirmNewPasswordInput, setConfirmNewPasswordInput] = useState('');
+
+  const [ownerCurrentPassInput, setOwnerCurrentPassInput] = useState('');
+  const [ownerNewPassInput, setOwnerNewPassInput] = useState('');
+  const [ownerConfirmPassInput, setOwnerConfirmPassInput] = useState('');
+
   const [selectedInspectedUser, setSelectedInspectedUser] = useState(null);
   const [showOwnerPinModal, setShowOwnerPinModal] = useState(false);
   const [ownerPinInput, setOwnerPinInput] = useState('');
@@ -2404,13 +2434,16 @@ export default function GuideLinkRwandaApp() {
   const [activePopupAd, setActivePopupAd] = useState(null);
   const [publishedPackages, setPublishedPackages] = useState([]);
 
+  const [nowClock, setNowClock] = useState(() => new Date());
+  const [lastAutoUpdateAt, setLastAutoUpdateAt] = useState(() => new Date());
+
   const [newAdForm, setNewAdForm] = useState({
     advertiserName: '',
     advertiserContact: '',
     headline: '',
     description: '',
     badge: 'Paid Partner',
-    ctaLabel: 'Learn More',
+    ctaLabel: 'Book Now',
     targetAudience: 'all',
     active: true
   });
@@ -2440,44 +2473,52 @@ export default function GuideLinkRwandaApp() {
   };
 
   useEffect(() => {
-    const syncFromFirebase = async () => {
-      const [fbConfigs, fbPlans, fbSubs, fbPkgs, fbTravelers] = await Promise.all([
-        firestoreGetCollection('appConfig'),
-        firestoreGetCollection('subscriptionPlans'),
-        firestoreGetCollection('subscribers'),
-        firestoreGetCollection('publishedPackages'),
-        firestoreGetCollection('travelersPI')
-      ]);
+    const clockTimer = setInterval(() => {
+      setNowClock(new Date());
+    }, 1000);
+    return () => clearInterval(clockTimer);
+  }, []);
 
-      if (fbConfigs.length > 0) {
-        const mainCfg = fbConfigs.find((c) => c.id === 'main') || fbConfigs[0];
-        setAppConfig((prev) => ({ ...prev, ...mainCfg }));
-      }
+  const syncFromFirebase = async () => {
+    const [fbConfigs, fbPlans, fbSubs, fbPkgs, fbTravelers] = await Promise.all([
+      firestoreGetCollection('appConfig'),
+      firestoreGetCollection('subscriptionPlans'),
+      firestoreGetCollection('subscribers'),
+      firestoreGetCollection('publishedPackages'),
+      firestoreGetCollection('travelersPI')
+    ]);
 
-      if (fbPlans.length > 0) {
-        const sortedPlans = [...fbPlans].sort((a, b) => (a.order || 99) - (b.order || 99));
-        setSubscriptionPlans(sortedPlans);
-      }
+    if (fbConfigs.length > 0) {
+      const mainCfg = fbConfigs.find((c) => c.id === 'main') || fbConfigs[0];
+      setAppConfig((prev) => ({ ...prev, ...mainCfg }));
+    }
 
-      if (fbSubs.length > 0) setSubscribers(fbSubs);
-      if (fbPkgs.length > 0) {
-        setPublishedPackages(
-          [...fbPkgs].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
-        );
-      }
-      if (fbTravelers.length > 0) {
-        setTravelersDirectory(
-          [...fbTravelers].sort(
-            (a, b) =>
-              new Date(b.submittedAt || 0).getTime() -
-              new Date(a.submittedAt || 0).getTime()
-          )
-        );
-      }
-    };
+    if (fbPlans.length > 0) {
+      const sortedPlans = [...fbPlans].sort((a, b) => (a.order || 99) - (b.order || 99));
+      setSubscriptionPlans(sortedPlans);
+    }
 
+    if (fbSubs.length > 0) setSubscribers(fbSubs);
+    if (fbPkgs.length > 0) {
+      setPublishedPackages(
+        [...fbPkgs].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+      );
+    }
+    if (fbTravelers.length > 0) {
+      setTravelersDirectory(
+        [...fbTravelers].sort(
+          (a, b) =>
+            new Date(b.submittedAt || 0).getTime() -
+            new Date(a.submittedAt || 0).getTime()
+        )
+      );
+    }
+    setLastAutoUpdateAt(new Date());
+  };
+
+  useEffect(() => {
     syncFromFirebase();
-    const interval = setInterval(syncFromFirebase, 45000);
+    const interval = setInterval(syncFromFirebase, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -2531,7 +2572,39 @@ export default function GuideLinkRwandaApp() {
     });
     setShowPiFormModal(false);
     await firestoreSaveDoc('travelersPI', cleanId, record);
-    alert('✓ Your Personal Information (PI) is saved! You can now set or request bookings.');
+
+    if (pendingPiAction?.item) {
+      setExternalBookingItem({
+        ...pendingPiAction.item,
+        bookingType: pendingPiAction.type || 'ad'
+      });
+      setPendingPiAction(null);
+    } else {
+      alert('✓ Your Personal Information (PI) is saved! You can now set or request bookings.');
+    }
+  };
+
+  const handleBookFromAd = (ad) => {
+    setActivePopupAd(null);
+    const adBookingTarget = {
+      id: ad.id,
+      name: ad.advertiserName || ad.headline,
+      headline: ad.headline,
+      destination: 'Multi-Destination Rwanda',
+      priceLabel: ad.badge || 'Partner Offer',
+      notes: `Ad Booking: ${ad.advertiserName} — ${ad.headline}${
+        ad.description ? ` (${ad.description})` : ''
+      }`,
+      bookingType: 'ad'
+    };
+
+    if (!travelerPI?.fullName || !travelerPI?.phone) {
+      setPendingPiAction({ item: adBookingTarget, type: 'ad' });
+      setShowPiFormModal(true);
+      return;
+    }
+
+    setExternalBookingItem(adBookingTarget);
   };
 
   const handleStartPrivateChatWithTraveler = (trv) => {
@@ -2548,6 +2621,7 @@ export default function GuideLinkRwandaApp() {
     setIsSaving(true);
     setAppConfig(updatedConfig);
     await firestoreSaveDoc('appConfig', 'main', updatedConfig);
+    setLastAutoUpdateAt(new Date());
     setIsSaving(false);
   };
 
@@ -2558,6 +2632,33 @@ export default function GuideLinkRwandaApp() {
     };
     await saveAppServerConfig(nextConfig);
     alert('✓ Owner profile, photo, offerings, experience & qualifications saved!');
+  };
+
+  const handleChangeOwnerPassword = async (e) => {
+    e.preventDefault();
+    const currentStoredOwnerPass = appConfig.ownerPassword || 'FYP$2026';
+    if (ownerCurrentPassInput !== currentStoredOwnerPass) {
+      alert('Current Owner password is incorrect.');
+      return;
+    }
+    if (!ownerNewPassInput.trim() || ownerNewPassInput.trim().length < 4) {
+      alert('New Owner password must be at least 4 characters.');
+      return;
+    }
+    if (ownerNewPassInput !== ownerConfirmPassInput) {
+      alert('New Owner password and confirmation do not match.');
+      return;
+    }
+
+    const nextConfig = {
+      ...appConfig,
+      ownerPassword: ownerNewPassInput.trim()
+    };
+    await saveAppServerConfig(nextConfig);
+    setOwnerCurrentPassInput('');
+    setOwnerNewPassInput('');
+    setOwnerConfirmPassInput('');
+    alert('✓ Owner password updated successfully!');
   };
 
   const handleSaveUserProfile = async (updatedProfile) => {
@@ -2581,8 +2682,29 @@ export default function GuideLinkRwandaApp() {
       };
       setCurrentUser(guestProfile);
     }
+    setLastAutoUpdateAt(new Date());
     setIsSaving(false);
     alert('✓ Profile, photo, availability, packages, experience & qualifications saved!');
+  };
+
+  const handleOwnerUpdateUserRole = async (userId, nextRole) => {
+    const target = subscribers.find((s) => s.id === userId);
+    if (!target) return;
+    const updated = {
+      ...target,
+      role: nextRole,
+      updatedAt: new Date().toISOString()
+    };
+    setSubscribers((prev) => prev.map((s) => (s.id === userId ? updated : s)));
+    if (selectedInspectedUser?.id === userId) {
+      setSelectedInspectedUser(updated);
+    }
+    if (currentUser?.id === userId) {
+      setCurrentUser(updated);
+    }
+    await firestoreSaveDoc('subscribers', userId, updated);
+    setLastAutoUpdateAt(new Date());
+    alert(`✓ Updated ${target.name}'s role to ${nextRole}.`);
   };
 
   const handleChangePassword = async (e) => {
@@ -2640,14 +2762,21 @@ export default function GuideLinkRwandaApp() {
     }
 
     const isPkg = item.bookingType === 'package';
+    const isAd = item.bookingType === 'ad';
     const bookingId = `bk-${Date.now()}`;
-    const targetName = isPkg ? item.providerName || item.title : item.name;
+    const targetName = isPkg
+      ? item.providerName || item.title
+      : isAd
+      ? item.headline || item.name
+      : item.name;
     const targetContact = isPkg ? item.providerContact || '' : item.contact || '';
 
     const bookingDoc = {
       id: bookingId,
       title: isPkg
         ? `Offer Booking: ${item.title} (${targetName})`
+        : isAd
+        ? `Ad Booking: ${targetName}`
         : `Direct Booking Request: ${targetName}`,
       destination: item.destination || 'Multi-Destination Rwanda',
       startDate: bookingForm.travelDate || 'Flexible Date',
@@ -2693,7 +2822,7 @@ export default function GuideLinkRwandaApp() {
       headline: newAdForm.headline.trim(),
       description: newAdForm.description.trim(),
       badge: newAdForm.badge.trim() || 'Paid Partner',
-      ctaLabel: newAdForm.ctaLabel.trim() || 'Learn More',
+      ctaLabel: newAdForm.ctaLabel.trim() || 'Book Now',
       targetAudience: newAdForm.targetAudience || 'all',
       active: Boolean(newAdForm.active),
       createdAt: new Date().toISOString()
@@ -2710,7 +2839,7 @@ export default function GuideLinkRwandaApp() {
       headline: '',
       description: '',
       badge: 'Paid Partner',
-      ctaLabel: 'Learn More',
+      ctaLabel: 'Book Now',
       targetAudience: 'all',
       active: true
     });
@@ -2732,9 +2861,11 @@ export default function GuideLinkRwandaApp() {
 
   const handleOwnerLogin = (e) => {
     e.preventDefault();
-    if (ownerPinInput === 'FYP$2026') {
+    const validOwnerPass = appConfig.ownerPassword || 'FYP$2026';
+    if (ownerPinInput === validOwnerPass) {
       setShowOwnerPinModal(false);
       setOwnerPinInput('');
+      setLastAutoUpdateAt(new Date());
       setCurrentRole('owner');
     } else {
       alert('Invalid Owner password.');
@@ -2767,6 +2898,7 @@ export default function GuideLinkRwandaApp() {
       setCurrentUser(existing);
       setIsSubscribed(checkSubscriptionActive(existing));
       setCurrentRole(existing.role);
+      setLastAutoUpdateAt(new Date());
       setAuthPasswordInput('');
       return;
     }
@@ -2810,6 +2942,7 @@ export default function GuideLinkRwandaApp() {
     setIsSaving(true);
     setSubscribers([newSub, ...subscribers]);
     await firestoreSaveDoc('subscribers', newSub.id, newSub);
+    setLastAutoUpdateAt(new Date());
     setIsSaving(false);
 
     setCurrentUser(newSub);
@@ -2832,12 +2965,14 @@ export default function GuideLinkRwandaApp() {
     };
     setSubscribers(subscribers.map((s) => (s.id === sub.id ? updated : s)));
     await firestoreSaveDoc('subscribers', sub.id, updated);
+    setLastAutoUpdateAt(new Date());
   };
 
   const handleRevokeSubscriber = async (sub) => {
     const updated = { ...sub, status: 'suspended' };
     setSubscribers(subscribers.map((s) => (s.id === sub.id ? updated : s)));
     await firestoreSaveDoc('subscribers', sub.id, updated);
+    setLastAutoUpdateAt(new Date());
   };
 
   const handleDeleteSubscriber = async (subId) => {
@@ -2847,6 +2982,7 @@ export default function GuideLinkRwandaApp() {
       setSelectedInspectedUser(null);
     }
     await firestoreDeleteDoc('subscribers', subId);
+    setLastAutoUpdateAt(new Date());
   };
 
   const roleLabelMap = {
@@ -2858,11 +2994,17 @@ export default function GuideLinkRwandaApp() {
     owner: 'Platform Owner (C.E.O.)'
   };
 
+  const isLoggedInSession = Boolean(currentUser) || currentRole === 'owner';
+
   const visibleAnnouncements = (appConfig.announcements || []).filter(
     (ann) => ann.targetRole === 'all' || ann.targetRole === currentRole
   );
 
   const pendingSignupsCount = subscribers.filter((s) => s.status === 'pending').length;
+
+  const filteredRoleUsers = subscribers.filter((u) =>
+    allRolesFilter === 'all' ? true : u.role === allRolesFilter
+  );
 
   if (appConfig.maintenanceMode && currentRole !== 'owner') {
     return (
@@ -3009,6 +3151,32 @@ export default function GuideLinkRwandaApp() {
         </div>
       </header>
 
+      {/* AUTOMATIC LIVE DATE & TIME BAR (APPEARS ONCE LOGGED IN) */}
+      {isLoggedInSession && (
+        <div className="bg-slate-900 text-emerald-100 border-b border-emerald-800 px-4 md:px-8 py-2 text-[11px]">
+          <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 font-semibold">
+              <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>
+                🕒 Live Date &amp; Time:{' '}
+                <strong className="text-white">
+                  {nowClock.toLocaleDateString(undefined, {
+                    weekday: 'short',
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                  })}{' '}
+                  • {nowClock.toLocaleTimeString()}
+                </strong>
+              </span>
+            </div>
+            <span className="text-emerald-300">
+              🔄 Auto-sync active • Last updated: {lastAutoUpdateAt.toLocaleTimeString()}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* LIVE ANNOUNCEMENTS BANNER */}
       {visibleAnnouncements.length > 0 && (
         <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 text-xs text-amber-950">
@@ -3118,8 +3286,13 @@ export default function GuideLinkRwandaApp() {
               publishedPackages={publishedPackages}
               currentUser={currentUser}
               travelerPI={travelerPI}
-              onRequirePI={() => setShowPiFormModal(true)}
+              onRequirePI={(item, type) => {
+                if (item) setPendingPiAction({ item, type });
+                setShowPiFormModal(true);
+              }}
               onBookPackageOrProvider={handleBookPackageOrProvider}
+              externalBookingItem={externalBookingItem}
+              onClearExternalBookingItem={() => setExternalBookingItem(null)}
             />
 
             <BookingMarketplace
@@ -3475,8 +3648,13 @@ export default function GuideLinkRwandaApp() {
                 publishedPackages={publishedPackages}
                 currentUser={currentUser}
                 travelerPI={travelerPI}
-                onRequirePI={() => setShowPiFormModal(true)}
+                onRequirePI={(item, type) => {
+                  if (item) setPendingPiAction({ item, type });
+                  setShowPiFormModal(true);
+                }}
                 onBookPackageOrProvider={handleBookPackageOrProvider}
+                externalBookingItem={externalBookingItem}
+                onClearExternalBookingItem={() => setExternalBookingItem(null)}
               />
             )}
 
@@ -3541,6 +3719,17 @@ export default function GuideLinkRwandaApp() {
                 </button>
                 <button
                   type="button"
+                  onClick={() => setOwnerTab('all_roles')}
+                  className={`px-4 py-2 rounded-xl ${
+                    ownerTab === 'all_roles'
+                      ? 'bg-amber-400 text-slate-950'
+                      : 'bg-white/10 text-white'
+                  }`}
+                >
+                  🎭 All Roles ({subscribers.length})
+                </button>
+                <button
+                  type="button"
                   onClick={() => setOwnerTab('pending')}
                   className={`px-4 py-2 rounded-xl ${
                     ownerTab === 'pending'
@@ -3548,7 +3737,7 @@ export default function GuideLinkRwandaApp() {
                       : 'bg-white/10 text-white'
                   }`}
                 >
-                  👥 All Users ({subscribers.length})
+                  👥 Users ({subscribers.length})
                 </button>
                 <button
                   type="button"
@@ -3581,7 +3770,7 @@ export default function GuideLinkRwandaApp() {
                       : 'bg-white/10 text-white'
                   }`}
                 >
-                  ⚙️ Server Settings
+                  ⚙️ Server &amp; Password
                 </button>
               </div>
             </div>
@@ -3676,6 +3865,92 @@ export default function GuideLinkRwandaApp() {
               </div>
             )}
 
+            {/* ALL ROLES MANAGEMENT TAB WITH DIRECT ROLE EDITING */}
+            {ownerTab === 'all_roles' && (
+              <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-4 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
+                  <div>
+                    <h3 className="font-bold text-base text-slate-900">
+                      🎭 All Roles Management &amp; Role Editor
+                    </h3>
+                    <p className="text-slate-500">
+                      Filter across every platform role and edit any user&apos;s role or profile immediately.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5 font-bold">
+                    {[
+                      { id: 'all', label: `All (${subscribers.length})` },
+                      { id: 'graduate', label: 'Guides' },
+                      { id: 'agency', label: 'Agencies' },
+                      { id: 'tour_company', label: 'Tour Cos.' },
+                      { id: 'car_rental', label: 'Car Rentals' },
+                      { id: 'traveler', label: 'Travelers' }
+                    ].map((rt) => (
+                      <button
+                        key={rt.id}
+                        type="button"
+                        onClick={() => setAllRolesFilter(rt.id)}
+                        className={`px-3 py-1.5 rounded-xl ${
+                          allRolesFilter === rt.id
+                            ? 'bg-[#234E40] text-white'
+                            : 'bg-slate-100 text-slate-700'
+                        }`}
+                      >
+                        {rt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {filteredRoleUsers.length === 0 ? (
+                  <p className="text-slate-400 italic">No accounts in this role category.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredRoleUsers.map((u) => (
+                      <div
+                        key={u.id}
+                        className="p-4 rounded-2xl border bg-slate-50 flex flex-wrap items-center justify-between gap-3"
+                      >
+                        <div>
+                          <p className="font-extrabold text-sm text-slate-900">{u.name}</p>
+                          <p className="text-[11px] text-slate-600">
+                            {u.contact} • Current Role:{' '}
+                            <strong>{roleLabelMap[u.role] || u.role}</strong>
+                          </p>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <select
+                            value={u.role || 'graduate'}
+                            onChange={(e) => handleOwnerUpdateUserRole(u.id, e.target.value)}
+                            className="p-2 border rounded-xl bg-white font-bold text-slate-800"
+                          >
+                            <option value="graduate">Tourism Graduate / Guide</option>
+                            <option value="agency">Travel Agency</option>
+                            <option value="tour_company">Tour Company</option>
+                            <option value="car_rental">Car Rentals Company</option>
+                            <option value="traveler">Traveler / Visitor</option>
+                          </select>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedInspectedUser(u);
+                              setOwnerTab('pending');
+                            }}
+                            className="px-3 py-2 bg-slate-800 text-white rounded-xl font-bold"
+                          >
+                            Inspect / Edit Profile
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {ownerTab === 'pending' && (
               <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-4 text-xs">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -3719,7 +3994,21 @@ export default function GuideLinkRwandaApp() {
                                 <span>{sub.name}</span>
                               </div>
                             </td>
-                            <td className="py-3">{sub.role}</td>
+                            <td className="py-3">
+                              <select
+                                value={sub.role || 'graduate'}
+                                onChange={(e) =>
+                                  handleOwnerUpdateUserRole(sub.id, e.target.value)
+                                }
+                                className="p-1.5 border rounded-lg bg-slate-50 font-semibold text-xs"
+                              >
+                                <option value="graduate">graduate</option>
+                                <option value="agency">agency</option>
+                                <option value="tour_company">tour_company</option>
+                                <option value="car_rental">car_rental</option>
+                                <option value="traveler">traveler</option>
+                              </select>
+                            </td>
                             <td className="py-3">{sub.contact}</td>
                             <td className="py-3">
                               {sub.planName} ({Number(sub.amountPaid || 0).toLocaleString()} RWF)
@@ -3775,7 +4064,7 @@ export default function GuideLinkRwandaApp() {
                 )}
 
                 {selectedInspectedUser && (
-                  <div className="p-5 rounded-2xl border-2 border-[#234E40] bg-emerald-50/40 space-y-3">
+                  <div className="p-5 rounded-2xl border-2 border-[#234E40] bg-emerald-50/40 space-y-4">
                     <div className="flex items-center justify-between border-b pb-2">
                       <div className="flex items-center gap-3">
                         {selectedInspectedUser.photoUrl && (
@@ -3805,57 +4094,33 @@ export default function GuideLinkRwandaApp() {
                       </button>
                     </div>
 
-                    {selectedInspectedUser.bio && (
-                      <p className="text-slate-700">{selectedInspectedUser.bio}</p>
-                    )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div className="bg-white p-3 rounded-xl border">
-                        <p className="font-bold text-[#234E40] mb-1">Services Provided</p>
-                        {(selectedInspectedUser.servicesProvided || []).length === 0 ? (
-                          <p className="text-slate-400 italic">None listed</p>
-                        ) : (
-                          <ul className="space-y-1">
-                            {(selectedInspectedUser.servicesProvided || []).map((s, i) => (
-                              <li key={i}>• {s}</li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-
-                      <div className="bg-white p-3 rounded-xl border">
-                        <p className="font-bold text-[#234E40] mb-1">Experience</p>
-                        {(selectedInspectedUser.experiences || []).length === 0 ? (
-                          <p className="text-slate-400 italic">None listed</p>
-                        ) : (
-                          <ul className="space-y-1">
-                            {(selectedInspectedUser.experiences || []).map((exp, i) => (
-                              <li key={exp.id || i}>
-                                <strong>{exp.role}</strong>
-                                {exp.organization ? ` @ ${exp.organization}` : ''}
-                                {exp.duration ? ` (${exp.duration})` : ''}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-
-                      <div className="bg-white p-3 rounded-xl border">
-                        <p className="font-bold text-[#234E40] mb-1">Qualifications</p>
-                        {(selectedInspectedUser.qualifications || []).length === 0 ? (
-                          <p className="text-slate-400 italic">None listed</p>
-                        ) : (
-                          <ul className="space-y-1">
-                            {(selectedInspectedUser.qualifications || []).map((q, i) => (
-                              <li key={q.id || i}>
-                                🎓 <strong>{q.title}</strong>
-                                {q.institution ? ` — ${q.institution}` : ''}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    </div>
+                    <UserAndOwnerProfileSection
+                      profileData={selectedInspectedUser}
+                      label={`Owner Editing: ${selectedInspectedUser.name}`}
+                      isSaving={isSaving}
+                      showProviderExtras={[
+                        'graduate',
+                        'agency',
+                        'tour_company',
+                        'car_rental'
+                      ].includes(selectedInspectedUser.role)}
+                      onSave={async (updatedUserProfile) => {
+                        setIsSaving(true);
+                        const merged = {
+                          ...selectedInspectedUser,
+                          ...updatedUserProfile,
+                          updatedAt: new Date().toISOString()
+                        };
+                        setSelectedInspectedUser(merged);
+                        setSubscribers((prev) =>
+                          prev.map((item) => (item.id === merged.id ? merged : item))
+                        );
+                        await firestoreSaveDoc('subscribers', merged.id, merged);
+                        setLastAutoUpdateAt(new Date());
+                        setIsSaving(false);
+                        alert(`✓ Saved changes for ${merged.name}!`);
+                      }}
+                    />
                   </div>
                 )}
               </div>
@@ -3868,7 +4133,7 @@ export default function GuideLinkRwandaApp() {
                     📢 Set Advertising for Paid Companies
                   </h3>
                   <p className="text-slate-500">
-                    Create and toggle pop-up advertisements for paid partner companies.
+                    Create and toggle pop-up advertisements for paid partner companies. Clicking the ad CTA opens the booking form directly.
                   </p>
                 </div>
 
@@ -4068,54 +4333,115 @@ export default function GuideLinkRwandaApp() {
             )}
 
             {ownerTab === 'server' && (
-              <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-4 text-xs">
-                <h3 className="font-bold text-base text-slate-900">
-                  Live Firebase App Configuration
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="font-bold text-slate-700">Platform Name</label>
-                    <input
-                      type="text"
-                      value={appConfig.appName}
-                      onChange={(e) =>
-                        setAppConfig({ ...appConfig, appName: e.target.value })
-                      }
-                      className="w-full mt-1 p-2.5 border rounded-xl"
-                    />
+              <div className="space-y-6">
+                <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-4 text-xs">
+                  <h3 className="font-bold text-base text-slate-900">
+                    Live Firebase App Configuration
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="font-bold text-slate-700">Platform Name</label>
+                      <input
+                        type="text"
+                        value={appConfig.appName}
+                        onChange={(e) =>
+                          setAppConfig({ ...appConfig, appName: e.target.value })
+                        }
+                        className="w-full mt-1 p-2.5 border rounded-xl"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700">MTN MoMo Payment Code</label>
+                      <input
+                        type="text"
+                        value={appConfig.momoCode}
+                        onChange={(e) =>
+                          setAppConfig({ ...appConfig, momoCode: e.target.value })
+                        }
+                        className="w-full mt-1 p-2.5 border rounded-xl"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="font-bold text-slate-700">Tagline</label>
+                      <input
+                        type="text"
+                        value={appConfig.tagline}
+                        onChange={(e) =>
+                          setAppConfig({ ...appConfig, tagline: e.target.value })
+                        }
+                        className="w-full mt-1 p-2.5 border rounded-xl"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="font-bold text-slate-700">MTN MoMo Payment Code</label>
-                    <input
-                      type="text"
-                      value={appConfig.momoCode}
-                      onChange={(e) =>
-                        setAppConfig({ ...appConfig, momoCode: e.target.value })
-                      }
-                      className="w-full mt-1 p-2.5 border rounded-xl"
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="font-bold text-slate-700">Tagline</label>
-                    <input
-                      type="text"
-                      value={appConfig.tagline}
-                      onChange={(e) =>
-                        setAppConfig({ ...appConfig, tagline: e.target.value })
-                      }
-                      className="w-full mt-1 p-2.5 border rounded-xl"
-                    />
-                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => saveAppServerConfig(appConfig)}
+                    disabled={isSaving}
+                    className="px-6 py-2.5 bg-[#234E40] text-white rounded-xl font-bold shadow"
+                  >
+                    {isSaving ? 'Saving...' : 'Save Server Config to Firebase'}
+                  </button>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => saveAppServerConfig(appConfig)}
-                  disabled={isSaving}
-                  className="px-6 py-2.5 bg-[#234E40] text-white rounded-xl font-bold shadow"
+                {/* CHANGE OWNER PASSWORD ANYTIME */}
+                <form
+                  onSubmit={handleChangeOwnerPassword}
+                  className="bg-white p-6 rounded-2xl border shadow-sm space-y-4 text-xs"
                 >
-                  {isSaving ? 'Saving...' : 'Save Server Config to Firebase'}
-                </button>
+                  <div>
+                    <span className="text-[10px] font-extrabold uppercase text-[#3B6E5B]">
+                      Owner Security
+                    </span>
+                    <h3 className="font-bold text-base text-slate-900">
+                      🔑 Change Owner Password Anytime
+                    </h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="font-bold text-slate-700">Current Owner Password *</label>
+                      <input
+                        type="password"
+                        required
+                        value={ownerCurrentPassInput}
+                        onChange={(e) => setOwnerCurrentPassInput(e.target.value)}
+                        placeholder="Enter current owner password"
+                        className="w-full mt-1 p-2.5 border rounded-xl"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700">New Owner Password *</label>
+                      <input
+                        type="password"
+                        required
+                        value={ownerNewPassInput}
+                        onChange={(e) => setOwnerNewPassInput(e.target.value)}
+                        placeholder="Enter new owner password"
+                        className="w-full mt-1 p-2.5 border rounded-xl"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700">Confirm New Password *</label>
+                      <input
+                        type="password"
+                        required
+                        value={ownerConfirmPassInput}
+                        onChange={(e) => setOwnerConfirmPassInput(e.target.value)}
+                        placeholder="Re-enter new owner password"
+                        className="w-full mt-1 p-2.5 border rounded-xl"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSaving}
+                    className="px-6 py-2.5 bg-slate-900 hover:bg-[#234E40] text-white rounded-xl font-bold shadow"
+                  >
+                    {isSaving ? 'Updating Password...' : 'Update Owner Password'}
+                  </button>
+                </form>
               </div>
             )}
           </div>
@@ -4129,14 +4455,17 @@ export default function GuideLinkRwandaApp() {
             <TravelerPersonalInfoForm
               travelerPI={travelerPI}
               onSavePI={handleSaveTravelerPI}
-              onCancel={() => setShowPiFormModal(false)}
+              onCancel={() => {
+                setPendingPiAction(null);
+                setShowPiFormModal(false);
+              }}
               lang={language}
             />
           </div>
         </div>
       )}
 
-      {/* POP-UP SPONSORED AD MODAL */}
+      {/* POP-UP SPONSORED AD MODAL (CLICKS DIRECTLY TO BOOKING FORM) */}
       {activePopupAd && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 relative">
@@ -4160,10 +4489,10 @@ export default function GuideLinkRwandaApp() {
               </span>
               <button
                 type="button"
-                onClick={() => setActivePopupAd(null)}
-                className="px-4 py-2 bg-[#234E40] text-white rounded-xl font-bold"
+                onClick={() => handleBookFromAd(activePopupAd)}
+                className="px-4 py-2 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold shadow"
               >
-                {activePopupAd.ctaLabel || 'Close'}
+                {activePopupAd.ctaLabel || 'Book Now'} →
               </button>
             </div>
           </div>
