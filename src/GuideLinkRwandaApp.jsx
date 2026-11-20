@@ -104,6 +104,96 @@ const firestoreDeleteDoc = async (collectionName, docId) => {
 };
 
 // =========================================================================
+// MULTI-LANGUAGE TRANSLATIONS (KINY, FRA, ENG, KISW)
+// =========================================================================
+const UI_TRANSLATIONS = {
+  ENG: {
+    heroBadge: "Rwanda's Official Tourism Talent, Car Rental & Booking Network",
+    switchPortal: 'Switch Portal',
+    ownerBtn: 'Owner C.E.O.',
+    graduateTitle: 'Tourism Graduate / Guide',
+    graduateDesc: 'Find paid guiding jobs, bid on open tours, and connect with agencies.',
+    agencyTitle: 'Travel Agency',
+    agencyDesc: 'Post job openings, hire certified graduates, and manage tour bookings.',
+    tourCompanyTitle: 'Tour Company',
+    tourCompanyDesc: 'Source field guides, fulfill custom safari requests, and scale operations.',
+    carRentalTitle: 'Car Rentals Company',
+    carRentalDesc: 'List rental vehicles, 4x4 safari cars, airport transfers, and fulfill bookings.',
+    travelerTitle: 'Traveler / Visitor (FREE)',
+    travelerDesc: 'Submit your Personal Info (PI), request trips, rent cars, and hire verified guides.',
+    enterPortal: 'Enter Portal',
+    piRequiredTitle: 'Traveler / Tourist Personal Information (PI) Required',
+    piRequiredDesc: 'Submit your Personal Information before setting or requesting a booking so service providers know whom they are talking with.',
+    savePiBtn: 'Save Personal Information (PI) & Continue',
+    travelersOnWelcomeTitle: 'Travelers & Tourists Directory',
+    travelersOnWelcomeSub: 'View travelers and tourists who have submitted their Personal Information (PI) and start a private chat or booking request.'
+  },
+  KINY: {
+    heroBadge: 'Urubuga Nyarwanda rw’Ubukerarugendo, Gutwara Abagenzi n’Imishinga',
+    switchPortal: 'Hindura Urubuga',
+    ownerBtn: 'Nyir’Urubuga (C.E.O.)',
+    graduateTitle: 'Uwize Ubukerarugendo / Umuyobozi',
+    graduateDesc: 'Shaka akazi ko kuyobora ba mukerarugendo no gukorana n’ibigo.',
+    agencyTitle: 'Ikigo cy’Ingendo (Travel Agency)',
+    agencyDesc: 'Tanga amakuru y’ingendo, akoresha abize ubukerarugendo kandi utunganye gahunda.',
+    tourCompanyTitle: 'Sosiyete y’Ubukerarugendo',
+    tourCompanyDesc: 'Bona abayobozi b’urugendo, subiza ubusabe bw’ingendo n’ibikorwa.',
+    carRentalTitle: 'Sosiyete ikodesha Imodoka',
+    carRentalDesc: 'Shyira ku isoko imodoka zikodeshwa, iza safari n’izo gutwara abagenzi.',
+    travelerTitle: 'Umugenzi / Mukerarugendo (UBUNTU)',
+    travelerDesc: 'Tanga Amakuru Yawe Bwite (PI), saba urugendo, kodesha imodoka cyangwa umuyobozi.',
+    enterPortal: 'Injira',
+    piRequiredTitle: 'Amakuru Bwite y’Umugenzi / Mukerarugendo (PI) Arakenewe',
+    piRequiredDesc: 'Tanga Amakuru Yawe Bwite mbere yo gutegura cyangwa gusaba booking kugira ngo abakwakira bamenye uwo bavugana.',
+    savePiBtn: 'Bika Amakuru Bwite (PI) Ukomeze',
+    travelersOnWelcomeTitle: 'Abagenzi n’Ba Mukerarugendo Batanze Amakuru (PI)',
+    travelersOnWelcomeSub: 'Reba abagenzi n’ba mukerarugendo batanze Amakuru yabo Bwite (PI) kandi muvugane mu ibanga.'
+  },
+  FRA: {
+    heroBadge: 'Réseau Officiel du Tourisme, de la Location de Voitures et des Réservations au Rwanda',
+    switchPortal: 'Changer de Portail',
+    ownerBtn: 'Propriétaire C.E.O.',
+    graduateTitle: 'Diplômé Tourisme / Guide',
+    graduateDesc: 'Trouvez des missions rémunérées, postulez aux circuits et collaborez avec des agences.',
+    agencyTitle: 'Agence de Voyage',
+    agencyDesc: 'Publiez des offres, recrutez des guides qualifiés et gérez les réservations.',
+    tourCompanyTitle: 'Entreprise de Circuits',
+    tourCompanyDesc: 'Trouvez des guides terrain, répondez aux demandes de safari et développez vos activités.',
+    carRentalTitle: 'Société de Location de Voitures',
+    carRentalDesc: 'Proposez des véhicules de location, 4x4 safari, transferts aéroport et réservations.',
+    travelerTitle: 'Voyageur / Touriste (GRATUIT)',
+    travelerDesc: 'Soumettez vos Infos Personnelles (PI), demandez un voyage, louez une voiture ou un guide.',
+    enterPortal: 'Accéder',
+    piRequiredTitle: 'Informations Personnelles (PI) du Voyageur / Touriste Requises',
+    piRequiredDesc: 'Veuillez renseigner vos Informations Personnelles (PI) avant de créer ou demander une réservation afin que les prestataires sachent à qui ils parlent.',
+    savePiBtn: 'Enregistrer les Infos Personnelles (PI) & Continuer',
+    travelersOnWelcomeTitle: 'Répertoire des Voyageurs & Touristes',
+    travelersOnWelcomeSub: 'Consultez les voyageurs et touristes ayant soumis leurs Infos Personnelles (PI) et démarrez un chat privé.'
+  },
+  KISW: {
+    heroBadge: 'Mtandao Rasmi wa Utalii, Kukodisha Magari na Uhifadhi Rwanda',
+    switchPortal: 'Badili Lango',
+    ownerBtn: 'Mmiliki C.E.O.',
+    graduateTitle: 'Mhitimu wa Utalii / Mwongoza Watalii',
+    graduateDesc: 'Pata kazi za uongozaji watalii, omba safari na ungana na mashirika.',
+    agencyTitle: 'Wakala wa Usafiri',
+    agencyDesc: 'Chapisha nafasi za safari, ajiri waongozaji na simamia uhifadhi.',
+    tourCompanyTitle: 'Kampuni ya Utalii',
+    tourCompanyDesc: 'Pata waongozaji wa safari, tekeleza maombi ya watalii na kukuza biashara.',
+    carRentalTitle: 'Kampuni ya Kukodisha Magari',
+    carRentalDesc: 'Orodhesha magari ya kukodisha, 4x4 za safari, usafiri wa uwanja wa ndege na uhifadhi.',
+    travelerTitle: 'Msafiri / Mtali (BURE)',
+    travelerDesc: 'Wasilisha Taarifa Binafsi (PI), omba safari, kodi gari au ajiri mwongozi.',
+    enterPortal: 'Ingia',
+    piRequiredTitle: 'Taarifa Binafsi za Msafiri / Mtali (PI) Zinahitajika',
+    piRequiredDesc: 'Wasilisha Taarifa zako Binafsi (PI) kabla ya kuweka au kuomba nafasi ili watoa huduma wajue wanazungumza na nani.',
+    savePiBtn: 'Hifadhi Taarifa Binafsi (PI) & Endelea',
+    travelersOnWelcomeTitle: 'Orodha ya Wasafiri na Watalii',
+    travelersOnWelcomeSub: 'Tazama wasafiri na watalii waliowasilisha Taarifa Binafsi (PI) na anza mazungumzo ya faragha.'
+  }
+};
+
+// =========================================================================
 // DEFAULT SUBSCRIPTION TIERS CONFIGURATION (Synced with Firebase)
 // =========================================================================
 const DEFAULT_SUBSCRIPTION_PLANS = [
@@ -148,7 +238,8 @@ const DEFAULT_SUBSCRIPTION_PLANS = [
 const DEFAULT_APP_SERVER_CONFIG = {
   appName: 'GuideLink Rwanda',
   tagline: 'Turn your tourism degree into paid work.',
-  subtitle: 'Connecting Tourism Graduates, Travel Agencies, Tour Companies, and Travelers across Rwanda.',
+  subtitle:
+    'Connecting Tourism Graduates, Travel Agencies, Tour Companies, Car Rentals Companies, and Travelers across Rwanda.',
   footerLocation: 'Kigali, Rwanda',
   momoCode: '612771',
   primaryColor: '#234E40',
@@ -173,7 +264,7 @@ const DEFAULT_APP_SERVER_CONFIG = {
 };
 
 // =========================================================================
-// PROFILE EDITOR & SUMMARY (Generous Time for Users & Owner + Photo + Availability + Packages)
+// PROFILE EDITOR & SUMMARY (Users, Car Rentals & Owner + Photo + Availability + Packages)
 // =========================================================================
 function UserAndOwnerProfileSection({
   profileData,
@@ -390,7 +481,7 @@ function UserAndOwnerProfileSection({
               {label || 'Profile'} • Take Your Time Editing
             </span>
             <h3 className="text-base font-black text-slate-900">
-              Edit Profile Photo, Availability, Packages, Experience &amp; Qualifications
+              Edit Profile Photo, Availability, Packages / Vehicles, Experience &amp; Qualifications
             </h3>
           </div>
         </div>
@@ -406,7 +497,7 @@ function UserAndOwnerProfileSection({
       {/* Profile Photo Upload & URL */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-xl border">
         <div>
-          <label className="font-bold text-slate-700">Upload Profile Photo</label>
+          <label className="font-bold text-slate-700">Upload Profile / Company Photo</label>
           <input
             type="file"
             accept="image/*"
@@ -415,7 +506,7 @@ function UserAndOwnerProfileSection({
           />
         </div>
         <div>
-          <label className="font-bold text-slate-700">Or Paste Profile Photo URL</label>
+          <label className="font-bold text-slate-700">Or Paste Photo URL</label>
           <div className="flex gap-2 mt-1">
             <input
               type="text"
@@ -445,7 +536,7 @@ function UserAndOwnerProfileSection({
             type="text"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
-            placeholder="Your name or organization"
+            placeholder="Your name or company name"
             className="w-full mt-1 p-2.5 border rounded-xl"
           />
         </div>
@@ -455,7 +546,7 @@ function UserAndOwnerProfileSection({
             type="text"
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
-            placeholder="e.g. C.E.O., Tour Guide, Agency"
+            placeholder="e.g. C.E.O., Car Rental Fleet, Tour Guide"
             className="w-full mt-1 p-2.5 border rounded-xl"
           />
         </div>
@@ -481,11 +572,11 @@ function UserAndOwnerProfileSection({
         </div>
       </div>
 
-      {/* Availability for Guides / Tour Companies / Agencies */}
+      {/* Availability for Providers */}
       {showProviderExtras && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-emerald-50/50 p-3.5 rounded-xl border border-emerald-200">
           <div>
-            <label className="font-bold text-[#234E40]">Availability Status (Visible to Travelers)</label>
+            <label className="font-bold text-[#234E40]">Availability Status (Visible on Welcome &amp; Booking)</label>
             <select
               value={form.availabilityStatus}
               onChange={(e) => setForm({ ...form, availabilityStatus: e.target.value })}
@@ -515,20 +606,20 @@ function UserAndOwnerProfileSection({
           type="text"
           value={form.bio}
           onChange={(e) => setForm({ ...form, bio: e.target.value })}
-          placeholder="Short summary about yourself or your organization..."
+          placeholder="Short summary about yourself, fleet, or organization..."
           className="w-full mt-1 p-2.5 border rounded-xl"
         />
       </div>
 
       {/* What You Provide */}
       <div className="space-y-2 pt-3 border-t">
-        <h4 className="font-extrabold text-sm text-[#234E40]">What You Provide (Services / Offerings)</h4>
+        <h4 className="font-extrabold text-sm text-[#234E40]">What You Provide (Services / Fleet / Offerings)</h4>
         <div className="flex gap-2">
           <input
             type="text"
             value={serviceInput}
             onChange={(e) => setServiceInput(e.target.value)}
-            placeholder="e.g. Guided Tours, Airport Transfers, Safari Packages"
+            placeholder="e.g. 4x4 Land Cruiser Rental, Airport Transfers, Guided Tours"
             className="flex-1 p-2.5 border rounded-xl"
           />
           <button
@@ -558,18 +649,18 @@ function UserAndOwnerProfileSection({
         </div>
       </div>
 
-      {/* Published Packages for Providers */}
+      {/* Published Packages / Rental Offers for Providers */}
       {showProviderExtras && (
         <div className="space-y-2 pt-3 border-t">
           <h4 className="font-extrabold text-sm text-[#234E40]">
-            🎒 Published Tour Packages (Visible &amp; Bookable by Travelers)
+            🎒 Published Tour Packages &amp; Car Rental Offers
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-2 bg-slate-50 p-3 rounded-xl border">
             <input
               type="text"
               value={pkgInput.title}
               onChange={(e) => setPkgInput({ ...pkgInput, title: e.target.value })}
-              placeholder="Package Title (e.g. 3-Day Gorilla & Twin Lakes)"
+              placeholder="Offer Title (e.g. 4x4 SUV Daily Rental or 3-Day Tour)"
               className="p-2 border rounded-xl bg-white"
             />
             <select
@@ -588,7 +679,7 @@ function UserAndOwnerProfileSection({
               type="text"
               value={pkgInput.priceLabel}
               onChange={(e) => setPkgInput({ ...pkgInput, priceLabel: e.target.value })}
-              placeholder="Price (e.g. 250,000 RWF or $320)"
+              placeholder="Price (e.g. 95,000 RWF/day or $120)"
               className="p-2 border rounded-xl bg-white"
             />
             <button
@@ -596,7 +687,7 @@ function UserAndOwnerProfileSection({
               onClick={handleAddPackage}
               className="px-4 py-2 bg-[#234E40] text-white font-bold rounded-xl"
             >
-              + Publish Package
+              + Publish Offer
             </button>
             <input
               type="number"
@@ -610,7 +701,7 @@ function UserAndOwnerProfileSection({
               type="text"
               value={pkgInput.highlights}
               onChange={(e) => setPkgInput({ ...pkgInput, highlights: e.target.value })}
-              placeholder="Package highlights / inclusions..."
+              placeholder="Vehicle specs, driver options, or tour highlights..."
               className="md:col-span-3 p-2 border rounded-xl bg-white"
             />
           </div>
@@ -718,7 +809,7 @@ function UserAndOwnerProfileSection({
             type="text"
             value={qualInput.title}
             onChange={(e) => setQualInput({ ...qualInput, title: e.target.value })}
-            placeholder="Degree / Diploma / Certificate"
+            placeholder="Degree / Diploma / Certificate / Fleet License"
             className="p-2 border rounded-xl bg-white"
           />
           <input
@@ -771,19 +862,242 @@ function UserAndOwnerProfileSection({
 }
 
 // =========================================================================
+// TRAVELER PERSONAL INFORMATION (PI) FORM MODAL / PANEL
+// =========================================================================
+function TravelerPersonalInfoForm({
+  travelerPI,
+  onSavePI,
+  onCancel,
+  lang = 'ENG'
+}) {
+  const t = UI_TRANSLATIONS[lang] || UI_TRANSLATIONS.ENG;
+  const [piForm, setPiForm] = useState({
+    fullName: travelerPI?.fullName || '',
+    phone: travelerPI?.phone || '',
+    email: travelerPI?.email || '',
+    nationality: travelerPI?.nationality || 'Rwanda',
+    idOrPassport: travelerPI?.idOrPassport || ''
+  });
+
+  useEffect(() => {
+    setPiForm({
+      fullName: travelerPI?.fullName || '',
+      phone: travelerPI?.phone || '',
+      email: travelerPI?.email || '',
+      nationality: travelerPI?.nationality || 'Rwanda',
+      idOrPassport: travelerPI?.idOrPassport || ''
+    });
+  }, [travelerPI]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!piForm.fullName.trim() || !piForm.phone.trim()) {
+      alert('Please enter your Full Name and Phone / WhatsApp number.');
+      return;
+    }
+    await onSavePI({
+      fullName: piForm.fullName.trim(),
+      phone: piForm.phone.trim(),
+      email: piForm.email.trim(),
+      nationality: piForm.nationality.trim() || 'Rwanda',
+      idOrPassport: piForm.idOrPassport.trim(),
+      submittedAt: new Date().toISOString()
+    });
+  };
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="bg-white p-6 rounded-3xl border-2 border-[#234E40] shadow-lg space-y-4 text-xs"
+    >
+      <div className="flex items-start justify-between gap-2 border-b pb-3">
+        <div>
+          <span className="text-[10px] font-extrabold uppercase bg-amber-300 text-slate-950 px-2.5 py-0.5 rounded-full">
+            🪪 Personal Information (PI)
+          </span>
+          <h3 className="text-base font-black text-slate-900 mt-1">
+            {t.piRequiredTitle}
+          </h3>
+          <p className="text-slate-600 mt-0.5">{t.piRequiredDesc}</p>
+        </div>
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-3 py-1 bg-slate-100 rounded-lg font-bold text-slate-600"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div>
+          <label className="font-bold text-slate-700">Full Name *</label>
+          <input
+            type="text"
+            required
+            value={piForm.fullName}
+            onChange={(e) => setPiForm({ ...piForm, fullName: e.target.value })}
+            placeholder="e.g. Uwimana Claire / John Doe"
+            className="w-full mt-1 p-2.5 border rounded-xl"
+          />
+        </div>
+
+        <div>
+          <label className="font-bold text-slate-700">Phone / WhatsApp *</label>
+          <input
+            type="text"
+            required
+            value={piForm.phone}
+            onChange={(e) => setPiForm({ ...piForm, phone: e.target.value })}
+            placeholder="+25078XXXXXXX"
+            className="w-full mt-1 p-2.5 border rounded-xl"
+          />
+        </div>
+
+        <div>
+          <label className="font-bold text-slate-700">Email Address</label>
+          <input
+            type="email"
+            value={piForm.email}
+            onChange={(e) => setPiForm({ ...piForm, email: e.target.value })}
+            placeholder="traveler@example.com"
+            className="w-full mt-1 p-2.5 border rounded-xl"
+          />
+        </div>
+
+        <div>
+          <label className="font-bold text-slate-700">Nationality / Country *</label>
+          <input
+            type="text"
+            required
+            value={piForm.nationality}
+            onChange={(e) => setPiForm({ ...piForm, nationality: e.target.value })}
+            placeholder="e.g. Rwanda, Kenya, USA, France"
+            className="w-full mt-1 p-2.5 border rounded-xl"
+          />
+        </div>
+
+        <div className="md:col-span-2">
+          <label className="font-bold text-slate-700">Passport / National ID Number (Optional)</label>
+          <input
+            type="text"
+            value={piForm.idOrPassport}
+            onChange={(e) => setPiForm({ ...piForm, idOrPassport: e.target.value })}
+            placeholder="e.g. PC123456 or ID number"
+            className="w-full mt-1 p-2.5 border rounded-xl"
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2 pt-2">
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-bold"
+          >
+            Cancel
+          </button>
+        )}
+        <button
+          type="submit"
+          className="px-6 py-2.5 bg-[#234E40] hover:bg-slate-900 text-white font-extrabold rounded-xl shadow"
+        >
+          {t.savePiBtn} →
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// =========================================================================
+// TRAVELERS & TOURISTS DIRECTORY ON WELCOME PAGE
+// =========================================================================
+function TravelersOnWelcomeDirectory({
+  travelersList = [],
+  onStartPrivateChatWithTraveler,
+  lang = 'ENG'
+}) {
+  const t = UI_TRANSLATIONS[lang] || UI_TRANSLATIONS.ENG;
+
+  return (
+    <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-4 text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
+        <div>
+          <span className="text-[10px] font-extrabold uppercase text-[#3B6E5B]">
+            🪪 Verified Traveler Personal Info (PI)
+          </span>
+          <h3 className="text-base font-black text-slate-900">
+            🌍 {t.travelersOnWelcomeTitle} ({travelersList.length})
+          </h3>
+          <p className="text-slate-500">{t.travelersOnWelcomeSub}</p>
+        </div>
+      </div>
+
+      {travelersList.length === 0 ? (
+        <p className="text-slate-400 italic">
+          No travelers or tourists have submitted their Personal Information (PI) yet. Select &quot;Traveler / Visitor&quot; to submit your PI and appear here.
+        </p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {travelersList.map((trv) => (
+            <div
+              key={trv.id}
+              className="p-4 rounded-2xl border bg-slate-50 flex flex-col justify-between gap-3"
+            >
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="font-extrabold text-sm text-slate-900">{trv.fullName}</h4>
+                  <span className="text-[10px] font-extrabold uppercase bg-emerald-100 text-[#234E40] px-2.5 py-0.5 rounded-full">
+                    🌍 {trv.nationality || 'Traveler'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600">
+                  📞 <strong>{trv.phone}</strong>
+                  {trv.email ? ` • ✉️ ${trv.email}` : ''}
+                </p>
+                {trv.idOrPassport && (
+                  <p className="text-[10px] text-slate-500">
+                    🪪 ID / Passport: <strong>{trv.idOrPassport}</strong>
+                  </p>
+                )}
+              </div>
+
+              {onStartPrivateChatWithTraveler && (
+                <button
+                  type="button"
+                  onClick={() => onStartPrivateChatWithTraveler(trv)}
+                  className="w-full py-2 bg-[#234E40] hover:bg-slate-900 text-white font-bold rounded-xl transition"
+                >
+                  💬 Private Chat with {trv.fullName}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =========================================================================
 // TRAVELER / TOURIST DIRECTORY: AVAILABILITY & PUBLISHED PACKAGES + BOOKING
 // =========================================================================
 function TravelerAvailabilityAndPackages({
   subscribers,
   publishedPackages,
   currentUser,
+  travelerPI,
+  onRequirePI,
   onBookPackageOrProvider
 }) {
   const [roleFilter, setRoleFilter] = useState('all');
   const [selectedBookingItem, setSelectedBookingItem] = useState(null);
   const [bookingForm, setBookingForm] = useState({
-    travelerName: currentUser?.name || '',
-    travelerPhone: currentUser?.contact || '',
+    travelerName: travelerPI?.fullName || currentUser?.name || '',
+    travelerPhone: travelerPI?.phone || currentUser?.contact || '',
     travelDate: '',
     groupSize: 2,
     notes: ''
@@ -792,13 +1106,13 @@ function TravelerAvailabilityAndPackages({
   useEffect(() => {
     setBookingForm((prev) => ({
       ...prev,
-      travelerName: prev.travelerName || currentUser?.name || '',
-      travelerPhone: prev.travelerPhone || currentUser?.contact || ''
+      travelerName: travelerPI?.fullName || prev.travelerName || currentUser?.name || '',
+      travelerPhone: travelerPI?.phone || prev.travelerPhone || currentUser?.contact || ''
     }));
-  }, [currentUser]);
+  }, [travelerPI, currentUser]);
 
   const providers = subscribers.filter((s) =>
-    ['graduate', 'agency', 'tour_company'].includes((s.role || '').toLowerCase())
+    ['graduate', 'agency', 'tour_company', 'car_rental'].includes((s.role || '').toLowerCase())
   );
 
   const filteredProviders = providers.filter((p) =>
@@ -823,20 +1137,36 @@ function TravelerAvailabilityAndPackages({
   );
 
   const openBookingModal = (item, type) => {
+    if (!travelerPI?.fullName || !travelerPI?.phone) {
+      if (onRequirePI) {
+        onRequirePI();
+      } else {
+        alert('Please submit your Personal Information (PI) before requesting a booking.');
+      }
+      return;
+    }
+    setBookingForm((prev) => ({
+      ...prev,
+      travelerName: travelerPI.fullName,
+      travelerPhone: travelerPI.phone
+    }));
     setSelectedBookingItem({ ...item, bookingType: type });
   };
 
   const handleConfirmBooking = async (e) => {
     e.preventDefault();
     if (!selectedBookingItem) return;
-    await onBookPackageOrProvider(selectedBookingItem, bookingForm);
+    await onBookPackageOrProvider(selectedBookingItem, {
+      ...bookingForm,
+      travelerPI
+    });
     setSelectedBookingItem(null);
     setBookingForm((prev) => ({ ...prev, travelDate: '', notes: '' }));
   };
 
   return (
     <div className="space-y-6">
-      {/* PUBLISHED PACKAGES SECTION */}
+      {/* PUBLISHED PACKAGES & RENTAL OFFERS SECTION */}
       <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-4 text-xs">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
           <div>
@@ -844,17 +1174,17 @@ function TravelerAvailabilityAndPackages({
               Curated &amp; Partner Offers
             </span>
             <h3 className="text-base font-black text-slate-900">
-              🎒 Published Tour Packages ({uniquePackages.length})
+              🎒 Published Tour Packages &amp; Car Rental Offers ({uniquePackages.length})
             </h3>
             <p className="text-slate-500">
-              View published tour packages from guides, tour companies, and travel agencies, and book directly.
+              View published tour packages and car rental offers from guides, tour companies, travel agencies, and car rental companies.
             </p>
           </div>
         </div>
 
         {uniquePackages.length === 0 ? (
           <p className="text-slate-400 italic">
-            No tour packages published yet. You can still browse available guides, tour companies, and agencies below or post a custom booking request.
+            No packages or rental offers published yet. Browse available providers below or submit a booking request.
           </p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -886,7 +1216,7 @@ function TravelerAvailabilityAndPackages({
                   onClick={() => openBookingModal(pkg, 'package')}
                   className="w-full py-2.5 bg-[#234E40] hover:bg-slate-900 text-white font-bold rounded-xl transition"
                 >
-                  Book This Package →
+                  Book This Offer →
                 </button>
               </div>
             ))}
@@ -894,7 +1224,7 @@ function TravelerAvailabilityAndPackages({
         )}
       </div>
 
-      {/* GUIDE / TOUR COMPANY / TRAVEL AGENCY AVAILABILITY */}
+      {/* PROVIDER AVAILABILITY (GUIDES, AGENCIES, TOUR COMPANIES, CAR RENTALS) */}
       <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-4 text-xs">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
           <div>
@@ -902,7 +1232,7 @@ function TravelerAvailabilityAndPackages({
               Live Provider Directory
             </span>
             <h3 className="text-base font-black text-slate-900">
-              🧭 Guide, Tour Company &amp; Travel Agency Availability ({filteredProviders.length})
+              🧭 Guides, Tour Companies, Travel Agencies &amp; Car Rentals ({filteredProviders.length})
             </h3>
           </div>
 
@@ -911,7 +1241,8 @@ function TravelerAvailabilityAndPackages({
               { id: 'all', label: 'All Providers' },
               { id: 'graduate', label: 'Guides / Graduates' },
               { id: 'tour_company', label: 'Tour Companies' },
-              { id: 'agency', label: 'Travel Agencies' }
+              { id: 'agency', label: 'Travel Agencies' },
+              { id: 'car_rental', label: 'Car Rentals' }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -1012,9 +1343,14 @@ function TravelerAvailabilityAndPackages({
               </span>
               <h3 className="text-base font-black text-slate-900">
                 {selectedBookingItem.bookingType === 'package'
-                  ? `Book Package: ${selectedBookingItem.title}`
+                  ? `Book Offer: ${selectedBookingItem.title}`
                   : `Book Provider: ${selectedBookingItem.name}`}
               </h3>
+            </div>
+
+            <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200 text-[11px] text-slate-700">
+              <strong>Your PI on file:</strong> {travelerPI?.fullName} • {travelerPI?.phone} •{' '}
+              {travelerPI?.nationality || 'Rwanda'}
             </div>
 
             <div>
@@ -1059,7 +1395,7 @@ function TravelerAvailabilityAndPackages({
                 />
               </div>
               <div>
-                <label className="font-bold text-slate-700">Travelers</label>
+                <label className="font-bold text-slate-700">Travelers / Seats</label>
                 <input
                   type="number"
                   min="1"
@@ -1073,14 +1409,14 @@ function TravelerAvailabilityAndPackages({
             </div>
 
             <div>
-              <label className="font-bold text-slate-700">Trip Notes</label>
+              <label className="font-bold text-slate-700">Trip / Rental Notes</label>
               <input
                 type="text"
                 value={bookingForm.notes}
                 onChange={(e) =>
                   setBookingForm({ ...bookingForm, notes: e.target.value })
                 }
-                placeholder="Pickup location, language, special requests..."
+                placeholder="Pickup location, vehicle type, language, special requests..."
                 className="w-full mt-1 p-2.5 border rounded-xl"
               />
             </div>
@@ -1110,7 +1446,14 @@ function TravelerAvailabilityAndPackages({
 // =========================================================================
 // OPEN BOOKING & JOB ASSIGNMENT MARKETPLACE + PRIVATE 1-ON-1 CHAT
 // =========================================================================
-function BookingMarketplace({ currentUser, currentRole }) {
+function BookingMarketplace({
+  currentUser,
+  currentRole,
+  travelerPI,
+  onRequirePI,
+  externalChatTarget,
+  onClearExternalChatTarget
+}) {
   const [bookings, setBookings] = useState([]);
   const [privateChats, setPrivateChats] = useState([]);
   const [activeChatThread, setActiveChatThread] = useState(null);
@@ -1129,11 +1472,22 @@ function BookingMarketplace({ currentUser, currentRole }) {
   });
 
   const normalize = (s) => (s || '').replace(/\s+/g, '').toLowerCase();
-  const activeUserId = normalize(currentUser?.contact || currentUser?.id || currentUser?.name) || guestId;
-  const activeUserName = currentUser?.name || 'Member / Traveler';
+  const activeUserId =
+    normalize(
+      travelerPI?.phone ||
+        currentUser?.contact ||
+        currentUser?.id ||
+        travelerPI?.fullName ||
+        currentUser?.name
+    ) || guestId;
+
+  const activeUserName =
+    travelerPI?.fullName || currentUser?.name || 'Member / Traveler';
   const activeUserRole = (currentRole || currentUser?.role || 'traveler').toLowerCase();
 
-  const isProvider = ['graduate', 'agency', 'tour_company'].includes(activeUserRole);
+  const isProvider = ['graduate', 'agency', 'tour_company', 'car_rental'].includes(
+    activeUserRole
+  );
 
   const [formData, setFormData] = useState({
     title: '',
@@ -1142,21 +1496,19 @@ function BookingMarketplace({ currentUser, currentRole }) {
     durationDays: 1,
     groupSize: 2,
     budgetRwf: '',
-    targetRole: 'Any (Tour Company, Agency, or Graduate)',
+    targetRole: 'Any (Tour Company, Agency, Car Rental, or Graduate)',
     notes: '',
-    ownerName: currentUser?.name || '',
-    ownerPhone: currentUser?.contact || ''
+    ownerName: travelerPI?.fullName || currentUser?.name || '',
+    ownerPhone: travelerPI?.phone || currentUser?.contact || ''
   });
 
   useEffect(() => {
-    if (currentUser) {
-      setFormData((prev) => ({
-        ...prev,
-        ownerName: prev.ownerName || currentUser.name || '',
-        ownerPhone: prev.ownerPhone || currentUser.contact || ''
-      }));
-    }
-  }, [currentUser]);
+    setFormData((prev) => ({
+      ...prev,
+      ownerName: travelerPI?.fullName || prev.ownerName || currentUser?.name || '',
+      ownerPhone: travelerPI?.phone || prev.ownerPhone || currentUser?.contact || ''
+    }));
+  }, [travelerPI, currentUser]);
 
   const fetchOpenBookingsAndChats = async () => {
     const [fbBookings, fbChats] = await Promise.all([
@@ -1197,19 +1549,19 @@ function BookingMarketplace({ currentUser, currentRole }) {
     return res.ok;
   };
 
-  const buildThreadId = (bookingId, userA, userB) => {
+  const buildThreadId = (contextId, userA, userB) => {
     const pair = [normalize(userA), normalize(userB)].sort().join('__');
-    return `chat_${bookingId}_${pair}`;
+    return `chat_${contextId}_${pair}`;
   };
 
-  const openPrivateChat = async (booking, otherUserId, otherUserName) => {
+  const openPrivateChat = async (contextId, contextTitle, otherUserId, otherUserName) => {
     const cleanOtherId = normalize(otherUserId);
     if (!cleanOtherId || cleanOtherId === activeUserId) {
       alert('Unable to start private chat with yourself.');
       return;
     }
 
-    const threadId = buildThreadId(booking.id, activeUserId, cleanOtherId);
+    const threadId = buildThreadId(contextId, activeUserId, cleanOtherId);
     const existingThread = privateChats.find((t) => t.id === threadId);
 
     if (existingThread) {
@@ -1219,8 +1571,8 @@ function BookingMarketplace({ currentUser, currentRole }) {
 
     const newThread = {
       id: threadId,
-      bookingId: booking.id,
-      bookingTitle: booking.title,
+      bookingId: contextId,
+      bookingTitle: contextTitle || 'Private Booking Chat',
       participantIds: [activeUserId, cleanOtherId],
       participantNames: {
         [activeUserId]: activeUserName,
@@ -1234,6 +1586,20 @@ function BookingMarketplace({ currentUser, currentRole }) {
     setActiveChatThread(newThread);
     await firestoreSaveDoc('privateChats', threadId, newThread);
   };
+
+  useEffect(() => {
+    if (externalChatTarget) {
+      openPrivateChat(
+        externalChatTarget.contextId || 'direct',
+        externalChatTarget.contextTitle || 'Private Conversation',
+        externalChatTarget.otherUserId,
+        externalChatTarget.otherUserName
+      );
+      if (onClearExternalChatTarget) {
+        onClearExternalChatTarget();
+      }
+    }
+  }, [externalChatTarget]);
 
   const handleSendPrivateMessage = async (e) => {
     e.preventDefault();
@@ -1271,11 +1637,35 @@ function BookingMarketplace({ currentUser, currentRole }) {
     await firestoreSaveDoc('privateChats', updatedThread.id, updatedThread);
   };
 
+  const handleOpenCreateForm = () => {
+    if (activeUserRole === 'traveler' && (!travelerPI?.fullName || !travelerPI?.phone)) {
+      if (onRequirePI) {
+        onRequirePI();
+      } else {
+        alert('Please submit your Personal Information (PI) before setting a booking.');
+      }
+      return;
+    }
+    setShowForm(!showForm);
+  };
+
   const handleCreateBooking = async (e) => {
     e.preventDefault();
     if (!formData.title.trim()) return;
+    if (activeUserRole === 'traveler' && (!travelerPI?.fullName || !travelerPI?.phone)) {
+      if (onRequirePI) onRequirePI();
+      return;
+    }
+
     setLoading(true);
     const newId = `bk-${Date.now()}`;
+    const piSummary =
+      activeUserRole === 'traveler' && travelerPI
+        ? `Traveler PI: ${travelerPI.fullName} (${travelerPI.nationality || 'Rwanda'}${
+            travelerPI.idOrPassport ? `, ID/Passport: ${travelerPI.idOrPassport}` : ''
+          })`
+        : '';
+
     const newBooking = {
       id: newId,
       title: formData.title.trim(),
@@ -1285,10 +1675,12 @@ function BookingMarketplace({ currentUser, currentRole }) {
       groupSize: Number(formData.groupSize) || 1,
       budgetRwf: formData.budgetRwf.trim() || 'Negotiable',
       targetRole: formData.targetRole,
-      notes: formData.notes.trim(),
+      notes: [formData.notes.trim(), piSummary].filter(Boolean).join(' • '),
+      travelerPI: travelerPI || null,
       ownerId: activeUserId,
-      ownerName: formData.ownerName.trim() || activeUserName,
-      ownerPhone: formData.ownerPhone.trim(),
+      ownerName:
+        travelerPI?.fullName || formData.ownerName.trim() || activeUserName,
+      ownerPhone: travelerPI?.phone || formData.ownerPhone.trim(),
       status: 'open',
       applicants: [],
       approvedProvider: null,
@@ -1318,6 +1710,8 @@ function BookingMarketplace({ currentUser, currentRole }) {
         ? 'Tourism Graduate / Guide'
         : activeUserRole === 'agency'
         ? 'Travel Agency'
+        : activeUserRole === 'car_rental'
+        ? 'Car Rentals Company'
         : 'Tour Company';
 
     const newApplicant = {
@@ -1365,7 +1759,9 @@ function BookingMarketplace({ currentUser, currentRole }) {
       status: 'taken',
       approvedProvider: approvedData
     });
-    alert(`✓ ${applicant.providerName} is now granted for this job! Booking is locked and dismissed from open requests.`);
+    alert(
+      `✓ ${applicant.providerName} is now granted for this job! Booking is locked and dismissed from open requests.`
+    );
   };
 
   const myPrivateThreads = privateChats.filter((t) =>
@@ -1410,7 +1806,7 @@ function BookingMarketplace({ currentUser, currentRole }) {
 
         <button
           type="button"
-          onClick={() => setShowForm(!showForm)}
+          onClick={handleOpenCreateForm}
           className="px-5 py-3 bg-amber-400 hover:bg-amber-500 text-slate-950 font-extrabold text-xs md:text-sm rounded-xl shadow shrink-0 transition"
         >
           {showForm ? '✕ Close Form' : '+ Submit New Booking'}
@@ -1535,7 +1931,7 @@ function BookingMarketplace({ currentUser, currentRole }) {
         ) : (
           myPrivateThreads.length === 0 && (
             <p className="text-slate-400 italic">
-              No private conversations yet. Click &quot;Private Chat&quot; on a booking request or applicant to start a private conversation.
+              No private conversations yet. Click &quot;Private Chat&quot; on a booking request, applicant, or traveler to start a private conversation.
             </p>
           )
         )}
@@ -1552,11 +1948,11 @@ function BookingMarketplace({ currentUser, currentRole }) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             <div>
-              <label className="font-bold text-slate-700">Trip / Booking Title *</label>
+              <label className="font-bold text-slate-700">Trip / Rental / Booking Title *</label>
               <input
                 type="text"
                 required
-                placeholder="e.g. 3-Day Nyungwe & Lake Kivu Tour"
+                placeholder="e.g. 3-Day Nyungwe Tour or 4x4 Car Rental"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 className="w-full mt-1 p-2.5 border rounded-xl"
@@ -1586,7 +1982,10 @@ function BookingMarketplace({ currentUser, currentRole }) {
                 onChange={(e) => setFormData({ ...formData, targetRole: e.target.value })}
                 className="w-full mt-1 p-2.5 border rounded-xl bg-white font-semibold"
               >
-                <option value="Any (Tour Company, Agency, or Graduate)">Any (Tour Company, Agency, or Graduate)</option>
+                <option value="Any (Tour Company, Agency, Car Rental, or Graduate)">
+                  Any (Tour Company, Agency, Car Rental, or Graduate)
+                </option>
+                <option value="Car Rentals Company">Car Rentals Company</option>
                 <option value="Tour Company">Tour Company</option>
                 <option value="Travel Agency">Travel Agency</option>
                 <option value="Tourism Graduate / Guide">Tourism Graduate / Guide</option>
@@ -1616,7 +2015,7 @@ function BookingMarketplace({ currentUser, currentRole }) {
                 />
               </div>
               <div>
-                <label className="font-bold text-slate-700">Travelers</label>
+                <label className="font-bold text-slate-700">Travelers / Seats</label>
                 <input
                   type="number"
                   min="1"
@@ -1662,10 +2061,10 @@ function BookingMarketplace({ currentUser, currentRole }) {
             </div>
 
             <div>
-              <label className="font-bold text-slate-700">Trip Requirements &amp; Notes</label>
+              <label className="font-bold text-slate-700">Trip / Rental Notes</label>
               <input
                 type="text"
-                placeholder="Languages, vehicle, or itinerary notes..."
+                placeholder="Languages, vehicle model, or itinerary notes..."
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 className="w-full mt-1 p-2.5 border rounded-xl"
@@ -1792,6 +2191,13 @@ function BookingMarketplace({ currentUser, currentRole }) {
                     Posted by <strong>{booking.ownerName}</strong> • For: {booking.targetRole}
                   </p>
 
+                  {booking.travelerPI && (
+                    <div className="bg-emerald-50/70 border border-emerald-200 p-2 rounded-xl text-[11px] text-slate-700">
+                      <strong>🪪 Traveler PI:</strong> {booking.travelerPI.fullName} •{' '}
+                      {booking.travelerPI.nationality || 'Rwanda'} • {booking.travelerPI.phone}
+                    </div>
+                  )}
+
                   <div className="bg-slate-100 p-2.5 rounded-xl grid grid-cols-3 gap-1 text-[11px]">
                     <div>
                       <span className="text-slate-400 block">Date</span>
@@ -1827,7 +2233,12 @@ function BookingMarketplace({ currentUser, currentRole }) {
                       <button
                         type="button"
                         onClick={() =>
-                          openPrivateChat(booking, booking.ownerId, booking.ownerName)
+                          openPrivateChat(
+                            booking.id,
+                            booking.title,
+                            booking.ownerId,
+                            booking.ownerName
+                          )
                         }
                         className="mt-1 px-3 py-1.5 bg-amber-400 text-slate-950 rounded-lg font-extrabold text-[11px]"
                       >
@@ -1873,7 +2284,12 @@ function BookingMarketplace({ currentUser, currentRole }) {
                               <button
                                 type="button"
                                 onClick={() =>
-                                  openPrivateChat(booking, app.providerId, app.providerName)
+                                  openPrivateChat(
+                                    booking.id,
+                                    booking.title,
+                                    app.providerId,
+                                    app.providerName
+                                  )
                                 }
                                 className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-bold"
                               >
@@ -1907,7 +2323,12 @@ function BookingMarketplace({ currentUser, currentRole }) {
                             <button
                               type="button"
                               onClick={() =>
-                                openPrivateChat(booking, booking.ownerId, booking.ownerName)
+                                openPrivateChat(
+                                  booking.id,
+                                  booking.title,
+                                  booking.ownerId,
+                                  booking.ownerName
+                                )
                               }
                               className="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold transition"
                             >
@@ -1925,7 +2346,7 @@ function BookingMarketplace({ currentUser, currentRole }) {
                         )
                       ) : (
                         <p className="text-[11px] text-slate-400 text-center">
-                          Open for verified Tour Companies, Agencies &amp; Graduates to request.
+                          Open for verified Car Rentals, Tour Companies, Agencies &amp; Graduates to request.
                         </p>
                       )}
                     </div>
@@ -1961,10 +2382,18 @@ export default function GuideLinkRwandaApp() {
     }
   }, []);
 
+  const [language, setLanguage] = useState('ENG');
+  const t = UI_TRANSLATIONS[language] || UI_TRANSLATIONS.ENG;
+
   const [currentRole, setCurrentRole] = useState('welcome');
   const [ownerTab, setOwnerTab] = useState('pending');
   const [showUserProfileEditor, setShowUserProfileEditor] = useState(false);
   const [showChangePasswordBox, setShowChangePasswordBox] = useState(false);
+  const [showPiFormModal, setShowPiFormModal] = useState(false);
+  const [travelerPI, setTravelerPI] = useState(null);
+  const [travelersDirectory, setTravelersDirectory] = useState([]);
+  const [externalChatTarget, setExternalChatTarget] = useState(null);
+
   const [currentPasswordInput, setCurrentPasswordInput] = useState('');
   const [newPasswordInput, setNewPasswordInput] = useState('');
   const [confirmNewPasswordInput, setConfirmNewPasswordInput] = useState('');
@@ -2012,11 +2441,12 @@ export default function GuideLinkRwandaApp() {
 
   useEffect(() => {
     const syncFromFirebase = async () => {
-      const [fbConfigs, fbPlans, fbSubs, fbPkgs] = await Promise.all([
+      const [fbConfigs, fbPlans, fbSubs, fbPkgs, fbTravelers] = await Promise.all([
         firestoreGetCollection('appConfig'),
         firestoreGetCollection('subscriptionPlans'),
         firestoreGetCollection('subscribers'),
-        firestoreGetCollection('publishedPackages')
+        firestoreGetCollection('publishedPackages'),
+        firestoreGetCollection('travelersPI')
       ]);
 
       if (fbConfigs.length > 0) {
@@ -2033,6 +2463,15 @@ export default function GuideLinkRwandaApp() {
       if (fbPkgs.length > 0) {
         setPublishedPackages(
           [...fbPkgs].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+        );
+      }
+      if (fbTravelers.length > 0) {
+        setTravelersDirectory(
+          [...fbTravelers].sort(
+            (a, b) =>
+              new Date(b.submittedAt || 0).getTime() -
+              new Date(a.submittedAt || 0).getTime()
+          )
         );
       }
     };
@@ -2077,6 +2516,33 @@ export default function GuideLinkRwandaApp() {
       clearInterval(repeatTimer);
     };
   }, [appConfig.ads, currentRole]);
+
+  const handleSaveTravelerPI = async (piData) => {
+    const cleanId =
+      normalizeContact(piData.phone || piData.fullName) || `trv-${Date.now()}`;
+    const record = {
+      id: cleanId,
+      ...piData
+    };
+    setTravelerPI(record);
+    setTravelersDirectory((prev) => {
+      const filtered = prev.filter((item) => item.id !== record.id);
+      return [record, ...filtered];
+    });
+    setShowPiFormModal(false);
+    await firestoreSaveDoc('travelersPI', cleanId, record);
+    alert('✓ Your Personal Information (PI) is saved! You can now set or request bookings.');
+  };
+
+  const handleStartPrivateChatWithTraveler = (trv) => {
+    setExternalChatTarget({
+      contextId: `traveler_${trv.id}`,
+      contextTitle: `Trip Inquiry with Traveler: ${trv.fullName}`,
+      otherUserId: trv.phone || trv.id || trv.fullName,
+      otherUserName: trv.fullName
+    });
+    setCurrentRole('welcome');
+  };
 
   const saveAppServerConfig = async (updatedConfig) => {
     setIsSaving(true);
@@ -2167,6 +2633,12 @@ export default function GuideLinkRwandaApp() {
   };
 
   const handleBookPackageOrProvider = async (item, bookingForm) => {
+    const activePI = bookingForm.travelerPI || travelerPI;
+    if (!activePI?.fullName || !activePI?.phone) {
+      setShowPiFormModal(true);
+      return;
+    }
+
     const isPkg = item.bookingType === 'package';
     const bookingId = `bk-${Date.now()}`;
     const targetName = isPkg ? item.providerName || item.title : item.name;
@@ -2175,25 +2647,27 @@ export default function GuideLinkRwandaApp() {
     const bookingDoc = {
       id: bookingId,
       title: isPkg
-        ? `Package Booking: ${item.title} (${targetName})`
+        ? `Offer Booking: ${item.title} (${targetName})`
         : `Direct Booking Request: ${targetName}`,
       destination: item.destination || 'Multi-Destination Rwanda',
       startDate: bookingForm.travelDate || 'Flexible Date',
-      durationDays: Number(item.durationDays) || 1,
+      durationDays: Number(bookingForm.durationDays) || 1,
       groupSize: Number(bookingForm.groupSize) || 1,
       budgetRwf: item.priceLabel || 'Negotiable',
       targetRole: targetName,
+      travelerPI: activePI,
       notes: [
         bookingForm.notes,
+        `Traveler PI: ${activePI.fullName} (${activePI.nationality || 'Rwanda'})`,
         targetContact ? `Provider Contact: ${targetContact}` : ''
       ]
         .filter(Boolean)
         .join(' • '),
       ownerId:
-        normalizeContact(bookingForm.travelerPhone || bookingForm.travelerName) ||
+        normalizeContact(activePI.phone || activePI.fullName) ||
         `traveler_${Date.now()}`,
-      ownerName: bookingForm.travelerName.trim() || 'Traveler',
-      ownerPhone: bookingForm.travelerPhone.trim(),
+      ownerName: activePI.fullName,
+      ownerPhone: activePI.phone,
       status: 'open',
       applicants: [],
       approvedProvider: null,
@@ -2202,7 +2676,7 @@ export default function GuideLinkRwandaApp() {
 
     await firestoreSaveDoc('openBookings', bookingId, bookingDoc);
     alert(
-      `✓ Booking request sent for "${isPkg ? item.title : targetName}"! It is now live on the booking board.`
+      `✓ Booking request sent for "${isPkg ? item.title : targetName}" with your Personal Info (PI)!`
     );
   };
 
@@ -2376,10 +2850,11 @@ export default function GuideLinkRwandaApp() {
   };
 
   const roleLabelMap = {
-    graduate: 'Tourism Graduate / Guide',
-    agency: 'Travel Agency',
-    tour_company: 'Tour Company',
-    traveler: 'Traveler / Visitor',
+    graduate: t.graduateTitle,
+    agency: t.agencyTitle,
+    tour_company: t.tourCompanyTitle,
+    car_rental: t.carRentalTitle,
+    traveler: t.travelerTitle,
     owner: 'Platform Owner (C.E.O.)'
   };
 
@@ -2477,6 +2952,28 @@ export default function GuideLinkRwandaApp() {
           </div>
 
           <div className="flex items-center flex-wrap gap-2 text-xs">
+            {/* LANGUAGE SWITCHER ICON: KINY, FRA, ENG, KISW */}
+            <div
+              title="Change Language"
+              className="inline-flex items-center bg-black/25 p-1 rounded-xl gap-1"
+            >
+              <span className="px-1.5 font-extrabold text-amber-300">🌐</span>
+              {['KINY', 'FRA', 'ENG', 'KISW'].map((langCode) => (
+                <button
+                  key={langCode}
+                  type="button"
+                  onClick={() => setLanguage(langCode)}
+                  className={`px-2 py-1 rounded-lg font-extrabold text-[10px] transition ${
+                    language === langCode
+                      ? 'bg-amber-400 text-slate-950'
+                      : 'text-white/85 hover:bg-white/10'
+                  }`}
+                >
+                  {langCode}
+                </button>
+              ))}
+            </div>
+
             <span className="bg-white/15 px-3 py-1.5 rounded-full font-bold text-amber-300">
               {appConfig.travelerFreeBadge}
             </span>
@@ -2493,7 +2990,7 @@ export default function GuideLinkRwandaApp() {
                 onClick={() => setCurrentRole('welcome')}
                 className="px-3 py-1.5 bg-white/15 hover:bg-white/25 rounded-xl font-bold transition"
               >
-                ← Switch Portal
+                ← {t.switchPortal}
               </button>
             )}
 
@@ -2506,7 +3003,7 @@ export default function GuideLinkRwandaApp() {
               }
               className="px-3 py-1.5 bg-amber-400 hover:bg-amber-500 text-slate-950 rounded-xl font-extrabold shadow transition"
             >
-              👑 Owner C.E.O.
+              👑 {t.ownerBtn}
             </button>
           </div>
         </div>
@@ -2538,7 +3035,7 @@ export default function GuideLinkRwandaApp() {
           <div className="space-y-8">
             <div className="bg-white rounded-3xl p-6 md:p-10 border shadow-sm text-center space-y-4">
               <span className="inline-block text-[11px] font-extrabold uppercase tracking-wider px-3 py-1 rounded-full bg-emerald-50 text-[#234E40]">
-                🇷🇼 Rwanda&apos;s Official Tourism Talent &amp; Booking Network
+                🇷🇼 {t.heroBadge}
               </span>
               <h2 className="text-2xl md:text-4xl font-black text-slate-900">
                 {appConfig.tagline}
@@ -2547,31 +3044,37 @@ export default function GuideLinkRwandaApp() {
                 {appConfig.subtitle}
               </p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 text-left">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 pt-4 text-left">
                 {[
                   {
                     role: 'graduate',
                     icon: '🎓',
-                    title: 'Tourism Graduate / Guide',
-                    desc: 'Find paid guiding jobs, bid on open tours, and connect with agencies.'
+                    title: t.graduateTitle,
+                    desc: t.graduateDesc
                   },
                   {
                     role: 'agency',
                     icon: '✈️',
-                    title: 'Travel Agency',
-                    desc: 'Post job openings, hire certified graduates, and manage tour bookings.'
+                    title: t.agencyTitle,
+                    desc: t.agencyDesc
                   },
                   {
                     role: 'tour_company',
                     icon: '🚐',
-                    title: 'Tour Company',
-                    desc: 'Source field guides, fulfill custom safari requests, and scale operations.'
+                    title: t.tourCompanyTitle,
+                    desc: t.tourCompanyDesc
+                  },
+                  {
+                    role: 'car_rental',
+                    icon: '🚗',
+                    title: t.carRentalTitle,
+                    desc: t.carRentalDesc
                   },
                   {
                     role: 'traveler',
                     icon: '🌍',
-                    title: 'Traveler / Visitor (FREE)',
-                    desc: 'Request custom Rwanda trips, compare quotes, and hire verified guides.'
+                    title: t.travelerTitle,
+                    desc: t.travelerDesc
                   }
                 ].map((card) => (
                   <div
@@ -2579,6 +3082,9 @@ export default function GuideLinkRwandaApp() {
                     onClick={() => {
                       if (card.role === 'traveler') {
                         setCurrentRole('traveler');
+                        if (!travelerPI?.fullName || !travelerPI?.phone) {
+                          setShowPiFormModal(true);
+                        }
                       } else {
                         setSelectedRoleForAuth(card.role);
                         setCurrentRole('auth');
@@ -2588,27 +3094,42 @@ export default function GuideLinkRwandaApp() {
                   >
                     <div className="space-y-2">
                       <div className="text-3xl">{card.icon}</div>
-                      <h3 className="font-extrabold text-base text-slate-900">
+                      <h3 className="font-extrabold text-sm md:text-base text-slate-900">
                         {card.title}
                       </h3>
                       <p className="text-xs text-slate-600">{card.desc}</p>
                     </div>
                     <span className="text-xs font-extrabold text-[#234E40]">
-                      Enter Portal →
+                      {t.enterPortal} →
                     </span>
                   </div>
                 ))}
               </div>
             </div>
 
+            <TravelersOnWelcomeDirectory
+              travelersList={travelersDirectory}
+              onStartPrivateChatWithTraveler={handleStartPrivateChatWithTraveler}
+              lang={language}
+            />
+
             <TravelerAvailabilityAndPackages
               subscribers={subscribers}
               publishedPackages={publishedPackages}
               currentUser={currentUser}
+              travelerPI={travelerPI}
+              onRequirePI={() => setShowPiFormModal(true)}
               onBookPackageOrProvider={handleBookPackageOrProvider}
             />
 
-            <BookingMarketplace currentUser={currentUser} currentRole={currentRole} />
+            <BookingMarketplace
+              currentUser={currentUser}
+              currentRole={currentRole}
+              travelerPI={travelerPI}
+              onRequirePI={() => setShowPiFormModal(true)}
+              externalChatTarget={externalChatTarget}
+              onClearExternalChatTarget={() => setExternalChatTarget(null)}
+            />
           </div>
         )}
 
@@ -2658,7 +3179,7 @@ export default function GuideLinkRwandaApp() {
                     <input
                       type="text"
                       required
-                      placeholder="e.g. RUTUNGURA Bonheur / Echo Travels Ltd"
+                      placeholder="e.g. RUTUNGURA Bonheur / Kigali 4x4 Rentals Ltd"
                       value={authNameInput}
                       onChange={(e) => setAuthNameInput(e.target.value)}
                       className="w-full mt-1 p-3 border rounded-xl"
@@ -2680,7 +3201,7 @@ export default function GuideLinkRwandaApp() {
                     </div>
                     <div>
                       <label className="font-bold text-slate-700">
-                        License / Diploma Number
+                        License / Diploma / Fleet Number
                       </label>
                       <input
                         type="text"
@@ -2778,19 +3299,23 @@ export default function GuideLinkRwandaApp() {
         {/* ===============================================================
             3. MEMBER & TRAVELER DASHBOARDS
            =============================================================== */}
-        {['graduate', 'agency', 'tour_company', 'traveler'].includes(currentRole) && (
+        {['graduate', 'agency', 'tour_company', 'car_rental', 'traveler'].includes(
+          currentRole
+        ) && (
           <div className="space-y-6">
             <div className="bg-white p-5 rounded-2xl border shadow-sm flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 {currentUser?.photoUrl ? (
                   <img
                     src={currentUser.photoUrl}
-                    alt={currentUser.name || 'User'}
+                    alt={currentUser.name || travelerPI?.fullName || 'User'}
                     className="w-12 h-12 rounded-2xl object-cover border"
                   />
                 ) : (
                   <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center font-black text-[#234E40] text-lg">
-                    {(currentUser?.name || 'G').charAt(0).toUpperCase()}
+                    {(travelerPI?.fullName || currentUser?.name || 'G')
+                      .charAt(0)
+                      .toUpperCase()}
                   </div>
                 )}
                 <div>
@@ -2798,29 +3323,45 @@ export default function GuideLinkRwandaApp() {
                     {roleLabelMap[currentRole]}
                   </span>
                   <h2 className="text-xl font-black text-slate-900">
-                    Welcome, {currentUser?.name || 'Guest Traveler'}
+                    Welcome, {travelerPI?.fullName || currentUser?.name || 'Guest Traveler'}
                   </h2>
                 </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowUserProfileEditor(!showUserProfileEditor)}
-                  className="px-4 py-2 bg-[#234E40] hover:bg-slate-900 text-white text-xs font-bold rounded-xl shadow"
-                >
-                  {showUserProfileEditor
-                    ? 'Hide Profile Editor'
-                    : '✏️ Edit Profile, Availability & Packages'}
-                </button>
+                {currentRole === 'traveler' && (
+                  <button
+                    type="button"
+                    onClick={() => setShowPiFormModal(true)}
+                    className="px-4 py-2 bg-amber-400 hover:bg-amber-500 text-slate-950 text-xs font-extrabold rounded-xl shadow"
+                  >
+                    {travelerPI?.fullName
+                      ? '🪪 Update Personal Info (PI)'
+                      : '🪪 Submit Personal Info (PI) *'}
+                  </button>
+                )}
 
-                <button
-                  type="button"
-                  onClick={() => setShowChangePasswordBox(!showChangePasswordBox)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl shadow"
-                >
-                  {showChangePasswordBox ? 'Hide Password Form' : '🔑 Change Password'}
-                </button>
+                {currentRole !== 'traveler' && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setShowUserProfileEditor(!showUserProfileEditor)}
+                      className="px-4 py-2 bg-[#234E40] hover:bg-slate-900 text-white text-xs font-bold rounded-xl shadow"
+                    >
+                      {showUserProfileEditor
+                        ? 'Hide Profile Editor'
+                        : '✏️ Edit Profile, Availability & Packages'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowChangePasswordBox(!showChangePasswordBox)}
+                      className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl shadow"
+                    >
+                      {showChangePasswordBox ? 'Hide Password Form' : '🔑 Change Password'}
+                    </button>
+                  </>
+                )}
 
                 {currentRole !== 'traveler' && !isSubscribed && (
                   <div className="bg-amber-50 border border-amber-300 px-4 py-2.5 rounded-xl text-xs text-amber-950">
@@ -2830,6 +3371,14 @@ export default function GuideLinkRwandaApp() {
                 )}
               </div>
             </div>
+
+            {currentRole === 'traveler' && (!travelerPI?.fullName || !travelerPI?.phone) && (
+              <TravelerPersonalInfoForm
+                travelerPI={travelerPI}
+                onSavePI={handleSaveTravelerPI}
+                lang={language}
+              />
+            )}
 
             {showChangePasswordBox && (
               <form
@@ -2910,7 +3459,12 @@ export default function GuideLinkRwandaApp() {
                 label={roleLabelMap[currentRole]}
                 onSave={handleSaveUserProfile}
                 isSaving={isSaving}
-                showProviderExtras={['graduate', 'agency', 'tour_company'].includes(currentRole)}
+                showProviderExtras={[
+                  'graduate',
+                  'agency',
+                  'tour_company',
+                  'car_rental'
+                ].includes(currentRole)}
                 onPublishPackage={handlePublishProviderPackage}
               />
             )}
@@ -2920,11 +3474,20 @@ export default function GuideLinkRwandaApp() {
                 subscribers={subscribers}
                 publishedPackages={publishedPackages}
                 currentUser={currentUser}
+                travelerPI={travelerPI}
+                onRequirePI={() => setShowPiFormModal(true)}
                 onBookPackageOrProvider={handleBookPackageOrProvider}
               />
             )}
 
-            <BookingMarketplace currentUser={currentUser} currentRole={currentRole} />
+            <BookingMarketplace
+              currentUser={currentUser}
+              currentRole={currentRole}
+              travelerPI={travelerPI}
+              onRequirePI={() => setShowPiFormModal(true)}
+              externalChatTarget={externalChatTarget}
+              onClearExternalChatTarget={() => setExternalChatTarget(null)}
+            />
           </div>
         )}
 
@@ -3352,6 +3915,7 @@ export default function GuideLinkRwandaApp() {
                       <option value="graduate">Tourism Graduates / Guides</option>
                       <option value="agency">Travel Agencies</option>
                       <option value="tour_company">Tour Companies</option>
+                      <option value="car_rental">Car Rentals Companies</option>
                     </select>
                   </div>
 
@@ -3557,6 +4121,20 @@ export default function GuideLinkRwandaApp() {
           </div>
         )}
       </main>
+
+      {/* TRAVELER PERSONAL INFO (PI) MODAL */}
+      {showPiFormModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="max-w-2xl w-full my-auto">
+            <TravelerPersonalInfoForm
+              travelerPI={travelerPI}
+              onSavePI={handleSaveTravelerPI}
+              onCancel={() => setShowPiFormModal(false)}
+              lang={language}
+            />
+          </div>
+        </div>
+      )}
 
       {/* POP-UP SPONSORED AD MODAL */}
       {activePopupAd && (
