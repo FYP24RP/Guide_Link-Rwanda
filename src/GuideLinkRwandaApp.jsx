@@ -1108,10 +1108,13 @@ function TravelerAvailabilityAndPackages({
 }
 
 // =========================================================================
-// OPEN BOOKING & JOB ASSIGNMENT MARKETPLACE (Isolated `openBookings` Node)
+// OPEN BOOKING & JOB ASSIGNMENT MARKETPLACE + PRIVATE 1-ON-1 CHAT
 // =========================================================================
 function BookingMarketplace({ currentUser, currentRole }) {
   const [bookings, setBookings] = useState([]);
+  const [privateChats, setPrivateChats] = useState([]);
+  const [activeChatThread, setActiveChatThread] = useState(null);
+  const [chatMessageInput, setChatMessageInput] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState('open');
   const [loading, setLoading] = useState(false);
@@ -1155,17 +1158,25 @@ function BookingMarketplace({ currentUser, currentRole }) {
     }
   }, [currentUser]);
 
-  const fetchOpenBookings = async () => {
-    const docs = await firestoreGetCollection('openBookings');
-    if (docs.length > 0) {
-      const sorted = [...docs].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  const fetchOpenBookingsAndChats = async () => {
+    const [fbBookings, fbChats] = await Promise.all([
+      firestoreGetCollection('openBookings'),
+      firestoreGetCollection('privateChats')
+    ]);
+
+    if (fbBookings.length > 0) {
+      const sorted = [...fbBookings].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       setBookings(sorted);
+    }
+
+    if (fbChats.length > 0) {
+      setPrivateChats(fbChats);
     }
   };
 
   useEffect(() => {
-    fetchOpenBookings();
-    const timer = setInterval(fetchOpenBookings, 15000);
+    fetchOpenBookingsAndChats();
+    const timer = setInterval(fetchOpenBookingsAndChats, 12000);
     return () => clearInterval(timer);
   }, []);
 
@@ -1184,6 +1195,80 @@ function BookingMarketplace({ currentUser, currentRole }) {
       body: JSON.stringify({ fields })
     });
     return res.ok;
+  };
+
+  const buildThreadId = (bookingId, userA, userB) => {
+    const pair = [normalize(userA), normalize(userB)].sort().join('__');
+    return `chat_${bookingId}_${pair}`;
+  };
+
+  const openPrivateChat = async (booking, otherUserId, otherUserName) => {
+    const cleanOtherId = normalize(otherUserId);
+    if (!cleanOtherId || cleanOtherId === activeUserId) {
+      alert('Unable to start private chat with yourself.');
+      return;
+    }
+
+    const threadId = buildThreadId(booking.id, activeUserId, cleanOtherId);
+    const existingThread = privateChats.find((t) => t.id === threadId);
+
+    if (existingThread) {
+      setActiveChatThread(existingThread);
+      return;
+    }
+
+    const newThread = {
+      id: threadId,
+      bookingId: booking.id,
+      bookingTitle: booking.title,
+      participantIds: [activeUserId, cleanOtherId],
+      participantNames: {
+        [activeUserId]: activeUserName,
+        [cleanOtherId]: otherUserName || 'Booking Partner'
+      },
+      messages: [],
+      updatedAt: Date.now()
+    };
+
+    setPrivateChats((prev) => [newThread, ...prev]);
+    setActiveChatThread(newThread);
+    await firestoreSaveDoc('privateChats', threadId, newThread);
+  };
+
+  const handleSendPrivateMessage = async (e) => {
+    e.preventDefault();
+    if (!activeChatThread || !chatMessageInput.trim()) return;
+
+    const currentThread =
+      privateChats.find((t) => t.id === activeChatThread.id) || activeChatThread;
+
+    const participants = currentThread.participantIds || [];
+    if (!participants.includes(activeUserId)) {
+      alert('Access denied: only the two private chat participants can send or view messages.');
+      return;
+    }
+
+    const newMsg = {
+      id: `msg-${Date.now()}`,
+      senderId: activeUserId,
+      senderName: activeUserName,
+      text: chatMessageInput.trim(),
+      sentAt: new Date().toISOString()
+    };
+
+    const updatedMessages = [...(currentThread.messages || []), newMsg];
+    const updatedThread = {
+      ...currentThread,
+      messages: updatedMessages,
+      updatedAt: Date.now()
+    };
+
+    setPrivateChats((prev) =>
+      prev.map((t) => (t.id === updatedThread.id ? updatedThread : t))
+    );
+    setActiveChatThread(updatedThread);
+    setChatMessageInput('');
+    await firestoreSaveDoc('privateChats', updatedThread.id, updatedThread);
   };
 
   const handleCreateBooking = async (e) => {
@@ -1250,10 +1335,15 @@ function BookingMarketplace({ currentUser, currentRole }) {
       )
     );
     await saveBookingDoc(booking.id, { applicants: updatedApplicants });
-    alert('✓ Request sent! Waiting for booking owner approval.');
+    alert('✓ Request sent! Only the booking owner can see your request and approve.');
   };
 
   const handleApproveProvider = async (booking, applicant) => {
+    if (booking.ownerId !== activeUserId) {
+      alert('Only the user who created this booking can approve an applicant.');
+      return;
+    }
+
     const ok = window.confirm(
       `Approve ${applicant.providerName} (${applicant.providerRole}) for "${booking.title}"? Once approved, this booking will be marked TAKEN and dismissed for everyone else.`
     );
@@ -1278,6 +1368,17 @@ function BookingMarketplace({ currentUser, currentRole }) {
     alert(`✓ ${applicant.providerName} is now granted for this job! Booking is locked and dismissed from open requests.`);
   };
 
+  const myPrivateThreads = privateChats.filter((t) =>
+    (t.participantIds || []).includes(activeUserId)
+  );
+
+  const liveActiveThread = activeChatThread
+    ? privateChats.find((t) => t.id === activeChatThread.id) || activeChatThread
+    : null;
+
+  const canViewLiveThread =
+    liveActiveThread && (liveActiveThread.participantIds || []).includes(activeUserId);
+
   const grantedCount = bookings.filter(
     (b) => b.approvedProvider?.providerId === activeUserId
   ).length;
@@ -1297,13 +1398,13 @@ function BookingMarketplace({ currentUser, currentRole }) {
       <div className="bg-[#234E40] text-white p-6 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="space-y-1">
           <span className="text-[10px] uppercase font-bold bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full">
-            Open Access Booking Board
+            Open Access Booking Board &amp; Private Chat
           </span>
           <h3 className="font-bold text-base md:text-xl pt-1">
-            📅 Live Bookings &amp; Job Assignments
+            📅 Live Bookings, Owner Approvals &amp; Private Messages
           </h3>
           <p className="text-xs md:text-sm text-emerald-100">
-            Everyone can submit a booking request. Deal owners can view all applicants and APPROVE WHOM THEY WANT. Once approved, the booking is marked taken and dismissed for others.
+            Only the user who created a booking sees all applicants/requests and approves whom they want. Private chats are visible exclusively to the two chatting participants.
           </p>
         </div>
 
@@ -1314,6 +1415,130 @@ function BookingMarketplace({ currentUser, currentRole }) {
         >
           {showForm ? '✕ Close Form' : '+ Submit New Booking'}
         </button>
+      </div>
+
+      {/* PRIVATE 1-ON-1 CHAT CONVERSATIONS (VISIBLE ONLY TO PARTICIPANTS) */}
+      <div className="bg-white p-5 rounded-2xl border shadow-sm space-y-3 text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2">
+          <div>
+            <span className="text-[10px] font-extrabold uppercase text-[#3B6E5B]">
+              🔒 Private 1-on-1 Messaging
+            </span>
+            <h4 className="font-black text-sm text-slate-900">
+              Your Private Booking Chats ({myPrivateThreads.length})
+            </h4>
+          </div>
+          <span className="text-[11px] text-slate-500">
+            Strictly private: only the two participants in a thread can read or reply.
+          </span>
+        </div>
+
+        {myPrivateThreads.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {myPrivateThreads.map((thread) => {
+              const otherId = (thread.participantIds || []).find((id) => id !== activeUserId);
+              const otherName =
+                (thread.participantNames && otherId && thread.participantNames[otherId]) ||
+                'Partner';
+              const isSelected = canViewLiveThread && liveActiveThread.id === thread.id;
+              return (
+                <button
+                  key={thread.id}
+                  type="button"
+                  onClick={() => setActiveChatThread(thread)}
+                  className={`px-3.5 py-2 rounded-xl border font-bold text-left transition ${
+                    isSelected
+                      ? 'bg-[#234E40] text-white border-[#234E40]'
+                      : 'bg-slate-50 text-slate-800 hover:bg-emerald-50'
+                  }`}
+                >
+                  💬 Chat with {otherName} •{' '}
+                  <span className="font-normal opacity-80">{thread.bookingTitle}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {canViewLiveThread ? (
+          <div className="border rounded-2xl bg-slate-50 p-4 space-y-3">
+            <div className="flex items-center justify-between border-b pb-2">
+              <div>
+                <p className="font-extrabold text-sm text-slate-900">
+                  🔒 Private Chat — {liveActiveThread.bookingTitle}
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  Participants:{' '}
+                  {(liveActiveThread.participantIds || [])
+                    .map(
+                      (pid) =>
+                        (liveActiveThread.participantNames &&
+                          liveActiveThread.participantNames[pid]) ||
+                        pid
+                    )
+                    .join(' & ')}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveChatThread(null)}
+                className="px-3 py-1 bg-white border rounded-lg font-bold text-slate-700"
+              >
+                Close Chat
+              </button>
+            </div>
+
+            <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+              {(liveActiveThread.messages || []).length === 0 ? (
+                <p className="text-slate-400 italic text-center py-4">
+                  No messages yet. Send a private message to coordinate booking details.
+                </p>
+              ) : (
+                (liveActiveThread.messages || []).map((msg) => {
+                  const mine = msg.senderId === activeUserId;
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`p-3 rounded-2xl max-w-md ${
+                        mine
+                          ? 'ml-auto bg-[#234E40] text-white'
+                          : 'mr-auto bg-white border text-slate-800'
+                      }`}
+                    >
+                      <p className="text-[10px] font-bold opacity-80">
+                        {msg.senderName} •{' '}
+                        {msg.sentAt ? new Date(msg.sentAt).toLocaleTimeString() : ''}
+                      </p>
+                      <p className="mt-0.5">{msg.text}</p>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <form onSubmit={handleSendPrivateMessage} className="flex gap-2 pt-1">
+              <input
+                type="text"
+                value={chatMessageInput}
+                onChange={(e) => setChatMessageInput(e.target.value)}
+                placeholder="Write a private message (only visible to you and your chat partner)..."
+                className="flex-1 p-2.5 border rounded-xl bg-white"
+              />
+              <button
+                type="submit"
+                className="px-5 py-2.5 bg-[#234E40] hover:bg-slate-900 text-white font-bold rounded-xl shadow"
+              >
+                Send Private Message →
+              </button>
+            </form>
+          </div>
+        ) : (
+          myPrivateThreads.length === 0 && (
+            <p className="text-slate-400 italic">
+              No private conversations yet. Click &quot;Private Chat&quot; on a booking request or applicant to start a private conversation.
+            </p>
+          )
+        )}
       </div>
 
       {showForm && (
@@ -1591,7 +1816,7 @@ function BookingMarketplace({ currentUser, currentRole }) {
 
                 <div className="pt-2 border-t border-slate-200 space-y-2">
                   {isGrantedToMe && (
-                    <div className="bg-[#234E40] text-white p-3 rounded-xl space-y-1">
+                    <div className="bg-[#234E40] text-white p-3 rounded-xl space-y-1.5">
                       <p className="font-bold">
                         🎉 You have been approved &amp; granted for this job!
                       </p>
@@ -1599,6 +1824,15 @@ function BookingMarketplace({ currentUser, currentRole }) {
                         Owner: <strong>{booking.ownerName}</strong> • Phone:{' '}
                         <strong>{booking.ownerPhone}</strong>
                       </p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          openPrivateChat(booking, booking.ownerId, booking.ownerName)
+                        }
+                        className="mt-1 px-3 py-1.5 bg-amber-400 text-slate-950 rounded-lg font-extrabold text-[11px]"
+                      >
+                        💬 Private Chat with Owner
+                      </button>
                     </div>
                   )}
 
@@ -1614,7 +1848,7 @@ function BookingMarketplace({ currentUser, currentRole }) {
                       <p className="font-bold text-[11px] uppercase text-slate-700">
                         {isTaken
                           ? `✓ Approved: ${booking.approvedProvider?.providerName}`
-                          : `All Applicants (${(booking.applicants || []).length}) - Approve Whom You Want:`}
+                          : `Only You See Applicants (${(booking.applicants || []).length}) - Approve Whom You Want:`}
                       </p>
 
                       {!isTaken && (booking.applicants || []).length === 0 && (
@@ -1627,7 +1861,7 @@ function BookingMarketplace({ currentUser, currentRole }) {
                         (booking.applicants || []).map((app, i) => (
                           <div
                             key={i}
-                            className="flex items-center justify-between bg-slate-50 border p-2 rounded-xl"
+                            className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 border p-2 rounded-xl"
                           >
                             <div>
                               <p className="font-bold text-slate-900">{app.providerName}</p>
@@ -1635,29 +1869,51 @@ function BookingMarketplace({ currentUser, currentRole }) {
                                 {app.providerRole} {app.providerPhone ? `• ${app.providerPhone}` : ''}
                               </p>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => handleApproveProvider(booking, app)}
-                              className="px-3 py-1.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-lg font-bold"
-                            >
-                              Approve
-                            </button>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  openPrivateChat(booking, app.providerId, app.providerName)
+                                }
+                                className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-bold"
+                              >
+                                💬 Private Chat
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleApproveProvider(booking, app)}
+                                className="px-3 py-1.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-lg font-bold"
+                              >
+                                Approve
+                              </button>
+                            </div>
                           </div>
                         ))}
                     </div>
                   )}
 
                   {!isOwner && !isTaken && (
-                    <div>
+                    <div className="space-y-1.5">
                       {isProvider ? (
                         alreadyApplied ? (
-                          <button
-                            type="button"
-                            disabled
-                            className="w-full py-2.5 bg-slate-200 text-slate-600 rounded-xl font-bold cursor-not-allowed"
-                          >
-                            ✓ Request Sent — Awaiting Owner Approval
-                          </button>
+                          <div className="space-y-1.5">
+                            <button
+                              type="button"
+                              disabled
+                              className="w-full py-2 bg-slate-200 text-slate-600 rounded-xl font-bold cursor-not-allowed"
+                            >
+                              ✓ Request Sent — Awaiting Owner Approval
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openPrivateChat(booking, booking.ownerId, booking.ownerName)
+                              }
+                              className="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold transition"
+                            >
+                              💬 Private Chat with Booking Owner
+                            </button>
+                          </div>
                         ) : (
                           <button
                             type="button"
@@ -1708,6 +1964,10 @@ export default function GuideLinkRwandaApp() {
   const [currentRole, setCurrentRole] = useState('welcome');
   const [ownerTab, setOwnerTab] = useState('pending');
   const [showUserProfileEditor, setShowUserProfileEditor] = useState(false);
+  const [showChangePasswordBox, setShowChangePasswordBox] = useState(false);
+  const [currentPasswordInput, setCurrentPasswordInput] = useState('');
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [confirmNewPasswordInput, setConfirmNewPasswordInput] = useState('');
   const [selectedInspectedUser, setSelectedInspectedUser] = useState(null);
   const [showOwnerPinModal, setShowOwnerPinModal] = useState(false);
   const [ownerPinInput, setOwnerPinInput] = useState('');
@@ -1736,6 +1996,7 @@ export default function GuideLinkRwandaApp() {
   const [authMode, setAuthMode] = useState('login');
   const [selectedRoleForAuth, setSelectedRoleForAuth] = useState('');
   const [authContactInput, setAuthContactInput] = useState('');
+  const [authPasswordInput, setAuthPasswordInput] = useState('');
   const [authNameInput, setAuthNameInput] = useState('');
   const [authInstitutionInput, setAuthInstitutionInput] = useState('');
   const [authLicenseInput, setAuthLicenseInput] = useState('');
@@ -1858,6 +2119,48 @@ export default function GuideLinkRwandaApp() {
     alert('✓ Profile, photo, availability, packages, experience & qualifications saved!');
   };
 
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    if (!newPasswordInput.trim() || newPasswordInput.trim().length < 4) {
+      alert('Please enter a new password (at least 4 characters).');
+      return;
+    }
+    if (newPasswordInput !== confirmNewPasswordInput) {
+      alert('New password and confirmation do not match.');
+      return;
+    }
+
+    if (currentUser?.password && currentPasswordInput !== currentUser.password) {
+      alert('Your current password is incorrect.');
+      return;
+    }
+
+    setIsSaving(true);
+    const updatedUser = {
+      ...currentUser,
+      role: currentUser?.role || currentRole,
+      password: newPasswordInput.trim(),
+      updatedAt: new Date().toISOString()
+    };
+
+    setCurrentUser(updatedUser);
+    if (updatedUser.id) {
+      setSubscribers((prev) => {
+        const exists = prev.some((s) => s.id === updatedUser.id);
+        return exists
+          ? prev.map((s) => (s.id === updatedUser.id ? updatedUser : s))
+          : [updatedUser, ...prev];
+      });
+      await firestoreSaveDoc('subscribers', updatedUser.id, updatedUser);
+    }
+    setIsSaving(false);
+    setCurrentPasswordInput('');
+    setNewPasswordInput('');
+    setConfirmNewPasswordInput('');
+    setShowChangePasswordBox(false);
+    alert('✓ Your dashboard password has been updated!');
+  };
+
   const handlePublishProviderPackage = async (pkgItem) => {
     setPublishedPackages((prev) => [pkgItem, ...prev]);
     await firestoreSaveDoc('publishedPackages', pkgItem.id, pkgItem);
@@ -1968,6 +2271,10 @@ export default function GuideLinkRwandaApp() {
     e.preventDefault();
     const cleanContact = normalizeContact(authContactInput);
     if (!cleanContact) return;
+    if (!authPasswordInput.trim()) {
+      alert('Please enter your password.');
+      return;
+    }
 
     if (authMode === 'login') {
       const existing = subscribers.find(
@@ -1979,9 +2286,14 @@ export default function GuideLinkRwandaApp() {
         alert('Account not found for this role. Please switch to "New Registration" first.');
         return;
       }
+      if (existing.password && existing.password !== authPasswordInput.trim()) {
+        alert('Incorrect password. Please try again.');
+        return;
+      }
       setCurrentUser(existing);
       setIsSubscribed(checkSubscriptionActive(existing));
       setCurrentRole(existing.role);
+      setAuthPasswordInput('');
       return;
     }
 
@@ -2001,6 +2313,7 @@ export default function GuideLinkRwandaApp() {
       id: `sub-${Date.now()}`,
       name: authNameInput.trim(),
       contact: authContactInput.trim(),
+      password: authPasswordInput.trim(),
       role: selectedRoleForAuth,
       institution: authInstitutionInput.trim(),
       license: authLicenseInput.trim(),
@@ -2028,8 +2341,9 @@ export default function GuideLinkRwandaApp() {
     setCurrentUser(newSub);
     setIsSubscribed(false);
     setCurrentRole(newSub.role);
+    setAuthPasswordInput('');
     alert(
-      `✓ Registration submitted! Pay ${chosenPlan.price.toLocaleString()} RWF via MTN MoMo Code ${appConfig.momoCode} to activate your ${chosenPlan.name} plan.`
+      `✓ Registration submitted with your password! Pay ${chosenPlan.price.toLocaleString()} RWF via MTN MoMo Code ${appConfig.momoCode} to activate your ${chosenPlan.name} plan.`
     );
   };
 
@@ -2380,18 +2694,38 @@ export default function GuideLinkRwandaApp() {
                 </>
               )}
 
-              <div>
-                <label className="font-bold text-slate-700">
-                  Phone Number (WhatsApp) or Email *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="+250780558555"
-                  value={authContactInput}
-                  onChange={(e) => setAuthContactInput(e.target.value)}
-                  className="w-full mt-1 p-3 border rounded-xl"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-700">
+                    Phone Number (WhatsApp) or Email *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="+250780558555"
+                    value={authContactInput}
+                    onChange={(e) => setAuthContactInput(e.target.value)}
+                    className="w-full mt-1 p-3 border rounded-xl"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700">
+                    {authMode === 'login' ? 'Your Dashboard Password *' : 'Set Your Password *'}
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    placeholder={
+                      authMode === 'login'
+                        ? 'Enter your password'
+                        : 'Create a password to log in'
+                    }
+                    value={authPasswordInput}
+                    onChange={(e) => setAuthPasswordInput(e.target.value)}
+                    className="w-full mt-1 p-3 border rounded-xl"
+                  />
+                </div>
               </div>
 
               {authMode === 'register' && (
@@ -2469,7 +2803,7 @@ export default function GuideLinkRwandaApp() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setShowUserProfileEditor(!showUserProfileEditor)}
@@ -2480,6 +2814,14 @@ export default function GuideLinkRwandaApp() {
                     : '✏️ Edit Profile, Availability & Packages'}
                 </button>
 
+                <button
+                  type="button"
+                  onClick={() => setShowChangePasswordBox(!showChangePasswordBox)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl shadow"
+                >
+                  {showChangePasswordBox ? 'Hide Password Form' : '🔑 Change Password'}
+                </button>
+
                 {currentRole !== 'traveler' && !isSubscribed && (
                   <div className="bg-amber-50 border border-amber-300 px-4 py-2.5 rounded-xl text-xs text-amber-950">
                     <strong>⏳ Pending Activation:</strong> Pay via MTN MoMo Code{' '}
@@ -2488,6 +2830,79 @@ export default function GuideLinkRwandaApp() {
                 )}
               </div>
             </div>
+
+            {showChangePasswordBox && (
+              <form
+                onSubmit={handleChangePassword}
+                className="bg-white p-6 rounded-2xl border shadow-sm space-y-4 text-xs"
+              >
+                <div className="border-b pb-2">
+                  <span className="text-[10px] font-extrabold uppercase text-[#3B6E5B]">
+                    Account Security
+                  </span>
+                  <h3 className="text-base font-black text-slate-900">
+                    Change Your Dashboard Password
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {currentUser?.password && (
+                    <div>
+                      <label className="font-bold text-slate-700">Current Password *</label>
+                      <input
+                        type="password"
+                        required
+                        value={currentPasswordInput}
+                        onChange={(e) => setCurrentPasswordInput(e.target.value)}
+                        placeholder="Enter current password"
+                        className="w-full mt-1 p-2.5 border rounded-xl"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="font-bold text-slate-700">New Password *</label>
+                    <input
+                      type="password"
+                      required
+                      value={newPasswordInput}
+                      onChange={(e) => setNewPasswordInput(e.target.value)}
+                      placeholder="Enter new password"
+                      className="w-full mt-1 p-2.5 border rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-slate-700">Confirm New Password *</label>
+                    <input
+                      type="password"
+                      required
+                      value={confirmNewPasswordInput}
+                      onChange={(e) => setConfirmNewPasswordInput(e.target.value)}
+                      placeholder="Re-enter new password"
+                      className="w-full mt-1 p-2.5 border rounded-xl"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowChangePasswordBox(false)}
+                    className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-bold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSaving}
+                    className="px-5 py-2 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold shadow"
+                  >
+                    {isSaving ? 'Updating...' : 'Save New Password'}
+                  </button>
+                </div>
+              </form>
+            )}
 
             {showUserProfileEditor && (
               <UserAndOwnerProfileSection
