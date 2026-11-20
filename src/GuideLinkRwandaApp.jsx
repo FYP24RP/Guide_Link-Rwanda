@@ -145,45 +145,6 @@ const DEFAULT_SUBSCRIPTION_PLANS = [
   }
 ];
 
-const DEFAULT_OWNER_PROFILE = {
-  name: 'RUTUNGURA Bonheur',
-  title: 'C.E.O.',
-  contact: '+250780558555',
-  email: 'rutungurab5@gmail.com',
-  location: 'Kigali / Kitabi / Rusizi, Rwanda',
-  bio: 'Founder & C.E.O. of GuideLink Rwanda, connecting tourism graduates, travel agencies, tour companies, and travelers across Rwanda.',
-  servicesProvided: [
-    'GuideLink Rwanda Platform Leadership & Partnerships',
-    'Tourism Talent & Agency Matching',
-    'Custom Rwanda Tour & Hospitality Advisory'
-  ],
-  experiences: [
-    {
-      id: 'exp-default-1',
-      role: 'F&B Cost Controller',
-      organization: 'AFRIPOT Cuisine Ltd',
-      period: 'Apr 2026 – Sep 2026 (5 Months)',
-      details: 'Managed food and beverage cost control, inventory tracking, and operational margins.'
-    },
-    {
-      id: 'exp-default-2',
-      role: 'Bartender & Service Attendant',
-      organization: 'Nyungwe Top View Hill Hotel',
-      period: '2025 (1 Year)',
-      details: 'Delivered guest service, beverage preparation, and hospitality operations in Nyungwe.'
-    }
-  ],
-  qualifications: [
-    {
-      id: 'qual-default-1',
-      title: 'Advanced Diploma in Tours and Travel Management',
-      issuer: 'RP Kitabi College',
-      year: 'Expected May 2027',
-      credentialId: ''
-    }
-  ]
-};
-
 const DEFAULT_APP_SERVER_CONFIG = {
   appName: 'GuideLink Rwanda',
   tagline: 'Turn your tourism degree into paid work.',
@@ -197,7 +158,6 @@ const DEFAULT_APP_SERVER_CONFIG = {
   maintenanceMode: false,
   maintenanceMessage: 'Platform maintenance in progress. Please check back shortly.',
   welcomeBannerText: '',
-  ownerProfile: DEFAULT_OWNER_PROFILE,
   destinations: [
     'Volcanoes National Park / Musanze',
     'Nyungwe Forest & Lake Kivu (Rusizi / Karongi)',
@@ -213,40 +173,31 @@ const DEFAULT_APP_SERVER_CONFIG = {
 };
 
 // =========================================================================
-// REUSABLE PROFILE EDITOR (FOR BOTH OWNER & ALL USERS)
+// PROFILE EDITOR & SUMMARY (Added for Owner & All Users)
 // =========================================================================
-function ProfileEditorPanel({
-  profileData,
-  roleLabel,
-  onSaveProfile,
-  isSaving
-}) {
+function UserAndOwnerProfileSection({ profileData, label, onSave, isSaving }) {
   const [form, setForm] = useState({
     name: '',
     title: '',
     contact: '',
     email: '',
-    location: '',
-    institution: '',
-    license: '',
     bio: '',
     servicesProvided: [],
     experiences: [],
     qualifications: []
   });
 
-  const [newService, setNewService] = useState('');
-  const [newExp, setNewExp] = useState({
+  const [serviceInput, setServiceInput] = useState('');
+  const [expInput, setExpInput] = useState({
     role: '',
     organization: '',
-    period: '',
-    details: ''
+    duration: '',
+    notes: ''
   });
-  const [newQual, setNewQual] = useState({
+  const [qualInput, setQualInput] = useState({
     title: '',
-    issuer: '',
-    year: '',
-    credentialId: ''
+    institution: '',
+    year: ''
   });
 
   useEffect(() => {
@@ -255,9 +206,6 @@ function ProfileEditorPanel({
       title: profileData?.title || '',
       contact: profileData?.contact || '',
       email: profileData?.email || '',
-      location: profileData?.location || '',
-      institution: profileData?.institution || '',
-      license: profileData?.license || '',
       bio: profileData?.bio || '',
       servicesProvided: Array.isArray(profileData?.servicesProvided)
         ? profileData.servicesProvided
@@ -271,488 +219,315 @@ function ProfileEditorPanel({
     });
   }, [profileData]);
 
-  const handleAddService = (e) => {
-    e.preventDefault();
-    const trimmed = newService.trim();
-    if (!trimmed) return;
+  const addService = () => {
+    if (!serviceInput.trim()) return;
     setForm((prev) => ({
       ...prev,
-      servicesProvided: [...prev.servicesProvided, trimmed]
+      servicesProvided: [...prev.servicesProvided, serviceInput.trim()]
     }));
-    setNewService('');
+    setServiceInput('');
   };
 
-  const handleRemoveService = (idx) => {
+  const removeService = (index) => {
     setForm((prev) => ({
       ...prev,
-      servicesProvided: prev.servicesProvided.filter((_, i) => i !== idx)
+      servicesProvided: prev.servicesProvided.filter((_, i) => i !== index)
     }));
   };
 
-  const handleAddExperience = (e) => {
-    e.preventDefault();
-    if (!newExp.role.trim() && !newExp.organization.trim()) return;
+  const addExperience = () => {
+    if (!expInput.role.trim() && !expInput.organization.trim()) return;
     const item = {
       id: `exp-${Date.now()}`,
-      role: newExp.role.trim(),
-      organization: newExp.organization.trim(),
-      period: newExp.period.trim(),
-      details: newExp.details.trim()
+      role: expInput.role.trim(),
+      organization: expInput.organization.trim(),
+      duration: expInput.duration.trim(),
+      notes: expInput.notes.trim()
     };
     setForm((prev) => ({
       ...prev,
       experiences: [item, ...prev.experiences]
     }));
-    setNewExp({ role: '', organization: '', period: '', details: '' });
+    setExpInput({ role: '', organization: '', duration: '', notes: '' });
   };
 
-  const handleRemoveExperience = (id) => {
+  const removeExperience = (id) => {
     setForm((prev) => ({
       ...prev,
-      experiences: prev.experiences.filter((x) => x.id !== id)
+      experiences: prev.experiences.filter((e) => e.id !== id)
     }));
   };
 
-  const handleAddQualification = (e) => {
-    e.preventDefault();
-    if (!newQual.title.trim()) return;
+  const addQualification = () => {
+    if (!qualInput.title.trim()) return;
     const item = {
       id: `qual-${Date.now()}`,
-      title: newQual.title.trim(),
-      issuer: newQual.issuer.trim(),
-      year: newQual.year.trim(),
-      credentialId: newQual.credentialId.trim()
+      title: qualInput.title.trim(),
+      institution: qualInput.institution.trim(),
+      year: qualInput.year.trim()
     };
     setForm((prev) => ({
       ...prev,
       qualifications: [item, ...prev.qualifications]
     }));
-    setNewQual({ title: '', issuer: '', year: '', credentialId: '' });
+    setQualInput({ title: '', institution: '', year: '' });
   };
 
-  const handleRemoveQualification = (id) => {
+  const removeQualification = (id) => {
     setForm((prev) => ({
       ...prev,
-      qualifications: prev.qualifications.filter((x) => x.id !== id)
+      qualifications: prev.qualifications.filter((q) => q.id !== id)
     }));
   };
 
-  const handleSubmitAll = async (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
-    if (!form.name.trim()) {
-      alert('Please provide a Name / Organization Name.');
-      return;
-    }
-    await onSaveProfile({
+    await onSave({
       ...profileData,
-      ...form,
-      name: form.name.trim(),
-      title: form.title.trim(),
-      contact: form.contact.trim(),
-      email: form.email.trim(),
-      location: form.location.trim(),
-      institution: form.institution.trim(),
-      license: form.license.trim(),
-      bio: form.bio.trim()
+      ...form
     });
   };
 
   return (
-    <div className="bg-white p-6 rounded-3xl border shadow-sm space-y-6 text-xs">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-4">
+    <form
+      onSubmit={handleSave}
+      className="bg-white p-6 rounded-2xl border shadow-sm space-y-5 text-xs"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
         <div>
           <span className="text-[10px] font-extrabold uppercase text-[#3B6E5B]">
-            {roleLabel || 'Profile Manager'}
+            {label || 'Profile'}
           </span>
-          <h3 className="text-lg font-black text-slate-900">
+          <h3 className="text-base font-black text-slate-900">
             Edit Profile, What You Provide, Experience &amp; Qualifications
           </h3>
-          <p className="text-slate-500">
-            Keep your offerings, work history, and credentials up to date across GuideLink Rwanda.
-          </p>
         </div>
         <button
-          type="button"
-          onClick={handleSubmitAll}
+          type="submit"
           disabled={isSaving}
-          className="px-5 py-2.5 bg-[#234E40] hover:bg-slate-900 text-white font-extrabold rounded-xl shadow transition"
+          className="px-5 py-2.5 bg-[#234E40] hover:bg-slate-900 text-white font-bold rounded-xl shadow"
         >
-          {isSaving ? 'Saving...' : 'Save Full Profile →'}
+          {isSaving ? 'Saving...' : 'Save Profile Changes'}
         </button>
       </div>
 
-      {/* 1. BASIC PROFILE DETAILS */}
-      <div className="space-y-3">
-        <h4 className="font-extrabold text-sm text-[#234E40]">1. Basic Profile Information</h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          <div>
-            <label className="font-bold text-slate-700">Full Name / Company Name *</label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full mt-1 p-2.5 border rounded-xl"
-              placeholder="Your name or organization"
-            />
-          </div>
-          <div>
-            <label className="font-bold text-slate-700">Role / Title</label>
-            <input
-              type="text"
-              value={form.title}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
-              className="w-full mt-1 p-2.5 border rounded-xl"
-              placeholder="e.g. C.E.O., Tour Guide, Managing Director"
-            />
-          </div>
-          <div>
-            <label className="font-bold text-slate-700">Phone / WhatsApp</label>
-            <input
-              type="text"
-              value={form.contact}
-              onChange={(e) => setForm({ ...form, contact: e.target.value })}
-              className="w-full mt-1 p-2.5 border rounded-xl"
-              placeholder="+25078XXXXXXX"
-            />
-          </div>
-          <div>
-            <label className="font-bold text-slate-700">Email Address</label>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="w-full mt-1 p-2.5 border rounded-xl"
-              placeholder="name@example.com"
-            />
-          </div>
-          <div>
-            <label className="font-bold text-slate-700">Location / Base</label>
-            <input
-              type="text"
-              value={form.location}
-              onChange={(e) => setForm({ ...form, location: e.target.value })}
-              className="w-full mt-1 p-2.5 border rounded-xl"
-              placeholder="e.g. Kigali, Musanze, Nyungwe"
-            />
-          </div>
-          <div>
-            <label className="font-bold text-slate-700">Institution / License / RDB Code</label>
-            <input
-              type="text"
-              value={form.institution || form.license}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  institution: e.target.value,
-                  license: e.target.value
-                })
-              }
-              className="w-full mt-1 p-2.5 border rounded-xl"
-              placeholder="College, guide license, or RDB number"
-            />
-          </div>
+      {/* Basic Profile Info */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div>
+          <label className="font-bold text-slate-700">Name / Organization</label>
+          <input
+            type="text"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            placeholder="Your name or organization"
+            className="w-full mt-1 p-2.5 border rounded-xl"
+          />
         </div>
         <div>
-          <label className="font-bold text-slate-700">About / Bio Summary</label>
-          <textarea
-            rows={2}
-            value={form.bio}
-            onChange={(e) => setForm({ ...form, bio: e.target.value })}
+          <label className="font-bold text-slate-700">Title / Role</label>
+          <input
+            type="text"
+            value={form.title}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
+            placeholder="e.g. C.E.O., Tour Guide, Agency"
             className="w-full mt-1 p-2.5 border rounded-xl"
-            placeholder="Summarize your specialties, languages, tour style, or services..."
+          />
+        </div>
+        <div>
+          <label className="font-bold text-slate-700">Phone / WhatsApp</label>
+          <input
+            type="text"
+            value={form.contact}
+            onChange={(e) => setForm({ ...form, contact: e.target.value })}
+            placeholder="+25078XXXXXXX"
+            className="w-full mt-1 p-2.5 border rounded-xl"
+          />
+        </div>
+        <div>
+          <label className="font-bold text-slate-700">Email</label>
+          <input
+            type="email"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            placeholder="email@example.com"
+            className="w-full mt-1 p-2.5 border rounded-xl"
           />
         </div>
       </div>
 
-      {/* 2. WHAT YOU PROVIDE (SERVICES / OFFERINGS) */}
-      <div className="space-y-3 pt-4 border-t">
-        <h4 className="font-extrabold text-sm text-[#234E40]">
-          2. What You Provide (Services, Tours &amp; Offerings)
-        </h4>
-        <div className="flex flex-col sm:flex-row gap-2">
+      <div>
+        <label className="font-bold text-slate-700">Bio / Summary</label>
+        <input
+          type="text"
+          value={form.bio}
+          onChange={(e) => setForm({ ...form, bio: e.target.value })}
+          placeholder="Short summary about yourself or your organization..."
+          className="w-full mt-1 p-2.5 border rounded-xl"
+        />
+      </div>
+
+      {/* What You Provide */}
+      <div className="space-y-2 pt-3 border-t">
+        <h4 className="font-extrabold text-sm text-[#234E40]">What You Provide (Services / Offerings)</h4>
+        <div className="flex gap-2">
           <input
             type="text"
-            value={newService}
-            onChange={(e) => setNewService(e.target.value)}
-            placeholder="e.g. Volcanoes Gorilla Trekking Guiding, Airport Transfers, Custom Safaris"
+            value={serviceInput}
+            onChange={(e) => setServiceInput(e.target.value)}
+            placeholder="e.g. Guided Tours, Airport Transfers, Safari Packages"
             className="flex-1 p-2.5 border rounded-xl"
           />
           <button
             type="button"
-            onClick={handleAddService}
-            className="px-4 py-2.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white font-bold rounded-xl"
+            onClick={addService}
+            className="px-4 py-2.5 bg-[#3B6E5B] text-white font-bold rounded-xl"
           >
-            + Add Offering
+            + Add
           </button>
         </div>
-
-        {form.servicesProvided.length === 0 ? (
-          <p className="text-slate-400 italic">No services or offerings added yet.</p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {form.servicesProvided.map((srv, idx) => (
-              <span
-                key={idx}
-                className="inline-flex items-center gap-2 bg-emerald-50 text-[#234E40] border border-emerald-200 px-3 py-1.5 rounded-full font-bold"
+        <div className="flex flex-wrap gap-2 pt-1">
+          {form.servicesProvided.map((srv, idx) => (
+            <span
+              key={idx}
+              className="inline-flex items-center gap-2 bg-emerald-50 text-[#234E40] px-3 py-1 rounded-full font-bold"
+            >
+              <span>• {srv}</span>
+              <button
+                type="button"
+                onClick={() => removeService(idx)}
+                className="text-red-600 font-black"
               >
-                <span>✓ {srv}</span>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveService(idx)}
-                  className="text-red-600 hover:text-red-800 font-black"
-                  title="Remove"
-                >
-                  ✕
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
+                ✕
+              </button>
+            </span>
+          ))}
+        </div>
       </div>
 
-      {/* 3. EXPERIENCE */}
-      <div className="space-y-3 pt-4 border-t">
-        <h4 className="font-extrabold text-sm text-[#234E40]">3. Experience</h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 bg-slate-50 p-3.5 rounded-2xl border">
+      {/* Experience */}
+      <div className="space-y-2 pt-3 border-t">
+        <h4 className="font-extrabold text-sm text-[#234E40]">Experience</h4>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-2 bg-slate-50 p-3 rounded-xl border">
           <input
             type="text"
-            value={newExp.role}
-            onChange={(e) => setNewExp({ ...newExp, role: e.target.value })}
-            placeholder="Role / Position (e.g. Tour Guide, F&B Controller)"
-            className="p-2.5 border rounded-xl bg-white"
+            value={expInput.role}
+            onChange={(e) => setExpInput({ ...expInput, role: e.target.value })}
+            placeholder="Role / Position"
+            className="p-2 border rounded-xl bg-white"
           />
           <input
             type="text"
-            value={newExp.organization}
-            onChange={(e) => setNewExp({ ...newExp, organization: e.target.value })}
-            placeholder="Organization / Hotel / Agency"
-            className="p-2.5 border rounded-xl bg-white"
+            value={expInput.organization}
+            onChange={(e) => setExpInput({ ...expInput, organization: e.target.value })}
+            placeholder="Organization / Company"
+            className="p-2 border rounded-xl bg-white"
           />
           <input
             type="text"
-            value={newExp.period}
-            onChange={(e) => setNewExp({ ...newExp, period: e.target.value })}
-            placeholder="Duration / Dates (e.g. 2025 – 1 Year)"
-            className="p-2.5 border rounded-xl bg-white"
-          />
-          <input
-            type="text"
-            value={newExp.details}
-            onChange={(e) => setNewExp({ ...newExp, details: e.target.value })}
-            placeholder="Key responsibilities or highlights..."
-            className="md:col-span-2 p-2.5 border rounded-xl bg-white"
+            value={expInput.duration}
+            onChange={(e) => setExpInput({ ...expInput, duration: e.target.value })}
+            placeholder="Duration (e.g. 2025 - 1 yr)"
+            className="p-2 border rounded-xl bg-white"
           />
           <button
             type="button"
-            onClick={handleAddExperience}
-            className="px-4 py-2.5 bg-[#234E40] hover:bg-slate-900 text-white font-bold rounded-xl"
+            onClick={addExperience}
+            className="px-4 py-2 bg-[#234E40] text-white font-bold rounded-xl"
           >
             + Add Experience
           </button>
+          <input
+            type="text"
+            value={expInput.notes}
+            onChange={(e) => setExpInput({ ...expInput, notes: e.target.value })}
+            placeholder="Details / responsibilities (optional)"
+            className="md:col-span-4 p-2 border rounded-xl bg-white"
+          />
         </div>
-
-        {form.experiences.length === 0 ? (
-          <p className="text-slate-400 italic">No experience entries added yet.</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {form.experiences.map((exp) => (
-              <div
-                key={exp.id}
-                className="p-3.5 rounded-2xl border bg-white flex justify-between items-start gap-2"
-              >
-                <div className="space-y-1">
-                  <p className="font-extrabold text-slate-900">
-                    {exp.role || 'Experience'}
-                    {exp.organization ? ` • ${exp.organization}` : ''}
-                  </p>
-                  {exp.period && (
-                    <p className="text-[11px] font-bold text-[#3B6E5B]">{exp.period}</p>
-                  )}
-                  {exp.details && <p className="text-slate-600">{exp.details}</p>}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveExperience(exp.id)}
-                  className="text-xs font-bold text-red-600 hover:underline shrink-0"
-                >
-                  Remove
-                </button>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1">
+          {form.experiences.map((exp) => (
+            <div
+              key={exp.id}
+              className="p-3 rounded-xl border bg-slate-50 flex justify-between items-start gap-2"
+            >
+              <div>
+                <p className="font-bold text-slate-900">
+                  {exp.role} {exp.organization ? `— ${exp.organization}` : ''}
+                </p>
+                {exp.duration && (
+                  <p className="text-[11px] text-[#3B6E5B] font-semibold">{exp.duration}</p>
+                )}
+                {exp.notes && <p className="text-slate-600">{exp.notes}</p>}
               </div>
-            ))}
-          </div>
-        )}
+              <button
+                type="button"
+                onClick={() => removeExperience(exp.id)}
+                className="text-red-600 font-bold"
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* 4. QUALIFICATIONS */}
-      <div className="space-y-3 pt-4 border-t">
-        <h4 className="font-extrabold text-sm text-[#234E40]">
-          4. Qualifications (Degrees, Diplomas, Certificates &amp; Licenses)
-        </h4>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-2.5 bg-slate-50 p-3.5 rounded-2xl border">
+      {/* Qualifications */}
+      <div className="space-y-2 pt-3 border-t">
+        <h4 className="font-extrabold text-sm text-[#234E40]">Qualifications</h4>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-2 bg-slate-50 p-3 rounded-xl border">
           <input
             type="text"
-            value={newQual.title}
-            onChange={(e) => setNewQual({ ...newQual, title: e.target.value })}
-            placeholder="Qualification / Diploma / Certificate *"
-            className="p-2.5 border rounded-xl bg-white"
+            value={qualInput.title}
+            onChange={(e) => setQualInput({ ...qualInput, title: e.target.value })}
+            placeholder="Degree / Diploma / Certificate"
+            className="p-2 border rounded-xl bg-white"
           />
           <input
             type="text"
-            value={newQual.issuer}
-            onChange={(e) => setNewQual({ ...newQual, issuer: e.target.value })}
-            placeholder="Institution / Issuing Body"
-            className="p-2.5 border rounded-xl bg-white"
+            value={qualInput.institution}
+            onChange={(e) => setQualInput({ ...qualInput, institution: e.target.value })}
+            placeholder="Institution / Issuer"
+            className="p-2 border rounded-xl bg-white"
           />
           <input
             type="text"
-            value={newQual.year}
-            onChange={(e) => setNewQual({ ...newQual, year: e.target.value })}
-            placeholder="Year / Status (e.g. May 2027)"
-            className="p-2.5 border rounded-xl bg-white"
+            value={qualInput.year}
+            onChange={(e) => setQualInput({ ...qualInput, year: e.target.value })}
+            placeholder="Year / Status"
+            className="p-2 border rounded-xl bg-white"
           />
           <button
             type="button"
-            onClick={handleAddQualification}
-            className="px-4 py-2.5 bg-[#234E40] hover:bg-slate-900 text-white font-bold rounded-xl"
+            onClick={addQualification}
+            className="px-4 py-2 bg-[#234E40] text-white font-bold rounded-xl"
           >
             + Add Qualification
           </button>
         </div>
-
-        {form.qualifications.length === 0 ? (
-          <p className="text-slate-400 italic">No qualifications added yet.</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {form.qualifications.map((qual) => (
-              <div
-                key={qual.id}
-                className="p-3.5 rounded-2xl border bg-white flex justify-between items-start gap-2"
-              >
-                <div className="space-y-1">
-                  <p className="font-extrabold text-slate-900">🎓 {qual.title}</p>
-                  <p className="text-[11px] text-slate-600">
-                    {[qual.issuer, qual.year].filter(Boolean).join(' • ')}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveQualification(qual.id)}
-                  className="text-xs font-bold text-red-600 hover:underline shrink-0"
-                >
-                  Remove
-                </button>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1">
+          {form.qualifications.map((qual) => (
+            <div
+              key={qual.id}
+              className="p-3 rounded-xl border bg-slate-50 flex justify-between items-start gap-2"
+            >
+              <div>
+                <p className="font-bold text-slate-900">🎓 {qual.title}</p>
+                <p className="text-[11px] text-slate-600">
+                  {[qual.institution, qual.year].filter(Boolean).join(' • ')}
+                </p>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="flex justify-end pt-3 border-t">
-        <button
-          type="button"
-          onClick={handleSubmitAll}
-          disabled={isSaving}
-          className="px-6 py-3 bg-[#234E40] hover:bg-slate-900 text-white font-extrabold rounded-xl shadow transition"
-        >
-          {isSaving ? 'Saving...' : 'Save Full Profile →'}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// =========================================================================
-// PROFILE SUMMARY CARD (SHOWS WHAT USER PROVIDES, EXPERIENCE & QUALIFICATIONS)
-// =========================================================================
-function ProfileSummaryCard({ profile, roleLabel, onEditClick }) {
-  if (!profile) return null;
-  const services = profile.servicesProvided || [];
-  const experiences = profile.experiences || [];
-  const qualifications = profile.qualifications || [];
-
-  return (
-    <div className="bg-white p-6 rounded-3xl border shadow-sm space-y-4 text-xs">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b pb-4">
-        <div className="space-y-1">
-          <span className="text-[10px] font-extrabold uppercase bg-emerald-50 text-[#234E40] px-2.5 py-0.5 rounded-full">
-            {roleLabel || 'Profile'}
-          </span>
-          <h3 className="text-lg font-black text-slate-900">
-            {profile.name}{' '}
-            {profile.title ? (
-              <span className="text-sm font-bold text-[#3B6E5B]">— {profile.title}</span>
-            ) : null}
-          </h3>
-          <p className="text-slate-500">
-            {[profile.contact, profile.email, profile.location].filter(Boolean).join(' • ')}
-          </p>
-          {profile.bio && <p className="text-slate-700 pt-1">{profile.bio}</p>}
-        </div>
-
-        {onEditClick && (
-          <button
-            type="button"
-            onClick={onEditClick}
-            className="px-4 py-2 bg-[#234E40] hover:bg-slate-900 text-white font-bold rounded-xl shadow"
-          >
-            ✏️ Edit Profile
-          </button>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-slate-50 p-4 rounded-2xl border space-y-2">
-          <h4 className="font-extrabold text-[#234E40]">What Provided ({services.length})</h4>
-          {services.length === 0 ? (
-            <p className="text-slate-400 italic">None listed yet.</p>
-          ) : (
-            <ul className="space-y-1 text-slate-700">
-              {services.map((s, i) => (
-                <li key={i}>• {s}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <div className="bg-slate-50 p-4 rounded-2xl border space-y-2">
-          <h4 className="font-extrabold text-[#234E40]">Experience ({experiences.length})</h4>
-          {experiences.length === 0 ? (
-            <p className="text-slate-400 italic">None listed yet.</p>
-          ) : (
-            <ul className="space-y-2 text-slate-700">
-              {experiences.map((exp) => (
-                <li key={exp.id}>
-                  <p className="font-bold text-slate-900">{exp.role}</p>
-                  <p className="text-[11px] text-slate-500">
-                    {[exp.organization, exp.period].filter(Boolean).join(' • ')}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <div className="bg-slate-50 p-4 rounded-2xl border space-y-2">
-          <h4 className="font-extrabold text-[#234E40]">
-            Qualifications ({qualifications.length})
-          </h4>
-          {qualifications.length === 0 ? (
-            <p className="text-slate-400 italic">None listed yet.</p>
-          ) : (
-            <ul className="space-y-2 text-slate-700">
-              {qualifications.map((q) => (
-                <li key={q.id}>
-                  <p className="font-bold text-slate-900">{q.title}</p>
-                  <p className="text-[11px] text-slate-500">
-                    {[q.issuer, q.year].filter(Boolean).join(' • ')}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
+              <button
+                type="button"
+                onClick={() => removeQualification(qual.id)}
+                className="text-red-600 font-bold"
+              >
+                Remove
+              </button>
+            </div>
+          ))}
         </div>
       </div>
-    </div>
+    </form>
   );
 }
 
@@ -1356,7 +1131,7 @@ export default function GuideLinkRwandaApp() {
 
   const [currentRole, setCurrentRole] = useState('welcome');
   const [ownerTab, setOwnerTab] = useState('pending');
-  const [userSection, setUserSection] = useState('bookings'); // 'bookings' | 'profile' | 'edit_profile'
+  const [showUserProfileEditor, setShowUserProfileEditor] = useState(false);
   const [showOwnerPinModal, setShowOwnerPinModal] = useState(false);
   const [ownerPinInput, setOwnerPinInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -1395,14 +1170,7 @@ export default function GuideLinkRwandaApp() {
 
       if (fbConfigs.length > 0) {
         const mainCfg = fbConfigs.find((c) => c.id === 'main') || fbConfigs[0];
-        setAppConfig((prev) => ({
-          ...prev,
-          ...mainCfg,
-          ownerProfile: {
-            ...DEFAULT_OWNER_PROFILE,
-            ...(mainCfg.ownerProfile || {})
-          }
-        }));
+        setAppConfig((prev) => ({ ...prev, ...mainCfg }));
       }
 
       if (fbPlans.length > 0) {
@@ -1461,48 +1229,40 @@ export default function GuideLinkRwandaApp() {
     setIsSaving(false);
   };
 
-  // Save Owner Profile (C.E.O. offerings, experience & qualifications)
+  // Save Owner Profile (what owner provides, experience, qualifications) onto appConfig without altering existing fields
   const handleSaveOwnerProfile = async (updatedOwnerProfile) => {
     const nextConfig = {
       ...appConfig,
       ownerProfile: updatedOwnerProfile
     };
     await saveAppServerConfig(nextConfig);
-    alert('✓ Owner profile, offerings, experience & qualifications saved to Firebase!');
+    alert('✓ Owner profile, offerings, experience & qualifications saved!');
   };
 
-  // Save Any User Profile (registered subscriber or free traveler)
-  const handleSaveUserProfile = async (updatedFields) => {
+  // Save Any User Profile (what user provides, experience, qualifications)
+  const handleSaveUserProfile = async (updatedProfile) => {
     setIsSaving(true);
-    if (currentUser && currentUser.id) {
-      const mergedUser = {
+    if (currentUser?.id) {
+      const nextUser = {
         ...currentUser,
-        ...updatedFields,
+        ...updatedProfile,
         updatedAt: new Date().toISOString()
       };
-      setCurrentUser(mergedUser);
-      setSubscribers((prev) =>
-        prev.map((s) => (s.id === mergedUser.id ? mergedUser : s))
-      );
-      await firestoreSaveDoc('subscribers', mergedUser.id, mergedUser);
+      setCurrentUser(nextUser);
+      setSubscribers((prev) => prev.map((s) => (s.id === nextUser.id ? nextUser : s)));
+      await firestoreSaveDoc('subscribers', nextUser.id, nextUser);
     } else {
-      // Traveler / Guest profile saved locally and under travelers collection if desired
-      const travelerId =
-        currentUser?.id ||
-        `traveler-${normalizeContact(updatedFields.contact || updatedFields.name) || Date.now()}`;
-      const mergedTraveler = {
-        id: travelerId,
-        role: 'traveler',
+      const guestProfile = {
+        id: `guest-${Date.now()}`,
+        role: currentRole,
         ...currentUser,
-        ...updatedFields,
+        ...updatedProfile,
         updatedAt: new Date().toISOString()
       };
-      setCurrentUser(mergedTraveler);
-      await firestoreSaveDoc('travelers', travelerId, mergedTraveler);
+      setCurrentUser(guestProfile);
     }
     setIsSaving(false);
-    setUserSection('profile');
-    alert('✓ Your profile, offerings, experience & qualifications have been saved!');
+    alert('✓ Profile, offerings, experience & qualifications saved!');
   };
 
   const handleOwnerLogin = (e) => {
@@ -1511,7 +1271,6 @@ export default function GuideLinkRwandaApp() {
       setShowOwnerPinModal(false);
       setOwnerPinInput('');
       setCurrentRole('owner');
-      setOwnerTab('pending');
     } else {
       alert('Invalid Owner PIN. Default PIN is 2026.');
     }
@@ -1535,7 +1294,6 @@ export default function GuideLinkRwandaApp() {
       setCurrentUser(existing);
       setIsSubscribed(checkSubscriptionActive(existing));
       setCurrentRole(existing.role);
-      setUserSection('bookings');
       return;
     }
 
@@ -1554,17 +1312,13 @@ export default function GuideLinkRwandaApp() {
     const newSub = {
       id: `sub-${Date.now()}`,
       name: authNameInput.trim(),
-      title: roleLabelMap[selectedRoleForAuth] || '',
       contact: authContactInput.trim(),
-      email: '',
-      location: 'Rwanda',
-      bio: '',
-      servicesProvided: [],
-      experiences: [],
-      qualifications: [],
       role: selectedRoleForAuth,
       institution: authInstitutionInput.trim(),
       license: authLicenseInput.trim(),
+      servicesProvided: [],
+      experiences: [],
+      qualifications: [],
       planId: chosenPlan.id,
       planName: chosenPlan.name,
       planDays: chosenPlan.days,
@@ -1582,9 +1336,8 @@ export default function GuideLinkRwandaApp() {
     setCurrentUser(newSub);
     setIsSubscribed(false);
     setCurrentRole(newSub.role);
-    setUserSection('edit_profile');
     alert(
-      `✓ Registration submitted! Pay ${chosenPlan.price.toLocaleString()} RWF via MTN MoMo Code ${appConfig.momoCode} to activate your ${chosenPlan.name} plan. You can also complete your profile, experience & qualifications right now.`
+      `✓ Registration submitted! Pay ${chosenPlan.price.toLocaleString()} RWF via MTN MoMo Code ${appConfig.momoCode} to activate your ${chosenPlan.name} plan.`
     );
   };
 
@@ -1704,18 +1457,9 @@ export default function GuideLinkRwandaApp() {
             </span>
 
             {currentUser && (
-              <button
-                type="button"
-                onClick={() => {
-                  if (currentRole === 'welcome' || currentRole === 'auth') {
-                    setCurrentRole(currentUser.role || 'traveler');
-                  }
-                  setUserSection('edit_profile');
-                }}
-                className="bg-black/25 hover:bg-black/40 px-3 py-1.5 rounded-full font-semibold transition"
-              >
-                👤 {currentUser.name} • Edit Profile
-              </button>
+              <span className="bg-black/25 px-3 py-1.5 rounded-full font-semibold">
+                👤 {currentUser.name} ({isSubscribed ? '✓ Active' : '⏳ Pending'})
+              </span>
             )}
 
             {currentRole !== 'welcome' && (
@@ -1784,25 +1528,25 @@ export default function GuideLinkRwandaApp() {
                     role: 'graduate',
                     icon: '🎓',
                     title: 'Tourism Graduate / Guide',
-                    desc: 'Showcase qualifications & experience, offer guiding services, and take bookings.'
+                    desc: 'Find paid guiding jobs, bid on open tours, and connect with agencies.'
                   },
                   {
                     role: 'agency',
                     icon: '✈️',
                     title: 'Travel Agency',
-                    desc: 'List agency services, hire certified graduates, and manage tour bookings.'
+                    desc: 'Post job openings, hire certified graduates, and manage tour bookings.'
                   },
                   {
                     role: 'tour_company',
                     icon: '🚐',
                     title: 'Tour Company',
-                    desc: 'Publish tour packages, source field guides, and fulfill custom trips.'
+                    desc: 'Source field guides, fulfill custom safari requests, and scale operations.'
                   },
                   {
                     role: 'traveler',
                     icon: '🌍',
                     title: 'Traveler / Visitor (FREE)',
-                    desc: 'Set your profile & travel preferences, request trips, and hire providers.'
+                    desc: 'Request custom Rwanda trips, compare quotes, and hire verified guides.'
                   }
                 ].map((card) => (
                   <div
@@ -1810,7 +1554,6 @@ export default function GuideLinkRwandaApp() {
                     onClick={() => {
                       if (card.role === 'traveler') {
                         setCurrentRole('traveler');
-                        setUserSection('bookings');
                       } else {
                         setSelectedRoleForAuth(card.role);
                         setCurrentRole('auth');
@@ -1981,7 +1724,7 @@ export default function GuideLinkRwandaApp() {
         )}
 
         {/* ===============================================================
-            3. MEMBER & TRAVELER DASHBOARDS (WITH FULL PROFILE EDITOR)
+            3. MEMBER & TRAVELER DASHBOARDS
            =============================================================== */}
         {['graduate', 'agency', 'tour_company', 'traveler'].includes(currentRole) && (
           <div className="space-y-6">
@@ -1995,96 +1738,39 @@ export default function GuideLinkRwandaApp() {
                 </h2>
               </div>
 
-              <div className="flex flex-wrap gap-2 text-xs font-bold">
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setUserSection('bookings')}
-                  className={`px-4 py-2 rounded-xl ${
-                    userSection === 'bookings'
-                      ? 'bg-[#234E40] text-white'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
+                  onClick={() => setShowUserProfileEditor(!showUserProfileEditor)}
+                  className="px-4 py-2 bg-[#234E40] hover:bg-slate-900 text-white text-xs font-bold rounded-xl shadow"
                 >
-                  📅 Bookings Board
+                  {showUserProfileEditor ? 'Hide Profile Editor' : '✏️ Edit My Profile & CV'}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setUserSection('profile')}
-                  className={`px-4 py-2 rounded-xl ${
-                    userSection === 'profile'
-                      ? 'bg-[#234E40] text-white'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  🪪 My Profile Card
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setUserSection('edit_profile')}
-                  className={`px-4 py-2 rounded-xl ${
-                    userSection === 'edit_profile'
-                      ? 'bg-amber-400 text-slate-950'
-                      : 'bg-emerald-50 text-[#234E40] hover:bg-emerald-100'
-                  }`}
-                >
-                  ✏️ Edit Profile, Offerings, Experience &amp; Qualifications
-                </button>
+
+                {currentRole !== 'traveler' && !isSubscribed && (
+                  <div className="bg-amber-50 border border-amber-300 px-4 py-2.5 rounded-xl text-xs text-amber-950">
+                    <strong>⏳ Pending Activation:</strong> Pay via MTN MoMo Code{' '}
+                    <strong className="underline">{appConfig.momoCode}</strong>. Owner C.E.O. (+250780558555) will approve shortly.
+                  </div>
+                )}
               </div>
             </div>
 
-            {currentRole !== 'traveler' && !isSubscribed && (
-              <div className="bg-amber-50 border border-amber-300 px-4 py-3 rounded-xl text-xs text-amber-950">
-                <strong>⏳ Pending Activation:</strong> Pay via MTN MoMo Code{' '}
-                <strong className="underline">{appConfig.momoCode}</strong>. Owner C.E.O. (
-                {appConfig.ownerProfile?.contact || '+250780558555'}) will approve shortly.
-              </div>
-            )}
-
-            {userSection === 'bookings' && (
-              <BookingMarketplace currentUser={currentUser} currentRole={currentRole} />
-            )}
-
-            {userSection === 'profile' && (
-              <ProfileSummaryCard
-                profile={
-                  currentUser || {
-                    name: 'Guest Traveler',
-                    title: roleLabelMap[currentRole],
-                    servicesProvided: [],
-                    experiences: [],
-                    qualifications: []
-                  }
-                }
-                roleLabel={roleLabelMap[currentRole]}
-                onEditClick={() => setUserSection('edit_profile')}
-              />
-            )}
-
-            {userSection === 'edit_profile' && (
-              <ProfileEditorPanel
-                profileData={
-                  currentUser || {
-                    name: '',
-                    title: roleLabelMap[currentRole] || '',
-                    contact: '',
-                    email: '',
-                    location: 'Rwanda',
-                    bio: '',
-                    servicesProvided: [],
-                    experiences: [],
-                    qualifications: []
-                  }
-                }
-                roleLabel={roleLabelMap[currentRole]}
-                onSaveProfile={handleSaveUserProfile}
+            {showUserProfileEditor && (
+              <UserAndOwnerProfileSection
+                profileData={currentUser || { role: currentRole }}
+                label={roleLabelMap[currentRole]}
+                onSave={handleSaveUserProfile}
                 isSaving={isSaving}
               />
             )}
+
+            <BookingMarketplace currentUser={currentUser} currentRole={currentRole} />
           </div>
         )}
 
         {/* ===============================================================
-            4. OWNER / C.E.O. MANAGEMENT CONSOLE (WITH FULL OWNER PROFILE)
+            4. OWNER / C.E.O. MANAGEMENT CONSOLE
            =============================================================== */}
         {currentRole === 'owner' && (
           <div className="space-y-6">
@@ -2094,12 +1780,10 @@ export default function GuideLinkRwandaApp() {
                   C.E.O. Control Center
                 </span>
                 <h2 className="text-xl md:text-2xl font-black mt-1">
-                  {appConfig.ownerProfile?.name || 'RUTUNGURA Bonheur'} — Platform Owner Dashboard
+                  RUTUNGURA Bonheur — Platform Owner Dashboard
                 </h2>
                 <p className="text-xs text-slate-300">
-                  Contact: {appConfig.ownerProfile?.contact || '+250780558555'} • Email:{' '}
-                  {appConfig.ownerProfile?.email || 'rutungurab5@gmail.com'} • MoMo Code:{' '}
-                  {appConfig.momoCode}
+                  Contact: +250780558555 • Email: rutungurab5@gmail.com • MoMo Code: {appConfig.momoCode}
                 </p>
               </div>
 
@@ -2117,14 +1801,14 @@ export default function GuideLinkRwandaApp() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setOwnerTab('profile')}
+                  onClick={() => setOwnerTab('owner_profile')}
                   className={`px-4 py-2 rounded-xl ${
-                    ownerTab === 'profile'
+                    ownerTab === 'owner_profile'
                       ? 'bg-amber-400 text-slate-950'
                       : 'bg-white/10 text-white'
                   }`}
                 >
-                  👑 Owner Profile, Experience &amp; Qualifications
+                  Owner Profile &amp; CV
                 </button>
                 <button
                   type="button"
@@ -2215,19 +1899,13 @@ export default function GuideLinkRwandaApp() {
               </div>
             )}
 
-            {ownerTab === 'profile' && (
-              <div className="space-y-6">
-                <ProfileSummaryCard
-                  profile={appConfig.ownerProfile}
-                  roleLabel="Platform Owner (C.E.O.)"
-                />
-                <ProfileEditorPanel
-                  profileData={appConfig.ownerProfile}
-                  roleLabel="Platform Owner (C.E.O.)"
-                  onSaveProfile={handleSaveOwnerProfile}
-                  isSaving={isSaving}
-                />
-              </div>
+            {ownerTab === 'owner_profile' && (
+              <UserAndOwnerProfileSection
+                profileData={appConfig.ownerProfile || {}}
+                label="Platform Owner (C.E.O.)"
+                onSave={handleSaveOwnerProfile}
+                isSaving={isSaving}
+              />
             )}
 
             {ownerTab === 'server' && (
