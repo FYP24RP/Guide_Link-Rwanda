@@ -1267,12 +1267,12 @@ export default function GuideLinkRwandaApp() {
 
   const handleOwnerLogin = (e) => {
     e.preventDefault();
-    if (ownerPinInput === '2026' || ownerPinInput === 'admin') {
+    if (ownerPinInput === 'FYP$2026') {
       setShowOwnerPinModal(false);
       setOwnerPinInput('');
       setCurrentRole('owner');
     } else {
-      alert('Invalid Owner PIN. Default PIN is 2026.');
+      alert('Invalid Owner password.');
     }
   };
 
@@ -1397,10 +1397,10 @@ export default function GuideLinkRwandaApp() {
             onSubmit={handleOwnerLogin}
             className="bg-white text-slate-900 p-6 rounded-2xl shadow-xl w-full max-w-xs space-y-3"
           >
-            <h3 className="font-bold text-sm">Enter Owner PIN</h3>
+            <h3 className="font-bold text-sm">Enter Owner Password</h3>
             <input
               type="password"
-              placeholder="PIN (2026)"
+              placeholder="Enter Owner Password"
               value={ownerPinInput}
               onChange={(e) => setOwnerPinInput(e.target.value)}
               className="w-full p-2.5 border rounded-xl text-sm"
@@ -2008,12 +2008,12 @@ export default function GuideLinkRwandaApp() {
               👑 C.E.O. Owner Verification
             </h3>
             <p className="text-xs text-slate-500">
-              Enter your Owner PIN to manage subscribers, approvals, and live Firebase settings.
+              Enter your Owner password to manage subscribers, approvals, and live Firebase settings.
             </p>
             <input
               type="password"
               autoFocus
-              placeholder="Enter PIN (2026)"
+              placeholder="Enter Owner Password"
               value={ownerPinInput}
               onChange={(e) => setOwnerPinInput(e.target.value)}
               className="w-full p-3 border rounded-xl text-sm"
