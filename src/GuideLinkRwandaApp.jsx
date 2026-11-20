@@ -108,85 +108,89 @@ const firestoreDeleteDoc = async (collectionName, docId) => {
 // =========================================================================
 const UI_TRANSLATIONS = {
   ENG: {
+    welcomeNoteTop: 'WELCOME TO GUIDE LINK RWANDA',
     heroBadge: "Rwanda's Official Tourism Talent, Car Rental & Booking Network",
     switchPortal: 'Switch Portal',
     ownerBtn: 'Owner C.E.O.',
     graduateTitle: 'Tourism Graduate / Guide',
-    graduateDesc: 'Find paid guiding jobs, bid on open tours, and connect with agencies.',
+    graduateDesc: 'Publish guiding jobs/packages on your profile, manage bookings & connect with travelers.',
     agencyTitle: 'Travel Agency',
-    agencyDesc: 'Post job openings, hire certified graduates, and manage tour bookings.',
+    agencyDesc: 'Publish tour packages on your profile, hire graduates & manage bookings.',
     tourCompanyTitle: 'Tour Company',
-    tourCompanyDesc: 'Source field guides, fulfill custom safari requests, and scale operations.',
+    tourCompanyDesc: 'Publish safari packages on your profile, source guides & manage bookings.',
     carRentalTitle: 'Car Rentals Company',
-    carRentalDesc: 'List rental vehicles, 4x4 safari cars, airport transfers, and fulfill bookings.',
+    carRentalDesc: 'Publish rental vehicles/packages on your profile, 4x4 safari cars & manage bookings.',
     travelerTitle: 'Traveler / Visitor (FREE)',
-    travelerDesc: 'Submit your Personal Info (PI), request trips, rent cars, and hire verified guides.',
+    travelerDesc: 'Submit Personal Info (PI), book profile jobs/packages, rent cars & hire guides.',
     enterPortal: 'Enter Portal',
     piRequiredTitle: 'Traveler / Tourist Personal Information (PI) Required',
-    piRequiredDesc: 'Submit your Personal Information before setting or requesting a booking so service providers know whom they are talking with.',
+    piRequiredDesc: 'Submit your Personal Information before booking a package, car, or guide so providers know whom they are serving.',
     savePiBtn: 'Save Personal Information (PI) & Continue',
     travelersOnWelcomeTitle: 'Travelers & Tourists Directory',
-    travelersOnWelcomeSub: 'View travelers and tourists who have submitted their Personal Information (PI) and start a private chat or booking request.'
+    travelersOnWelcomeSub: 'View travelers and tourists who have submitted their Personal Information (PI) and start a private chat.'
   },
   KINY: {
+    welcomeNoteTop: 'MURAKAZA NEZA KURI GUIDE LINK RWANDA',
     heroBadge: 'Urubuga Nyarwanda rw’Ubukerarugendo, Gutwara Abagenzi n’Imishinga',
     switchPortal: 'Hindura Urubuga',
     ownerBtn: 'Nyir’Urubuga (C.E.O.)',
     graduateTitle: 'Uwize Ubukerarugendo / Umuyobozi',
-    graduateDesc: 'Shaka akazi ko kuyobora ba mukerarugendo no gukorana n’ibigo.',
+    graduateDesc: 'Shyira akazi/gahunda ku mwirondoro wawe kandi utunganye ama-booking.',
     agencyTitle: 'Ikigo cy’Ingendo (Travel Agency)',
-    agencyDesc: 'Tanga amakuru y’ingendo, akoresha abize ubukerarugendo kandi utunganye gahunda.',
+    agencyDesc: 'Shyira ingendo ku mwirondoro wawe, akoresha abize ubukerarugendo kandi utunganye booking.',
     tourCompanyTitle: 'Sosiyete y’Ubukerarugendo',
-    tourCompanyDesc: 'Bona abayobozi b’urugendo, subiza ubusabe bw’ingendo n’ibikorwa.',
+    tourCompanyDesc: 'Shyira safari ku mwirondoro wawe, bona abayobozi kandi utunganye booking.',
     carRentalTitle: 'Sosiyete ikodesha Imodoka',
-    carRentalDesc: 'Shyira ku isoko imodoka zikodeshwa, iza safari n’izo gutwara abagenzi.',
+    carRentalDesc: 'Shyira imodoka/gahunda ku mwirondoro wawe kandi utunganye booking.',
     travelerTitle: 'Umugenzi / Mukerarugendo (UBUNTU)',
-    travelerDesc: 'Tanga Amakuru Yawe Bwite (PI), saba urugendo, kodesha imodoka cyangwa umuyobozi.',
+    travelerDesc: 'Tanga Amakuru Yawe Bwite (PI), saba gahunda ziri ku mwirondoro, kodesha imodoka cyangwa umuyobozi.',
     enterPortal: 'Injira',
     piRequiredTitle: 'Amakuru Bwite y’Umugenzi / Mukerarugendo (PI) Arakenewe',
-    piRequiredDesc: 'Tanga Amakuru Yawe Bwite mbere yo gutegura cyangwa gusaba booking kugira ngo abakwakira bamenye uwo bavugana.',
+    piRequiredDesc: 'Tanga Amakuru Yawe Bwite mbere yo gukora booking kugira ngo abakwakira bamenye uwo bavugana.',
     savePiBtn: 'Bika Amakuru Bwite (PI) Ukomeze',
     travelersOnWelcomeTitle: 'Abagenzi n’Ba Mukerarugendo Batanze Amakuru (PI)',
     travelersOnWelcomeSub: 'Reba abagenzi n’ba mukerarugendo batanze Amakuru yabo Bwite (PI) kandi muvugane mu ibanga.'
   },
   FRA: {
+    welcomeNoteTop: 'BIENVENUE SUR GUIDE LINK RWANDA',
     heroBadge: 'Réseau Officiel du Tourisme, de la Location de Voitures et des Réservations au Rwanda',
     switchPortal: 'Changer de Portail',
     ownerBtn: 'Propriétaire C.E.O.',
     graduateTitle: 'Diplômé Tourisme / Guide',
-    graduateDesc: 'Trouvez des missions rémunérées, postulez aux circuits et collaborez avec des agences.',
+    graduateDesc: 'Publiez vos offres/forfaits sur votre profil et gérez les réservations.',
     agencyTitle: 'Agence de Voyage',
-    agencyDesc: 'Publiez des offres, recrutez des guides qualifiés et gérez les réservations.',
+    agencyDesc: 'Publiez vos forfaits sur votre profil, recrutez des guides et gérez les réservations.',
     tourCompanyTitle: 'Entreprise de Circuits',
-    tourCompanyDesc: 'Trouvez des guides terrain, répondez aux demandes de safari et développez vos activités.',
+    tourCompanyDesc: 'Publiez vos safaris sur votre profil, trouvez des guides et gérez les réservations.',
     carRentalTitle: 'Société de Location de Voitures',
-    carRentalDesc: 'Proposez des véhicules de location, 4x4 safari, transferts aéroport et réservations.',
+    carRentalDesc: 'Publiez vos véhicules/offres sur votre profil et gérez les réservations.',
     travelerTitle: 'Voyageur / Touriste (GRATUIT)',
-    travelerDesc: 'Soumettez vos Infos Personnelles (PI), demandez un voyage, louez une voiture ou un guide.',
+    travelerDesc: 'Soumettez vos Infos Personnelles (PI), réservez des offres du profil, voitures ou guides.',
     enterPortal: 'Accéder',
     piRequiredTitle: 'Informations Personnelles (PI) du Voyageur / Touriste Requises',
-    piRequiredDesc: 'Veuillez renseigner vos Informations Personnelles (PI) avant de créer ou demander une réservation afin que les prestataires sachent à qui ils parlent.',
+    piRequiredDesc: 'Veuillez renseigner vos Informations Personnelles (PI) avant de réserver.',
     savePiBtn: 'Enregistrer les Infos Personnelles (PI) & Continuer',
     travelersOnWelcomeTitle: 'Répertoire des Voyageurs & Touristes',
     travelersOnWelcomeSub: 'Consultez les voyageurs et touristes ayant soumis leurs Infos Personnelles (PI) et démarrez un chat privé.'
   },
   KISW: {
+    welcomeNoteTop: 'KARIBU GUIDE LINK RWANDA',
     heroBadge: 'Mtandao Rasmi wa Utalii, Kukodisha Magari na Uhifadhi Rwanda',
     switchPortal: 'Badili Lango',
     ownerBtn: 'Mmiliki C.E.O.',
     graduateTitle: 'Mhitimu wa Utalii / Mwongoza Watalii',
-    graduateDesc: 'Pata kazi za uongozaji watalii, omba safari na ungana na mashirika.',
+    graduateDesc: 'Chapisha kazi/vifurushi kwenye wasifu wako na simamia uhifadhi.',
     agencyTitle: 'Wakala wa Usafiri',
-    agencyDesc: 'Chapisha nafasi za safari, ajiri waongozaji na simamia uhifadhi.',
+    agencyDesc: 'Chapisha vifurushi kwenye wasifu wako, ajiri waongozaji na simamia uhifadhi.',
     tourCompanyTitle: 'Kampuni ya Utalii',
-    tourCompanyDesc: 'Pata waongozaji wa safari, tekeleza maombi ya watalii na kukuza biashara.',
+    tourCompanyDesc: 'Chapisha safari kwenye wasifu wako, pata waongozaji na simamia uhifadhi.',
     carRentalTitle: 'Kampuni ya Kukodisha Magari',
-    carRentalDesc: 'Orodhesha magari ya kukodisha, 4x4 za safari, usafiri wa uwanja wa ndege na uhifadhi.',
+    carRentalDesc: 'Chapisha magari/vifurushi kwenye wasifu wako na simamia uhifadhi.',
     travelerTitle: 'Msafiri / Mtali (BURE)',
-    travelerDesc: 'Wasilisha Taarifa Binafsi (PI), omba safari, kodi gari au ajiri mwongozi.',
+    travelerDesc: 'Wasilisha Taarifa Binafsi (PI), weka nafasi za vifurushi vya wasifu, magari au waongozaji.',
     enterPortal: 'Ingia',
     piRequiredTitle: 'Taarifa Binafsi za Msafiri / Mtali (PI) Zinahitajika',
-    piRequiredDesc: 'Wasilisha Taarifa zako Binafsi (PI) kabla ya kuweka au kuomba nafasi ili watoa huduma wajue wanazungumza na nani.',
+    piRequiredDesc: 'Wasilisha Taarifa zako Binafsi (PI) kabla ya kuweka nafasi.',
     savePiBtn: 'Hifadhi Taarifa Binafsi (PI) & Endelea',
     travelersOnWelcomeTitle: 'Orodha ya Wasafiri na Watalii',
     travelersOnWelcomeSub: 'Tazama wasafiri na watalii waliowasilisha Taarifa Binafsi (PI) na anza mazungumzo ya faragha.'
@@ -237,6 +241,7 @@ const DEFAULT_SUBSCRIPTION_PLANS = [
 
 const DEFAULT_APP_SERVER_CONFIG = {
   appName: 'GuideLink Rwanda',
+  welcomeNote: 'WELCOME TO GUIDE LINK RWANDA',
   tagline: 'Turn your tourism degree into paid work.',
   subtitle:
     'Connecting Tourism Graduates, Travel Agencies, Tour Companies, Car Rentals Companies, and Travelers across Rwanda.',
@@ -265,7 +270,7 @@ const DEFAULT_APP_SERVER_CONFIG = {
 };
 
 // =========================================================================
-// PROFILE EDITOR & SUMMARY (Users, Car Rentals & Owner + Photo + Availability + Packages)
+// PROFILE EDITOR & SUMMARY (Users, Car Rentals & Owner + Photo + Availability + Jobs/Packages)
 // =========================================================================
 function UserAndOwnerProfileSection({
   profileData,
@@ -273,7 +278,8 @@ function UserAndOwnerProfileSection({
   onSave,
   isSaving,
   showProviderExtras = false,
-  onPublishPackage
+  onPublishPackage,
+  onRemovePublishedPackage
 }) {
   const [form, setForm] = useState({
     photoUrl: '',
@@ -413,7 +419,10 @@ function UserAndOwnerProfileSection({
   };
 
   const handleAddPackage = async () => {
-    if (!pkgInput.title.trim()) return;
+    if (!pkgInput.title.trim()) {
+      alert('Please enter a Job / Package title to add to your profile.');
+      return;
+    }
     const pkgItem = {
       id: `pkg-${Date.now()}`,
       title: pkgInput.title.trim(),
@@ -421,6 +430,7 @@ function UserAndOwnerProfileSection({
       durationDays: Number(pkgInput.durationDays) || 1,
       priceLabel: pkgInput.priceLabel.trim() || 'Negotiable',
       highlights: pkgInput.highlights.trim(),
+      providerId: profileData?.id || '',
       providerName: form.name || profileData?.name || label || 'Partner',
       providerRole: label || profileData?.role || 'Provider',
       providerContact: form.contact || profileData?.contact || '',
@@ -440,15 +450,16 @@ function UserAndOwnerProfileSection({
     });
 
     if (onPublishPackage) {
-      await onPublishPackage(pkgItem, nextPackages);
+      await onPublishPackage(pkgItem, { ...form, publishedPackages: nextPackages });
     }
   };
 
-  const removePackage = (id) => {
-    setForm((prev) => ({
-      ...prev,
-      publishedPackages: (prev.publishedPackages || []).filter((p) => p.id !== id)
-    }));
+  const removePackage = async (pkg) => {
+    const nextPackages = (form.publishedPackages || []).filter((p) => p.id !== pkg.id);
+    setForm((prev) => ({ ...prev, publishedPackages: nextPackages }));
+    if (onRemovePublishedPackage) {
+      await onRemovePublishedPackage(pkg.id, { ...form, publishedPackages: nextPackages });
+    }
   };
 
   const handleSave = async (e) => {
@@ -479,10 +490,10 @@ function UserAndOwnerProfileSection({
           )}
           <div>
             <span className="text-[10px] font-extrabold uppercase text-[#3B6E5B]">
-              {label || 'Profile'} • Take Your Time Editing
+              {label || 'Profile'} • Profile Jobs &amp; Packages
             </span>
             <h3 className="text-base font-black text-slate-900">
-              Edit Profile Photo, Availability, Packages / Vehicles, Experience &amp; Qualifications
+              Edit Profile Photo, Availability, Jobs/Packages to Be Booked, Experience &amp; Qualifications
             </h3>
           </div>
         </div>
@@ -612,6 +623,102 @@ function UserAndOwnerProfileSection({
         />
       </div>
 
+      {/* JOBS / PACKAGES TO BE BOOKED (ADDED DIRECTLY ON USER PROFILE) */}
+      {showProviderExtras && (
+        <div className="space-y-3 pt-3 border-t">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h4 className="font-extrabold text-sm text-[#234E40]">
+                🎒 Jobs / Packages to Be Booked (Saved on Your Profile)
+              </h4>
+              <p className="text-[11px] text-slate-500">
+                Add tour packages, guiding jobs, or car rental offers directly on your profile so travelers can book them.
+              </p>
+            </div>
+            <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-[#234E40] font-bold text-[11px]">
+              {(form.publishedPackages || []).length} Added
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-2 bg-slate-50 p-3 rounded-xl border">
+            <input
+              type="text"
+              value={pkgInput.title}
+              onChange={(e) => setPkgInput({ ...pkgInput, title: e.target.value })}
+              placeholder="Job / Package Title (e.g. 2-Day Kigali & Akagera Tour)"
+              className="p-2 border rounded-xl bg-white"
+            />
+            <select
+              value={pkgInput.destination}
+              onChange={(e) => setPkgInput({ ...pkgInput, destination: e.target.value })}
+              className="p-2 border rounded-xl bg-white"
+            >
+              <option value="Kigali City">Kigali City</option>
+              <option value="Musanze / Volcanoes NP">Musanze / Volcanoes NP</option>
+              <option value="Nyungwe / Kitabi">Nyungwe / Kitabi</option>
+              <option value="Akagera National Park">Akagera National Park</option>
+              <option value="Lake Kivu (Rubavu / Rusizi)">Lake Kivu (Rubavu / Rusizi)</option>
+              <option value="Multi-Destination Rwanda">Multi-Destination Rwanda</option>
+            </select>
+            <input
+              type="text"
+              value={pkgInput.priceLabel}
+              onChange={(e) => setPkgInput({ ...pkgInput, priceLabel: e.target.value })}
+              placeholder="Rate / Price (e.g. 85,000 RWF or $110)"
+              className="p-2 border rounded-xl bg-white"
+            />
+            <button
+              type="button"
+              onClick={handleAddPackage}
+              className="px-4 py-2 bg-[#234E40] hover:bg-slate-900 text-white font-bold rounded-xl"
+            >
+              + Add to Profile
+            </button>
+            <input
+              type="number"
+              min="1"
+              value={pkgInput.durationDays}
+              onChange={(e) => setPkgInput({ ...pkgInput, durationDays: e.target.value })}
+              placeholder="Days"
+              className="p-2 border rounded-xl bg-white"
+            />
+            <input
+              type="text"
+              value={pkgInput.highlights}
+              onChange={(e) => setPkgInput({ ...pkgInput, highlights: e.target.value })}
+              placeholder="Included services, guiding languages, vehicle specs, or job scope..."
+              className="md:col-span-3 p-2 border rounded-xl bg-white"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1">
+            {(form.publishedPackages || []).map((pkg) => (
+              <div
+                key={pkg.id}
+                className="p-3 rounded-xl border bg-emerald-50/40 flex justify-between items-start gap-2"
+              >
+                <div>
+                  <p className="font-bold text-slate-900">
+                    🎒 {pkg.title} ({pkg.durationDays}d)
+                  </p>
+                  <p className="text-[11px] text-[#234E40] font-semibold">
+                    📍 {pkg.destination} • 💰 {pkg.priceLabel}
+                  </p>
+                  {pkg.highlights && <p className="text-slate-600 mt-0.5">{pkg.highlights}</p>}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removePackage(pkg)}
+                  className="text-red-600 font-bold"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* What You Provide */}
       <div className="space-y-2 pt-3 border-t">
         <h4 className="font-extrabold text-sm text-[#234E40]">What You Provide (Services / Fleet / Offerings)</h4>
@@ -649,91 +756,6 @@ function UserAndOwnerProfileSection({
           ))}
         </div>
       </div>
-
-      {/* Published Packages / Rental Offers for Providers */}
-      {showProviderExtras && (
-        <div className="space-y-2 pt-3 border-t">
-          <h4 className="font-extrabold text-sm text-[#234E40]">
-            🎒 Published Tour Packages &amp; Car Rental Offers
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-2 bg-slate-50 p-3 rounded-xl border">
-            <input
-              type="text"
-              value={pkgInput.title}
-              onChange={(e) => setPkgInput({ ...pkgInput, title: e.target.value })}
-              placeholder="Offer Title (e.g. 4x4 SUV Daily Rental or 3-Day Tour)"
-              className="p-2 border rounded-xl bg-white"
-            />
-            <select
-              value={pkgInput.destination}
-              onChange={(e) => setPkgInput({ ...pkgInput, destination: e.target.value })}
-              className="p-2 border rounded-xl bg-white"
-            >
-              <option value="Kigali City">Kigali City</option>
-              <option value="Musanze / Volcanoes NP">Musanze / Volcanoes NP</option>
-              <option value="Nyungwe / Kitabi">Nyungwe / Kitabi</option>
-              <option value="Akagera National Park">Akagera National Park</option>
-              <option value="Lake Kivu (Rubavu / Rusizi)">Lake Kivu (Rubavu / Rusizi)</option>
-              <option value="Multi-Destination Rwanda">Multi-Destination Rwanda</option>
-            </select>
-            <input
-              type="text"
-              value={pkgInput.priceLabel}
-              onChange={(e) => setPkgInput({ ...pkgInput, priceLabel: e.target.value })}
-              placeholder="Price (e.g. 95,000 RWF/day or $120)"
-              className="p-2 border rounded-xl bg-white"
-            />
-            <button
-              type="button"
-              onClick={handleAddPackage}
-              className="px-4 py-2 bg-[#234E40] text-white font-bold rounded-xl"
-            >
-              + Publish Offer
-            </button>
-            <input
-              type="number"
-              min="1"
-              value={pkgInput.durationDays}
-              onChange={(e) => setPkgInput({ ...pkgInput, durationDays: e.target.value })}
-              placeholder="Days"
-              className="p-2 border rounded-xl bg-white"
-            />
-            <input
-              type="text"
-              value={pkgInput.highlights}
-              onChange={(e) => setPkgInput({ ...pkgInput, highlights: e.target.value })}
-              placeholder="Vehicle specs, driver options, or tour highlights..."
-              className="md:col-span-3 p-2 border rounded-xl bg-white"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1">
-            {(form.publishedPackages || []).map((pkg) => (
-              <div
-                key={pkg.id}
-                className="p-3 rounded-xl border bg-emerald-50/40 flex justify-between items-start gap-2"
-              >
-                <div>
-                  <p className="font-bold text-slate-900">
-                    🎒 {pkg.title} ({pkg.durationDays}d)
-                  </p>
-                  <p className="text-[11px] text-[#234E40] font-semibold">
-                    📍 {pkg.destination} • 💰 {pkg.priceLabel}
-                  </p>
-                  {pkg.highlights && <p className="text-slate-600 mt-0.5">{pkg.highlights}</p>}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removePackage(pkg.id)}
-                  className="text-red-600 font-bold"
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Experience */}
       <div className="space-y-2 pt-3 border-t">
@@ -1084,7 +1106,7 @@ function TravelersOnWelcomeDirectory({
 }
 
 // =========================================================================
-// TRAVELER / TOURIST DIRECTORY: AVAILABILITY & PUBLISHED PACKAGES + BOOKING
+// TRAVELER / TOURIST DIRECTORY: PROFILE JOBS/PACKAGES & AVAILABILITY + BOOKING
 // =========================================================================
 function TravelerAvailabilityAndPackages({
   subscribers,
@@ -1142,6 +1164,7 @@ function TravelerAvailabilityAndPackages({
     ...providers.flatMap((p) =>
       (p.publishedPackages || []).map((pkg) => ({
         ...pkg,
+        providerId: pkg.providerId || p.id,
         providerName: pkg.providerName || p.name,
         providerRole: pkg.providerRole || p.role,
         providerContact: pkg.providerContact || p.contact,
@@ -1159,7 +1182,7 @@ function TravelerAvailabilityAndPackages({
       if (onRequirePI) {
         onRequirePI(item, type);
       } else {
-        alert('Please submit your Personal Information (PI) before requesting a booking.');
+        alert('Please submit your Personal Information (PI) before booking.');
       }
       return;
     }
@@ -1184,25 +1207,25 @@ function TravelerAvailabilityAndPackages({
 
   return (
     <div className="space-y-6">
-      {/* PUBLISHED PACKAGES & RENTAL OFFERS SECTION */}
+      {/* PROFILE JOBS / PACKAGES TO BE BOOKED */}
       <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-4 text-xs">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
           <div>
             <span className="text-[10px] font-extrabold uppercase text-[#3B6E5B]">
-              Curated &amp; Partner Offers
+              Added on Provider Profiles
             </span>
             <h3 className="text-base font-black text-slate-900">
-              🎒 Published Tour Packages &amp; Car Rental Offers ({uniquePackages.length})
+              🎒 Jobs / Packages to Be Booked ({uniquePackages.length})
             </h3>
             <p className="text-slate-500">
-              View published tour packages and car rental offers from guides, tour companies, travel agencies, and car rental companies.
+              Browse tour packages, guiding jobs, and car rental offers published directly on provider profiles.
             </p>
           </div>
         </div>
 
         {uniquePackages.length === 0 ? (
           <p className="text-slate-400 italic">
-            No packages or rental offers published yet. Browse available providers below or submit a booking request.
+            No profile jobs or packages published yet. Providers can add Jobs / Packages directly from their profile editor.
           </p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1222,7 +1245,7 @@ function TravelerAvailabilityAndPackages({
                   </div>
                   <h4 className="font-extrabold text-sm text-slate-900">{pkg.title}</h4>
                   <p className="text-[11px] text-slate-600">
-                    By <strong>{pkg.providerName}</strong> • {pkg.durationDays || 1} Day(s)
+                    On Profile of <strong>{pkg.providerName}</strong> • {pkg.durationDays || 1} Day(s)
                   </p>
                   {pkg.highlights && (
                     <p className="text-slate-600">{pkg.highlights}</p>
@@ -1234,7 +1257,7 @@ function TravelerAvailabilityAndPackages({
                   onClick={() => openBookingModal(pkg, 'package')}
                   className="w-full py-2.5 bg-[#234E40] hover:bg-slate-900 text-white font-bold rounded-xl transition"
                 >
-                  Book This Offer →
+                  Book This Job / Package →
                 </button>
               </div>
             ))}
@@ -1321,6 +1344,19 @@ function TravelerAvailabilityAndPackages({
 
                   {prov.bio && <p className="text-slate-600">{prov.bio}</p>}
 
+                  {(prov.publishedPackages || []).length > 0 && (
+                    <div className="bg-white p-2.5 rounded-xl border space-y-1">
+                      <p className="text-[10px] font-extrabold uppercase text-[#234E40]">
+                        🎒 Profile Jobs / Packages ({prov.publishedPackages.length}):
+                      </p>
+                      {(prov.publishedPackages || []).slice(0, 2).map((pItem) => (
+                        <p key={pItem.id} className="text-[11px] text-slate-700 truncate">
+                          • <strong>{pItem.title}</strong> ({pItem.priceLabel})
+                        </p>
+                      ))}
+                    </div>
+                  )}
+
                   {(prov.servicesProvided || []).length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
                       {(prov.servicesProvided || []).map((srv, idx) => (
@@ -1340,7 +1376,7 @@ function TravelerAvailabilityAndPackages({
                   onClick={() => openBookingModal(prov, 'provider')}
                   className="w-full py-2.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white font-bold rounded-xl transition"
                 >
-                  Request Booking with {prov.name} →
+                  Book {prov.name} →
                 </button>
               </div>
             ))}
@@ -1466,13 +1502,13 @@ function TravelerAvailabilityAndPackages({
 }
 
 // =========================================================================
-// OPEN BOOKING & JOB ASSIGNMENT MARKETPLACE + PRIVATE 1-ON-1 CHAT
+// BOOKING MANAGEMENT CONSOLE & PRIVATE 1-ON-1 CHAT
 // =========================================================================
 function BookingMarketplace({
   currentUser,
   currentRole,
   travelerPI,
-  onRequirePI,
+  onOpenProfilePackages,
   externalChatTarget,
   onClearExternalChatTarget
 }) {
@@ -1480,9 +1516,7 @@ function BookingMarketplace({
   const [privateChats, setPrivateChats] = useState([]);
   const [activeChatThread, setActiveChatThread] = useState(null);
   const [chatMessageInput, setChatMessageInput] = useState('');
-  const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState('open');
-  const [loading, setLoading] = useState(false);
 
   const [guestId] = useState(() => {
     let id = localStorage.getItem('gl_guest_owner_id');
@@ -1510,27 +1544,6 @@ function BookingMarketplace({
   const isProvider = ['graduate', 'agency', 'tour_company', 'car_rental'].includes(
     activeUserRole
   );
-
-  const [formData, setFormData] = useState({
-    title: '',
-    destination: 'Kigali City',
-    startDate: '',
-    durationDays: 1,
-    groupSize: 2,
-    budgetRwf: '',
-    targetRole: 'Any (Tour Company, Agency, Car Rental, or Graduate)',
-    notes: '',
-    ownerName: travelerPI?.fullName || currentUser?.name || '',
-    ownerPhone: travelerPI?.phone || currentUser?.contact || ''
-  });
-
-  useEffect(() => {
-    setFormData((prev) => ({
-      ...prev,
-      ownerName: travelerPI?.fullName || prev.ownerName || currentUser?.name || '',
-      ownerPhone: travelerPI?.phone || prev.ownerPhone || currentUser?.contact || ''
-    }));
-  }, [travelerPI, currentUser]);
 
   const fetchOpenBookingsAndChats = async () => {
     const [fbBookings, fbChats] = await Promise.all([
@@ -1659,72 +1672,6 @@ function BookingMarketplace({
     await firestoreSaveDoc('privateChats', updatedThread.id, updatedThread);
   };
 
-  const handleOpenCreateForm = () => {
-    if (activeUserRole === 'traveler' && (!travelerPI?.fullName || !travelerPI?.phone)) {
-      if (onRequirePI) {
-        onRequirePI();
-      } else {
-        alert('Please submit your Personal Information (PI) before setting a booking.');
-      }
-      return;
-    }
-    setShowForm(!showForm);
-  };
-
-  const handleCreateBooking = async (e) => {
-    e.preventDefault();
-    if (!formData.title.trim()) return;
-    if (activeUserRole === 'traveler' && (!travelerPI?.fullName || !travelerPI?.phone)) {
-      if (onRequirePI) onRequirePI();
-      return;
-    }
-
-    setLoading(true);
-    const newId = `bk-${Date.now()}`;
-    const piSummary =
-      activeUserRole === 'traveler' && travelerPI
-        ? `Traveler PI: ${travelerPI.fullName} (${travelerPI.nationality || 'Rwanda'}${
-            travelerPI.idOrPassport ? `, ID/Passport: ${travelerPI.idOrPassport}` : ''
-          })`
-        : '';
-
-    const newBooking = {
-      id: newId,
-      title: formData.title.trim(),
-      destination: formData.destination,
-      startDate: formData.startDate || 'Flexible Date',
-      durationDays: Number(formData.durationDays) || 1,
-      groupSize: Number(formData.groupSize) || 1,
-      budgetRwf: formData.budgetRwf.trim() || 'Negotiable',
-      targetRole: formData.targetRole,
-      notes: [formData.notes.trim(), piSummary].filter(Boolean).join(' • '),
-      travelerPI: travelerPI || null,
-      ownerId: activeUserId,
-      ownerName:
-        travelerPI?.fullName || formData.ownerName.trim() || activeUserName,
-      ownerPhone: travelerPI?.phone || formData.ownerPhone.trim(),
-      status: 'open',
-      applicants: [],
-      approvedProvider: null,
-      createdAt: Date.now()
-    };
-
-    setBookings([newBooking, ...bookings]);
-    await saveBookingDoc(newId, newBooking);
-
-    setFormData({
-      ...formData,
-      title: '',
-      startDate: '',
-      budgetRwf: '',
-      notes: ''
-    });
-    setShowForm(false);
-    setFilter('open');
-    setLoading(false);
-    alert('✓ Booking request published live!');
-  };
-
   const handleApplyForBooking = async (booking) => {
     if (booking.status !== 'open') return;
     const roleLabel =
@@ -1751,7 +1698,35 @@ function BookingMarketplace({
       )
     );
     await saveBookingDoc(booking.id, { applicants: updatedApplicants });
-    alert('✓ Request sent! Only the booking owner can see your request and approve.');
+    alert('✓ Booking confirmation / acceptance sent!');
+  };
+
+  const handleConfirmProviderDirectBooking = async (booking) => {
+    const ok = window.confirm(
+      `Confirm and accept booking "${booking.title}" from ${booking.ownerName}?`
+    );
+    if (!ok) return;
+
+    const approvedData = {
+      providerId: activeUserId,
+      providerName: activeUserName,
+      providerRole: activeUserRole,
+      providerPhone: currentUser?.contact || '',
+      approvedAt: new Date().toISOString()
+    };
+
+    setBookings(
+      bookings.map((b) =>
+        b.id === booking.id
+          ? { ...b, status: 'taken', approvedProvider: approvedData }
+          : b
+      )
+    );
+    await saveBookingDoc(booking.id, {
+      status: 'taken',
+      approvedProvider: approvedData
+    });
+    alert(`✓ Booking "${booking.title}" confirmed!`);
   };
 
   const handleApproveProvider = async (booking, applicant) => {
@@ -1761,7 +1736,7 @@ function BookingMarketplace({
     }
 
     const ok = window.confirm(
-      `Approve ${applicant.providerName} (${applicant.providerRole}) for "${booking.title}"? Once approved, this booking will be marked TAKEN and dismissed for everyone else.`
+      `Approve ${applicant.providerName} (${applicant.providerRole}) for "${booking.title}"?`
     );
     if (!ok) return;
 
@@ -1781,9 +1756,7 @@ function BookingMarketplace({
       status: 'taken',
       approvedProvider: approvedData
     });
-    alert(
-      `✓ ${applicant.providerName} is now granted for this job! Booking is locked and dismissed from open requests.`
-    );
+    alert(`✓ ${applicant.providerName} has been confirmed for this booking!`);
   };
 
   const myPrivateThreads = privateChats.filter((t) =>
@@ -1804,8 +1777,13 @@ function BookingMarketplace({
   const filteredBookings = bookings.filter((b) => {
     const isOwner = b.ownerId === activeUserId;
     const isGrantedToMe = b.approvedProvider?.providerId === activeUserId;
+    const isTargetedToMe =
+      isProvider &&
+      (normalize(b.targetProviderId) === activeUserId ||
+        normalize(b.targetRole) === normalize(activeUserName));
+
     if (filter === 'open') return b.status === 'open';
-    if (filter === 'my_bookings') return isOwner;
+    if (filter === 'my_bookings') return isOwner || isTargetedToMe;
     if (filter === 'granted') return isGrantedToMe;
     if (filter === 'taken') return b.status === 'taken';
     return true;
@@ -1816,23 +1794,27 @@ function BookingMarketplace({
       <div className="bg-[#234E40] text-white p-6 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="space-y-1">
           <span className="text-[10px] uppercase font-bold bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full">
-            Open Access Booking Board &amp; Private Chat
+            📋 Booking Management &amp; Private Messaging
           </span>
           <h3 className="font-bold text-base md:text-xl pt-1">
-            📅 Live Bookings, Owner Approvals &amp; Private Messages
+            📋 Booking Management Console
           </h3>
           <p className="text-xs md:text-sm text-emerald-100">
-            Only the user who created a booking sees all applicants/requests and approves whom they want. Private chats are visible exclusively to the two chatting participants.
+            {isProvider
+              ? 'Manage incoming client bookings for your profile Jobs & Packages, confirm reservations, and chat privately with travelers.'
+              : 'Track your booked packages, review confirmations, and chat privately with your provider.'}
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handleOpenCreateForm}
-          className="px-5 py-3 bg-amber-400 hover:bg-amber-500 text-slate-950 font-extrabold text-xs md:text-sm rounded-xl shadow shrink-0 transition"
-        >
-          {showForm ? '✕ Close Form' : '+ Submit New Booking'}
-        </button>
+        {isProvider && onOpenProfilePackages && (
+          <button
+            type="button"
+            onClick={onOpenProfilePackages}
+            className="px-5 py-3 bg-amber-400 hover:bg-amber-500 text-slate-950 font-extrabold text-xs md:text-sm rounded-xl shadow shrink-0 transition"
+          >
+            + Add Jobs / Packages on Profile
+          </button>
+        )}
       </div>
 
       {/* PRIVATE 1-ON-1 CHAT CONVERSATIONS (VISIBLE ONLY TO PARTICIPANTS) */}
@@ -1953,165 +1935,11 @@ function BookingMarketplace({
         ) : (
           myPrivateThreads.length === 0 && (
             <p className="text-slate-400 italic">
-              No private conversations yet. Click &quot;Private Chat&quot; on a booking request, applicant, or traveler to start a private conversation.
+              No private conversations yet. Click &quot;Private Chat&quot; on any booking or traveler to start a private conversation.
             </p>
           )
         )}
       </div>
-
-      {showForm && (
-        <form
-          onSubmit={handleCreateBooking}
-          className="bg-white p-6 rounded-2xl border-2 border-[#3B6E5B] shadow-sm space-y-4 text-xs"
-        >
-          <h4 className="font-bold text-sm text-[#234E40] border-b pb-2">
-            📝 Submit a New Booking Request (Open to All Users)
-          </h4>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            <div>
-              <label className="font-bold text-slate-700">Trip / Rental / Booking Title *</label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. 3-Day Nyungwe Tour or 4x4 Car Rental"
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="w-full mt-1 p-2.5 border rounded-xl"
-              />
-            </div>
-
-            <div>
-              <label className="font-bold text-slate-700">Destination *</label>
-              <select
-                value={formData.destination}
-                onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
-                className="w-full mt-1 p-2.5 border rounded-xl bg-white"
-              >
-                <option value="Kigali City">Kigali City</option>
-                <option value="Musanze / Volcanoes NP">Musanze / Volcanoes National Park</option>
-                <option value="Nyungwe / Kitabi">Nyungwe National Park / Kitabi</option>
-                <option value="Akagera National Park">Akagera National Park</option>
-                <option value="Lake Kivu (Rubavu / Rusizi)">Lake Kivu (Rubavu / Rusizi)</option>
-                <option value="Multi-Destination Rwanda">Multi-Destination Rwanda</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="font-bold text-slate-700">Preferred Provider</label>
-              <select
-                value={formData.targetRole}
-                onChange={(e) => setFormData({ ...formData, targetRole: e.target.value })}
-                className="w-full mt-1 p-2.5 border rounded-xl bg-white font-semibold"
-              >
-                <option value="Any (Tour Company, Agency, Car Rental, or Graduate)">
-                  Any (Tour Company, Agency, Car Rental, or Graduate)
-                </option>
-                <option value="Car Rentals Company">Car Rentals Company</option>
-                <option value="Tour Company">Tour Company</option>
-                <option value="Travel Agency">Travel Agency</option>
-                <option value="Tourism Graduate / Guide">Tourism Graduate / Guide</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="font-bold text-slate-700">Travel Date *</label>
-              <input
-                type="date"
-                required
-                value={formData.startDate}
-                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                className="w-full mt-1 p-2.5 border rounded-xl"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="font-bold text-slate-700">Days</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={formData.durationDays}
-                  onChange={(e) => setFormData({ ...formData, durationDays: e.target.value })}
-                  className="w-full mt-1 p-2.5 border rounded-xl"
-                />
-              </div>
-              <div>
-                <label className="font-bold text-slate-700">Travelers / Seats</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={formData.groupSize}
-                  onChange={(e) => setFormData({ ...formData, groupSize: e.target.value })}
-                  className="w-full mt-1 p-2.5 border rounded-xl"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="font-bold text-slate-700">Budget (RWF / USD)</label>
-              <input
-                type="text"
-                placeholder="e.g. 150,000 RWF or Negotiable"
-                value={formData.budgetRwf}
-                onChange={(e) => setFormData({ ...formData, budgetRwf: e.target.value })}
-                className="w-full mt-1 p-2.5 border rounded-xl"
-              />
-            </div>
-
-            <div>
-              <label className="font-bold text-slate-700">Your Name / Organization *</label>
-              <input
-                type="text"
-                required
-                value={formData.ownerName}
-                onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })}
-                className="w-full mt-1 p-2.5 border rounded-xl"
-              />
-            </div>
-
-            <div>
-              <label className="font-bold text-slate-700">Your Contact Phone / WhatsApp *</label>
-              <input
-                type="text"
-                required
-                placeholder="+25078XXXXXXX"
-                value={formData.ownerPhone}
-                onChange={(e) => setFormData({ ...formData, ownerPhone: e.target.value })}
-                className="w-full mt-1 p-2.5 border rounded-xl"
-              />
-            </div>
-
-            <div>
-              <label className="font-bold text-slate-700">Trip / Rental Notes</label>
-              <input
-                type="text"
-                placeholder="Languages, vehicle model, or itinerary notes..."
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                className="w-full mt-1 p-2.5 border rounded-xl"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end space-x-2">
-            <button
-              type="button"
-              onClick={() => setShowForm(false)}
-              className="px-4 py-2.5 bg-slate-100 rounded-xl font-bold text-slate-600"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-6 py-2.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold shadow"
-            >
-              {loading ? 'Publishing...' : 'Publish Booking Request →'}
-            </button>
-          </div>
-        </form>
-      )}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-white p-1.5 rounded-2xl border text-[11px] md:text-xs font-bold text-center shadow-sm">
         <button
@@ -2121,7 +1949,7 @@ function BookingMarketplace({
             filter === 'open' ? 'bg-[#234E40] text-white' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
-          🟢 Open Bookings ({bookings.filter((b) => b.status === 'open').length})
+          🟢 Active / Pending Bookings ({bookings.filter((b) => b.status === 'open').length})
         </button>
 
         <button
@@ -2131,7 +1959,7 @@ function BookingMarketplace({
             filter === 'my_bookings' ? 'bg-[#234E40] text-white' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
-          📋 My Submitted ({bookings.filter((b) => b.ownerId === activeUserId).length})
+          📋 {isProvider ? 'My Incoming Bookings' : 'My Bookings'}
         </button>
 
         <button
@@ -2143,7 +1971,7 @@ function BookingMarketplace({
               : 'text-emerald-900 bg-emerald-50 hover:bg-emerald-100'
           }`}
         >
-          <span>🎉 Granted to Me</span>
+          <span>🎉 Confirmed by Me</span>
           {grantedCount > 0 && (
             <span className="px-2 py-0.5 text-[10px] bg-emerald-600 text-white rounded-full">
               {grantedCount}
@@ -2158,13 +1986,13 @@ function BookingMarketplace({
             filter === 'taken' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
-          🔒 Taken / Dismissed ({bookings.filter((b) => b.status === 'taken').length})
+          🔒 Completed / Confirmed ({bookings.filter((b) => b.status === 'taken').length})
         </button>
       </div>
 
       {filteredBookings.length === 0 ? (
         <div className="bg-white p-8 rounded-2xl border text-center text-xs text-slate-500">
-          No bookings in this view right now. Click <strong>&quot;+ Submit New Booking&quot;</strong> to post one!
+          No bookings in this view right now. Travelers can book published Jobs &amp; Packages directly from your profile!
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -2172,6 +2000,10 @@ function BookingMarketplace({
             const isOwner = booking.ownerId === activeUserId;
             const isTaken = booking.status === 'taken';
             const isGrantedToMe = booking.approvedProvider?.providerId === activeUserId;
+            const isTargetedToMe =
+              isProvider &&
+              (normalize(booking.targetProviderId) === activeUserId ||
+                normalize(booking.targetRole) === normalize(activeUserName));
             const alreadyApplied = (booking.applicants || []).some(
               (a) => a.providerId === activeUserId
             );
@@ -2195,22 +2027,22 @@ function BookingMarketplace({
 
                     {isGrantedToMe ? (
                       <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-600 text-white">
-                        ✓ Granted for Job
+                        ✓ Confirmed Booking
                       </span>
                     ) : isTaken ? (
                       <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900">
-                        🔒 Taken &amp; Dismissed
+                        🔒 Confirmed &amp; Locked
                       </span>
                     ) : (
                       <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                        ● Open
+                        ● Pending Confirmation
                       </span>
                     )}
                   </div>
 
                   <h4 className="font-bold text-sm text-slate-900">{booking.title}</h4>
                   <p className="text-[11px] text-slate-500">
-                    Posted by <strong>{booking.ownerName}</strong> • For: {booking.targetRole}
+                    Booked by <strong>{booking.ownerName}</strong> • Provider: {booking.targetRole}
                   </p>
 
                   {booking.travelerPI && (
@@ -2232,7 +2064,7 @@ function BookingMarketplace({
                       </span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block">Budget</span>
+                      <span className="text-slate-400 block">Rate / Budget</span>
                       <span className="font-bold text-[#234E40]">{booking.budgetRwf}</span>
                     </div>
                   </div>
@@ -2246,10 +2078,10 @@ function BookingMarketplace({
                   {isGrantedToMe && (
                     <div className="bg-[#234E40] text-white p-3 rounded-xl space-y-1.5">
                       <p className="font-bold">
-                        🎉 You have been approved &amp; granted for this job!
+                        🎉 You confirmed this booking!
                       </p>
                       <p className="text-[11px] text-emerald-100">
-                        Owner: <strong>{booking.ownerName}</strong> • Phone:{' '}
+                        Client: <strong>{booking.ownerName}</strong> • Phone:{' '}
                         <strong>{booking.ownerPhone}</strong>
                       </p>
                       <button
@@ -2264,15 +2096,15 @@ function BookingMarketplace({
                         }
                         className="mt-1 px-3 py-1.5 bg-amber-400 text-slate-950 rounded-lg font-extrabold text-[11px]"
                       >
-                        💬 Private Chat with Owner
+                        💬 Private Chat with Client
                       </button>
                     </div>
                   )}
 
                   {isTaken && !isGrantedToMe && !isOwner && (
                     <div className="bg-slate-200 text-slate-700 p-2.5 rounded-xl text-center font-semibold">
-                      🔒 This booking has already been taken by{' '}
-                      <strong>{booking.approvedProvider?.providerName}</strong> and is dismissed.
+                      🔒 Confirmed with{' '}
+                      <strong>{booking.approvedProvider?.providerName}</strong>.
                     </div>
                   )}
 
@@ -2280,13 +2112,13 @@ function BookingMarketplace({
                     <div className="space-y-2">
                       <p className="font-bold text-[11px] uppercase text-slate-700">
                         {isTaken
-                          ? `✓ Approved: ${booking.approvedProvider?.providerName}`
-                          : `Only You See Applicants (${(booking.applicants || []).length}) - Approve Whom You Want:`}
+                          ? `✓ Confirmed Provider: ${booking.approvedProvider?.providerName}`
+                          : `Responses (${(booking.applicants || []).length}):`}
                       </p>
 
                       {!isTaken && (booking.applicants || []).length === 0 && (
                         <p className="text-[11px] text-slate-400 italic">
-                          Waiting for providers to apply...
+                          Awaiting confirmation from provider...
                         </p>
                       )}
 
@@ -2322,7 +2154,7 @@ function BookingMarketplace({
                                 onClick={() => handleApproveProvider(booking, app)}
                                 className="px-3 py-1.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-lg font-bold"
                               >
-                                Approve
+                                Confirm
                               </button>
                             </div>
                           </div>
@@ -2330,47 +2162,51 @@ function BookingMarketplace({
                     </div>
                   )}
 
-                  {!isOwner && !isTaken && (
+                  {!isOwner && !isTaken && isProvider && (
                     <div className="space-y-1.5">
-                      {isProvider ? (
-                        alreadyApplied ? (
-                          <div className="space-y-1.5">
-                            <button
-                              type="button"
-                              disabled
-                              className="w-full py-2 bg-slate-200 text-slate-600 rounded-xl font-bold cursor-not-allowed"
-                            >
-                              ✓ Request Sent — Awaiting Owner Approval
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                openPrivateChat(
-                                  booking.id,
-                                  booking.title,
-                                  booking.ownerId,
-                                  booking.ownerName
-                                )
-                              }
-                              className="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold transition"
-                            >
-                              💬 Private Chat with Booking Owner
-                            </button>
-                          </div>
+                      {isTargetedToMe && (
+                        <button
+                          type="button"
+                          onClick={() => handleConfirmProviderDirectBooking(booking)}
+                          className="w-full py-2.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-extrabold transition"
+                        >
+                          ✓ Accept &amp; Confirm Client Booking
+                        </button>
+                      )}
+
+                      {!isTargetedToMe &&
+                        (alreadyApplied ? (
+                          <button
+                            type="button"
+                            disabled
+                            className="w-full py-2 bg-slate-200 text-slate-600 rounded-xl font-bold cursor-not-allowed"
+                          >
+                            ✓ Response Sent — Awaiting Confirmation
+                          </button>
                         ) : (
                           <button
                             type="button"
                             onClick={() => handleApplyForBooking(booking)}
                             className="w-full py-2.5 bg-[#3B6E5B] hover:bg-[#234E40] text-white rounded-xl font-bold transition"
                           >
-                            Request / Accept Booking →
+                            Accept / Respond to Booking →
                           </button>
-                        )
-                      ) : (
-                        <p className="text-[11px] text-slate-400 text-center">
-                          Open for verified Car Rentals, Tour Companies, Agencies &amp; Graduates to request.
-                        </p>
-                      )}
+                        ))}
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          openPrivateChat(
+                            booking.id,
+                            booking.title,
+                            booking.ownerId,
+                            booking.ownerName
+                          )
+                        }
+                        className="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold transition"
+                      >
+                        💬 Private Chat with {booking.ownerName}
+                      </button>
                     </div>
                   )}
                 </div>
@@ -2383,6 +2219,9 @@ function BookingMarketplace({
   );
 }
 
+// =========================================================================
+// MAIN APPLICATION COMPONENT
+// =========================================================================
 export default function GuideLinkRwandaApp() {
   useEffect(() => {
     const styleId = 'guidelink-fullscreen-override';
@@ -2411,6 +2250,7 @@ export default function GuideLinkRwandaApp() {
   const [ownerTab, setOwnerTab] = useState('pending');
   const [allRolesFilter, setAllRolesFilter] = useState('all');
   const [showUserProfileEditor, setShowUserProfileEditor] = useState(false);
+  const [showBookingManagementPanel, setShowBookingManagementPanel] = useState(true);
   const [showChangePasswordBox, setShowChangePasswordBox] = useState(false);
   const [showPiFormModal, setShowPiFormModal] = useState(false);
   const [pendingPiAction, setPendingPiAction] = useState(null);
@@ -2580,7 +2420,7 @@ export default function GuideLinkRwandaApp() {
       });
       setPendingPiAction(null);
     } else {
-      alert('✓ Your Personal Information (PI) is saved! You can now set or request bookings.');
+      alert('✓ Your Personal Information (PI) is saved! You can now book Jobs & Packages.');
     }
   };
 
@@ -2684,7 +2524,7 @@ export default function GuideLinkRwandaApp() {
     }
     setLastAutoUpdateAt(new Date());
     setIsSaving(false);
-    alert('✓ Profile, photo, availability, packages, experience & qualifications saved!');
+    alert('✓ Profile, Jobs/Packages to be booked, availability & qualifications saved!');
   };
 
   const handleOwnerUpdateUserRole = async (userId, nextRole) => {
@@ -2749,9 +2589,44 @@ export default function GuideLinkRwandaApp() {
     alert('✓ Your dashboard password has been updated!');
   };
 
-  const handlePublishProviderPackage = async (pkgItem) => {
-    setPublishedPackages((prev) => [pkgItem, ...prev]);
-    await firestoreSaveDoc('publishedPackages', pkgItem.id, pkgItem);
+  const handlePublishProviderPackage = async (pkgItem, updatedProfileFields) => {
+    const enrichedPkg = {
+      ...pkgItem,
+      providerId: pkgItem.providerId || currentUser?.id || '',
+      providerName: pkgItem.providerName || currentUser?.name || 'Partner',
+      providerContact: pkgItem.providerContact || currentUser?.contact || ''
+    };
+
+    setPublishedPackages((prev) => [enrichedPkg, ...prev]);
+    await firestoreSaveDoc('publishedPackages', enrichedPkg.id, enrichedPkg);
+
+    if (currentUser?.id && updatedProfileFields) {
+      const nextUser = {
+        ...currentUser,
+        ...updatedProfileFields,
+        updatedAt: new Date().toISOString()
+      };
+      setCurrentUser(nextUser);
+      setSubscribers((prev) => prev.map((s) => (s.id === nextUser.id ? nextUser : s)));
+      await firestoreSaveDoc('subscribers', nextUser.id, nextUser);
+    }
+    alert('✓ Job / Package published to your profile and live booking board!');
+  };
+
+  const handleRemovePublishedPackage = async (pkgId, updatedProfileFields) => {
+    setPublishedPackages((prev) => prev.filter((p) => p.id !== pkgId));
+    await firestoreDeleteDoc('publishedPackages', pkgId);
+
+    if (currentUser?.id && updatedProfileFields) {
+      const nextUser = {
+        ...currentUser,
+        ...updatedProfileFields,
+        updatedAt: new Date().toISOString()
+      };
+      setCurrentUser(nextUser);
+      setSubscribers((prev) => prev.map((s) => (s.id === nextUser.id ? nextUser : s)));
+      await firestoreSaveDoc('subscribers', nextUser.id, nextUser);
+    }
   };
 
   const handleBookPackageOrProvider = async (item, bookingForm) => {
@@ -2769,21 +2644,25 @@ export default function GuideLinkRwandaApp() {
       : isAd
       ? item.headline || item.name
       : item.name;
+    const targetProviderId = isPkg
+      ? normalizeContact(item.providerContact || item.providerId || item.providerName)
+      : normalizeContact(item.contact || item.id || item.name);
     const targetContact = isPkg ? item.providerContact || '' : item.contact || '';
 
     const bookingDoc = {
       id: bookingId,
       title: isPkg
-        ? `Offer Booking: ${item.title} (${targetName})`
+        ? `Booked Offer: ${item.title} (${targetName})`
         : isAd
         ? `Ad Booking: ${targetName}`
-        : `Direct Booking Request: ${targetName}`,
+        : `Direct Booking: ${targetName}`,
       destination: item.destination || 'Multi-Destination Rwanda',
       startDate: bookingForm.travelDate || 'Flexible Date',
-      durationDays: Number(bookingForm.durationDays) || 1,
+      durationDays: Number(item.durationDays || bookingForm.durationDays) || 1,
       groupSize: Number(bookingForm.groupSize) || 1,
       budgetRwf: item.priceLabel || 'Negotiable',
       targetRole: targetName,
+      targetProviderId,
       travelerPI: activePI,
       notes: [
         bookingForm.notes,
@@ -2805,7 +2684,7 @@ export default function GuideLinkRwandaApp() {
 
     await firestoreSaveDoc('openBookings', bookingId, bookingDoc);
     alert(
-      `✓ Booking request sent for "${isPkg ? item.title : targetName}" with your Personal Info (PI)!`
+      `✓ Booking request sent for "${isPkg ? item.title : targetName}"! The provider can now manage and confirm it in their Booking Management dashboard.`
     );
   };
 
@@ -3202,12 +3081,18 @@ export default function GuideLinkRwandaApp() {
         {currentRole === 'welcome' && (
           <div className="space-y-8">
             <div className="bg-white rounded-3xl p-6 md:p-10 border shadow-sm text-center space-y-4">
-              <span className="inline-block text-[11px] font-extrabold uppercase tracking-wider px-3 py-1 rounded-full bg-emerald-50 text-[#234E40]">
-                🇷🇼 {t.heroBadge}
-              </span>
+              <div className="inline-block px-4 py-1.5 rounded-full bg-[#234E40] text-amber-300 font-black text-xs md:text-sm tracking-widest uppercase shadow-sm">
+                🇷🇼 {appConfig.welcomeNote || t.welcomeNoteTop}
+              </div>
+
               <h2 className="text-2xl md:text-4xl font-black text-slate-900">
                 {appConfig.tagline}
               </h2>
+
+              <span className="inline-block text-[11px] font-extrabold uppercase tracking-wider px-3 py-1 rounded-full bg-emerald-50 text-[#234E40]">
+                {t.heroBadge}
+              </span>
+
               <p className="text-slate-600 max-w-2xl mx-auto text-sm md:text-base">
                 {appConfig.subtitle}
               </p>
@@ -3299,7 +3184,7 @@ export default function GuideLinkRwandaApp() {
               currentUser={currentUser}
               currentRole={currentRole}
               travelerPI={travelerPI}
-              onRequirePI={() => setShowPiFormModal(true)}
+              onOpenProfilePackages={() => setShowUserProfileEditor(true)}
               externalChatTarget={externalChatTarget}
               onClearExternalChatTarget={() => setExternalChatTarget(null)}
             />
@@ -3518,12 +3403,25 @@ export default function GuideLinkRwandaApp() {
                   <>
                     <button
                       type="button"
+                      onClick={() => setShowBookingManagementPanel(!showBookingManagementPanel)}
+                      className={`px-4 py-2 text-xs font-extrabold rounded-xl shadow flex items-center gap-1.5 ${
+                        showBookingManagementPanel
+                          ? 'bg-amber-400 text-slate-950'
+                          : 'bg-amber-100 text-amber-950 hover:bg-amber-200'
+                      }`}
+                    >
+                      <span>📋</span>
+                      <span>Booking Management</span>
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => setShowUserProfileEditor(!showUserProfileEditor)}
                       className="px-4 py-2 bg-[#234E40] hover:bg-slate-900 text-white text-xs font-bold rounded-xl shadow"
                     >
                       {showUserProfileEditor
-                        ? 'Hide Profile Editor'
-                        : '✏️ Edit Profile, Availability & Packages'}
+                        ? 'Hide Profile & Offers'
+                        : '🎒 Profile & Jobs/Packages to Be Booked'}
                     </button>
 
                     <button
@@ -3639,6 +3537,7 @@ export default function GuideLinkRwandaApp() {
                   'car_rental'
                 ].includes(currentRole)}
                 onPublishPackage={handlePublishProviderPackage}
+                onRemovePublishedPackage={handleRemovePublishedPackage}
               />
             )}
 
@@ -3658,14 +3557,16 @@ export default function GuideLinkRwandaApp() {
               />
             )}
 
-            <BookingMarketplace
-              currentUser={currentUser}
-              currentRole={currentRole}
-              travelerPI={travelerPI}
-              onRequirePI={() => setShowPiFormModal(true)}
-              externalChatTarget={externalChatTarget}
-              onClearExternalChatTarget={() => setExternalChatTarget(null)}
-            />
+            {(currentRole === 'traveler' || showBookingManagementPanel) && (
+              <BookingMarketplace
+                currentUser={currentUser}
+                currentRole={currentRole}
+                travelerPI={travelerPI}
+                onOpenProfilePackages={() => setShowUserProfileEditor(true)}
+                externalChatTarget={externalChatTarget}
+                onClearExternalChatTarget={() => setExternalChatTarget(null)}
+              />
+            )}
           </div>
         )}
 
@@ -3959,7 +3860,7 @@ export default function GuideLinkRwandaApp() {
                       All Registered Users — Full Owner Access
                     </h3>
                     <p className="text-slate-500">
-                      Click &quot;Inspect User&quot; to view or manage any user&apos;s full profile, availability, packages, services, experience &amp; qualifications.
+                      Click &quot;Inspect User&quot; to view or manage any user&apos;s full profile, Jobs/Packages to be booked, availability, experience &amp; qualifications.
                     </p>
                   </div>
                 </div>
@@ -4361,7 +4262,18 @@ export default function GuideLinkRwandaApp() {
                         className="w-full mt-1 p-2.5 border rounded-xl"
                       />
                     </div>
-                    <div className="md:col-span-2">
+                    <div>
+                      <label className="font-bold text-slate-700">Top Welcome Note</label>
+                      <input
+                        type="text"
+                        value={appConfig.welcomeNote || 'WELCOME TO GUIDE LINK RWANDA'}
+                        onChange={(e) =>
+                          setAppConfig({ ...appConfig, welcomeNote: e.target.value })
+                        }
+                        className="w-full mt-1 p-2.5 border rounded-xl"
+                      />
+                    </div>
+                    <div>
                       <label className="font-bold text-slate-700">Tagline</label>
                       <input
                         type="text"
