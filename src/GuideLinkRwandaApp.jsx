@@ -2542,6 +2542,53 @@ function BookingMarketplace({
   );
   const isGraduateGuideConsultant = activeUserRole === 'graduate';
 
+  const [editingJobAppId, setEditingJobAppId] = useState(null);
+  const [jobAppDraft, setJobAppDraft] = useState({
+    applicantRoleType: 'Tourism Graduate',
+    coverNote: '',
+    proposedRate: '',
+    availabilityNote: ''
+  });
+
+  const [editingBookingId, setEditingBookingId] = useState(null);
+  const [bookingDraft, setBookingDraft] = useState({
+    title: '',
+    destination: '',
+    startDate: '',
+    durationDays: 1,
+    groupSize: 1,
+    budgetRwf: '',
+    notes: '',
+    companyName: '',
+    companyRegistration: '',
+    companyContact: '',
+    companyServiceDetails: '',
+    graduateCredentials: ''
+  });
+
+  const [companyInfoModalContext, setCompanyInfoModalContext] = useState(null);
+  const [companyBookingForm, setCompanyBookingForm] = useState({
+    organizationName: currentUser?.name || '',
+    registrationOrLicense: currentUser?.license || '',
+    contactPhoneOrEmail: currentUser?.contact || '',
+    serviceOrFleetDetails: currentUser?.title || '',
+    graduateSpecialization: currentUser?.institution || '',
+    travelDate: '',
+    groupSize: 2,
+    notes: ''
+  });
+
+  useEffect(() => {
+    setCompanyBookingForm((prev) => ({
+      ...prev,
+      organizationName: currentUser?.name || prev.organizationName || '',
+      registrationOrLicense: currentUser?.license || prev.registrationOrLicense || '',
+      contactPhoneOrEmail: currentUser?.contact || prev.contactPhoneOrEmail || '',
+      serviceOrFleetDetails: currentUser?.title || prev.serviceOrFleetDetails || '',
+      graduateSpecialization: currentUser?.institution || prev.graduateSpecialization || ''
+    }));
+  }, [currentUser]);
+
   const fetchOpenBookingsAndChats = async () => {
     const [fbBookings, fbChats] = await Promise.all([
       firestoreGetCollection('openBookings'),
@@ -2688,7 +2735,14 @@ function BookingMarketplace({
       providerId: activeUserId,
       providerName: activeUserName,
       providerRole: roleLabel,
+      applicantRoleType:
+        activeUserRole === 'graduate' ? 'Tourism Graduate / Guide / Consultant' : roleLabel,
       providerPhone: currentUser?.contact || '',
+      coverNote: booking.isJobPost
+        ? `Interested in ${booking.title} as ${roleLabel}.`
+        : '',
+      proposedRate: booking.budgetRwf || '',
+      availabilityNote: currentUser?.availabilityStatus || 'Available Now',
       appliedAt: new Date().toISOString()
     };
 
@@ -2708,89 +2762,276 @@ function BookingMarketplace({
       onNotify(
         'success',
         booking.isJobPost
-          ? 'Job application sent — moved to Active!'
+          ? 'Job application sent — moved to Active! You can edit your application anytime.'
           : 'Response sent — booking moved to Active!'
+      );
+  };
+
+  const startEditingJobApplication = (booking, existingApp) => {
+    setEditingJobAppId(booking.id);
+    setJobAppDraft({
+      applicantRoleType: existingApp?.applicantRoleType || 'Tourism Graduate',
+      coverNote: existingApp?.coverNote || '',
+      proposedRate: existingApp?.proposedRate || booking.budgetRwf || '',
+      availabilityNote: existingApp?.availabilityNote || 'Available Now'
+    });
+  };
+
+  const handleSaveEditedJobApplication = async (e, booking) => {
+    e.preventDefault();
+    if (!isGraduateGuideConsultant) {
+      onNotify &&
+        onNotify(
+          'warning',
+          'Only Graduates, Consultants, or Guides can edit job applications.'
+        );
+      return;
+    }
+
+    const updatedApplicants = (booking.applicants || []).map((app) =>
+      app.providerId === activeUserId
+        ? {
+            ...app,
+            applicantRoleType: jobAppDraft.applicantRoleType,
+            coverNote: jobAppDraft.coverNote.trim(),
+            proposedRate: jobAppDraft.proposedRate.trim(),
+            availabilityNote: jobAppDraft.availabilityNote.trim(),
+            updatedAt: new Date().toISOString()
+          }
+        : app
+    );
+
+    setBookings(
+      bookings.map((b) =>
+        b.id === booking.id ? { ...b, applicants: updatedApplicants } : b
+      )
+    );
+    await saveBookingDoc(booking.id, { applicants: updatedApplicants });
+    setEditingJobAppId(null);
+    onNotify && onNotify('success', 'Your job application details were updated.');
+  };
+
+  const canEditBookingItem = (booking) => {
+    if (!booking || booking.isJobPost) return false;
+    const isBookerById = booking.ownerId === activeUserId;
+    const isBookerByName =
+      booking.ownerName &&
+      activeUserName &&
+      normalize(booking.ownerName) === normalize(activeUserName);
+    const allowedBookerRole = [
+      'traveler',
+      'graduate',
+      'tour_company',
+      'agency',
+      'car_rental'
+    ].includes(activeUserRole);
+    return allowedBookerRole && (isBookerById || isBookerByName);
+  };
+
+  const startEditingBookingItem = (booking) => {
+    if (activeUserRole === 'traveler' && (!travelerPI?.fullName || !travelerPI?.phone)) {
+      onNotify &&
+        onNotify(
+          'warning',
+          'Travelers must complete their Personal Information (PI) first before editing a booking.'
+        );
+      return;
+    }
+    setEditingBookingId(booking.id);
+    setBookingDraft({
+      title: booking.title || '',
+      destination: booking.destination || 'Rwanda',
+      startDate: booking.startDate || '',
+      durationDays: booking.durationDays || 1,
+      groupSize: booking.groupSize || 1,
+      budgetRwf: booking.budgetRwf || '',
+      notes: booking.notes || '',
+      companyName: booking.companyBookingInfo?.organizationName || currentUser?.name || '',
+      companyRegistration:
+        booking.companyBookingInfo?.registrationOrLicense || currentUser?.license || '',
+      companyContact:
+        booking.companyBookingInfo?.contactPhoneOrEmail || currentUser?.contact || '',
+      companyServiceDetails:
+        booking.companyBookingInfo?.serviceOrFleetDetails || currentUser?.title || '',
+      graduateCredentials:
+        booking.companyBookingInfo?.graduateSpecialization || currentUser?.institution || ''
+    });
+  };
+
+  const handleSaveEditedBookingItem = async (e, booking) => {
+    e.preventDefault();
+    if (!canEditBookingItem(booking)) {
+      onNotify &&
+        onNotify('warning', 'Only the booker of this booking can edit its details.');
+      return;
+    }
+    if (activeUserRole === 'traveler' && (!travelerPI?.fullName || !travelerPI?.phone)) {
+      onNotify &&
+        onNotify(
+          'warning',
+          'Travelers must first fill out their Personal Information (PI).'
+        );
+      return;
+    }
+
+    const updatedCompanyInfo =
+      ['agency', 'tour_company', 'car_rental', 'graduate'].includes(activeUserRole)
+        ? {
+            organizationName: bookingDraft.companyName.trim(),
+            registrationOrLicense: bookingDraft.companyRegistration.trim(),
+            contactPhoneOrEmail: bookingDraft.companyContact.trim(),
+            serviceOrFleetDetails: bookingDraft.companyServiceDetails.trim(),
+            graduateSpecialization: bookingDraft.graduateCredentials.trim()
+          }
+        : booking.companyBookingInfo || null;
+
+    const patch = {
+      title: bookingDraft.title.trim() || booking.title,
+      destination: bookingDraft.destination.trim() || booking.destination,
+      startDate: bookingDraft.startDate || booking.startDate,
+      durationDays: Number(bookingDraft.durationDays) || 1,
+      groupSize: Number(bookingDraft.groupSize) || 1,
+      budgetRwf: bookingDraft.budgetRwf.trim() || booking.budgetRwf,
+      notes: bookingDraft.notes.trim(),
+      companyBookingInfo: updatedCompanyInfo,
+      updatedAt: new Date().toISOString()
+    };
+
+    setBookings(bookings.map((b) => (b.id === booking.id ? { ...b, ...patch } : b)));
+    await saveBookingDoc(booking.id, patch);
+    setEditingBookingId(null);
+    onNotify && onNotify('success', 'Booking details updated successfully.');
+  };
+
+  const handleConfirmCompanyBookingModal = async (e) => {
+    e.preventDefault();
+    if (!companyInfoModalContext) return;
+
+    const { item, bookingType } = companyInfoModalContext;
+    const isPkg = bookingType === 'package';
+    const isAd = bookingType === 'ad';
+    const bookingId = `bk-${Date.now()}`;
+    const targetName = isPkg
+      ? item.providerName || item.title
+      : isAd
+      ? item.headline || item.name
+      : item.name;
+    const targetProviderId = isPkg
+      ? normalize(item.providerContact || item.providerId || item.providerName)
+      : normalize(item.contact || item.id || item.name);
+    const targetContact = isPkg ? item.providerContact || '' : item.contact || '';
+
+    const companyInfo = {
+      role: activeUserRole,
+      organizationName: companyBookingForm.organizationName.trim() || activeUserName,
+      registrationOrLicense: companyBookingForm.registrationOrLicense.trim(),
+      contactPhoneOrEmail:
+        companyBookingForm.contactPhoneOrEmail.trim() || currentUser?.contact || '',
+      serviceOrFleetDetails: companyBookingForm.serviceOrFleetDetails.trim(),
+      graduateSpecialization: companyBookingForm.graduateSpecialization.trim()
+    };
+
+    const bookingDoc = {
+      id: bookingId,
+      title: isPkg
+        ? `Booked Offer: ${item.title} (${targetName})`
+        : isAd
+        ? `Ad Booking: ${targetName}`
+        : `Direct Booking: ${targetName}`,
+      destination: item.destination || 'Multi-Destination Rwanda',
+      startDate: companyBookingForm.travelDate || 'Flexible Date',
+      durationDays: Number(item.durationDays) || 1,
+      groupSize: Number(companyBookingForm.groupSize) || 1,
+      budgetRwf: item.priceLabel || 'Negotiable',
+      targetRole: targetName,
+      targetProviderId,
+      travelerPI: null,
+      companyBookingInfo: companyInfo,
+      notes: [
+        companyBookingForm.notes.trim(),
+        `${companyInfo.organizationName}${
+          companyInfo.registrationOrLicense ? ` • Reg/Lic: ${companyInfo.registrationOrLicense}` : ''
+        }${
+          companyInfo.graduateSpecialization
+            ? ` • Graduate Info: ${companyInfo.graduateSpecialization}`
+            : ''
+        }`,
+        targetContact ? `Provider Contact: ${targetContact}` : ''
+      ]
+        .filter(Boolean)
+        .join(' • '),
+      ownerId: activeUserId,
+      ownerName: companyInfo.organizationName,
+      ownerPhone: companyInfo.contactPhoneOrEmail,
+      status: 'open',
+      movementStage: 'pending',
+      applicants: [],
+      approvedProvider: null,
+      createdAt: Date.now()
+    };
+
+    setBookings((prev) => [bookingDoc, ...prev]);
+    await firestoreSaveDoc('openBookings', bookingId, bookingDoc);
+    setCompanyInfoModalContext(null);
+    setCompanyBookingForm((prev) => ({ ...prev, travelDate: '', notes: '' }));
+    onNotify &&
+      onNotify(
+        'success',
+        `Booking submitted with ${
+          activeUserRole === 'graduate' ? 'Graduate' : 'Company'
+        } information.`
       );
   };
 
   const executeConfirmedAction = async () => {
     if (!confirmActionTarget) return;
-    const { type, booking, applicant } = confirmActionTarget;
+    const target = confirmActionTarget;
     setConfirmActionTarget(null);
 
-    if (type === 'provider_direct') {
-      const approvedData = {
+    if (target.type === 'owner_approve') {
+      const { booking, applicant } = target;
+      const patch = {
+        status: 'taken',
+        movementStage: 'confirmed',
+        approvedProvider: applicant
+      };
+      setBookings(bookings.map((b) => (b.id === booking.id ? { ...b, ...patch } : b)));
+      await saveBookingDoc(booking.id, patch);
+      onNotify &&
+        onNotify(
+          'success',
+          `Confirmed ${applicant.providerName} for "${booking.title}".`
+        );
+    } else if (target.type === 'provider_direct') {
+      const { booking } = target;
+      const providerInfo = {
         providerId: activeUserId,
         providerName: activeUserName,
         providerRole: activeUserRole,
-        providerPhone: currentUser?.contact || '',
         approvedAt: new Date().toISOString()
       };
-
-      setBookings(
-        bookings.map((b) =>
-          b.id === booking.id
-            ? {
-                ...b,
-                status: 'taken',
-                movementStage: 'confirmed',
-                approvedProvider: approvedData
-              }
-            : b
-        )
-      );
-      await saveBookingDoc(booking.id, {
+      const patch = {
         status: 'taken',
         movementStage: 'confirmed',
-        approvedProvider: approvedData
-      });
-      onNotify && onNotify('success', `Booking "${booking.title}" is now Confirmed!`);
-    } else if (type === 'owner_approve' && applicant) {
-      if (booking.ownerId !== activeUserId) {
-        onNotify &&
-          onNotify(
-            'warning',
-            'Only the user who created this booking or job can confirm an applicant.'
-          );
-        return;
-      }
-
-      const approvedData = {
-        ...applicant,
-        approvedAt: new Date().toISOString()
+        approvedProvider: providerInfo
       };
-
-      setBookings(
-        bookings.map((b) =>
-          b.id === booking.id
-            ? {
-                ...b,
-                status: 'taken',
-                movementStage: 'confirmed',
-                approvedProvider: approvedData
-              }
-            : b
-        )
-      );
-      await saveBookingDoc(booking.id, {
-        status: 'taken',
-        movementStage: 'confirmed',
-        approvedProvider: approvedData
-      });
-      onNotify && onNotify('success', `${applicant.providerName} is now Confirmed!`);
+      setBookings(bookings.map((b) => (b.id === booking.id ? { ...b, ...patch } : b)));
+      await saveBookingDoc(booking.id, patch);
+      onNotify &&
+        onNotify(
+          'success',
+          `Confirmed booking "${booking.title}" for ${booking.ownerName}.`
+        );
     }
   };
 
-  const myPrivateThreads = privateChats.filter((t) =>
-    (t.participantIds || []).includes(activeUserId)
-  );
-
-  const liveActiveThread = activeChatThread
-    ? privateChats.find((t) => t.id === activeChatThread.id) || activeChatThread
-    : null;
-
-  const canViewLiveThread =
-    liveActiveThread && (liveActiveThread.participantIds || []).includes(activeUserId);
+  const roleLabelMap = {
+    graduate: 'Graduate / Guide / Consultant',
+    agency: 'Travel Agency',
+    tour_company: 'Tour Company',
+    car_rental: 'Car Rental',
+    traveler: 'Traveler'
+  };
 
   const autoJobsForGraduates = bookings.filter((b) => Boolean(b.isJobPost));
   const activeBookingsList = bookings.filter((b) => classifyBookingBucket(b) === 'active');
@@ -2800,36 +3041,43 @@ function BookingMarketplace({
   const pendingBookingsList = bookings.filter((b) => classifyBookingBucket(b) === 'pending');
 
   const filteredBookings = bookings.filter((b) => {
-    const bucket = classifyBookingBucket(b);
     if (filter === 'jobs') return Boolean(b.isJobPost);
-    if (filter === 'active') return bucket === 'active';
-    if (filter === 'confirmed') return bucket === 'confirmed';
-    if (filter === 'pending') return bucket === 'pending';
+    if (filter === 'active') return classifyBookingBucket(b) === 'active';
+    if (filter === 'confirmed') return classifyBookingBucket(b) === 'confirmed';
+    if (filter === 'pending') return classifyBookingBucket(b) === 'pending';
     return true;
   });
+
+  const myPrivateThreads = privateChats.filter((t) =>
+    (t.participantIds || []).includes(activeUserId)
+  );
+  const liveActiveThread = activeChatThread
+    ? privateChats.find((t) => t.id === activeChatThread.id) || activeChatThread
+    : null;
+  const canViewLiveThread =
+    liveActiveThread && (liveActiveThread.participantIds || []).includes(activeUserId);
 
   return (
     <div className="space-y-4">
       <div className="bg-[#234E40] text-white p-6 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="space-y-1">
+        <div>
           <span className="text-[10px] uppercase font-bold bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full">
-            📋 Bookings &amp; Auto-Dispatched Jobs • Active, Confirmed &amp; Pending
+            📋 Bookings &amp; Auto-Dispatched Jobs
           </span>
           <h3 className="font-bold text-base md:text-xl pt-1">
-            📋 Booking &amp; Job Management Console
+            Booking &amp; Job Management Console
           </h3>
-          <p className="text-xs md:text-sm text-emerald-100">
-            Track all <strong>Active</strong>, <strong>Confirmed</strong>, and{' '}
-            <strong>Pending</strong> bookings plus jobs dispatched automatically to{' '}
+          <p className="text-xs text-emerald-100">
+            Track <strong>Active</strong>, <strong>Confirmed</strong>, and{' '}
+            <strong>Pending</strong> items plus jobs sent automatically to{' '}
             <strong>All Graduates / Guides / Consultants</strong>.
           </p>
         </div>
-
         {isProvider && onOpenCreateBookingsPostJobs && (
           <button
             type="button"
             onClick={onOpenCreateBookingsPostJobs}
-            className="px-5 py-3 bg-amber-400 hover:bg-amber-500 text-slate-950 font-extrabold text-xs md:text-sm rounded-xl shadow shrink-0 transition"
+            className="px-5 py-3 bg-amber-400 hover:bg-amber-500 text-slate-950 font-extrabold text-xs rounded-xl shadow shrink-0"
           >
             ➕ Create Bookings / Post Jobs
           </button>
@@ -2843,17 +3091,15 @@ function BookingMarketplace({
               🎓 Auto-Dispatched Jobs Feed
             </span>
             <p className="font-extrabold text-sm text-purple-950 mt-1">
-              You have {autoJobsForGraduates.length} job posting(s) sent to all Tourism Graduates, Guides &amp; Consultants!
+              {autoJobsForGraduates.length} job posting(s) dispatched to all Tourism Graduates, Guides &amp; Consultants!
             </p>
           </div>
           <button
             type="button"
             onClick={() => setFilter(filter === 'jobs' ? 'all_summary' : 'jobs')}
-            className="px-4 py-2 bg-purple-700 hover:bg-purple-800 text-white font-extrabold rounded-xl"
+            className="px-4 py-2 bg-purple-700 text-white font-extrabold rounded-xl"
           >
-            {filter === 'jobs'
-              ? 'Show All Bookings & Jobs'
-              : `View All Posted Jobs (${autoJobsForGraduates.length})`}
+            {filter === 'jobs' ? 'Show All' : `View Jobs (${autoJobsForGraduates.length})`}
           </button>
         </div>
       )}
@@ -3203,6 +3449,186 @@ function BookingMarketplace({
                     </div>
                   )}
 
+                  {booking.companyBookingInfo && (
+                    <div className="bg-sky-50/70 border border-sky-200 p-2 rounded-xl text-[11px] text-slate-700 space-y-0.5">
+                      <div>
+                        <strong>🏢 Company / Graduate Info:</strong>{' '}
+                        {booking.companyBookingInfo.organizationName || booking.ownerName}
+                        {booking.companyBookingInfo.registrationOrLicense
+                          ? ` • Reg/Lic: ${booking.companyBookingInfo.registrationOrLicense}`
+                          : ''}
+                      </div>
+                      {booking.companyBookingInfo.serviceOrFleetDetails && (
+                        <div>
+                          <strong>Booking Details:</strong>{' '}
+                          {booking.companyBookingInfo.serviceOrFleetDetails}
+                        </div>
+                      )}
+                      {booking.companyBookingInfo.graduateSpecialization && (
+                        <div>
+                          <strong>Graduate Credentials:</strong>{' '}
+                          {booking.companyBookingInfo.graduateSpecialization}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {canEditBookingItem(booking) && editingBookingId !== booking.id && (
+                    <button
+                      type="button"
+                      onClick={() => startEditingBookingItem(booking)}
+                      className="w-full py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-950 rounded-xl font-extrabold text-[11px] transition"
+                    >
+                      ✏️ Edit Booking ({activeUserRole === 'traveler' ? 'Traveler' : roleLabelMap[activeUserRole] || activeUserRole})
+                    </button>
+                  )}
+
+                  {editingBookingId === booking.id && (
+                    <form
+                      onSubmit={(e) => handleSaveEditedBookingItem(e, booking)}
+                      className="p-3 rounded-xl border-2 border-amber-400 bg-amber-50/60 space-y-2 text-[11px]"
+                    >
+                      <p className="font-extrabold text-slate-900">Edit Your Booking</p>
+                      <input
+                        type="text"
+                        required
+                        value={bookingDraft.title}
+                        onChange={(e) =>
+                          setBookingDraft({ ...bookingDraft, title: e.target.value })
+                        }
+                        placeholder="Booking Title"
+                        className="w-full p-2 border rounded-lg bg-white"
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          value={bookingDraft.destination}
+                          onChange={(e) =>
+                            setBookingDraft({ ...bookingDraft, destination: e.target.value })
+                          }
+                          placeholder="Destination"
+                          className="p-2 border rounded-lg bg-white"
+                        />
+                        <input
+                          type="date"
+                          value={bookingDraft.startDate}
+                          onChange={(e) =>
+                            setBookingDraft({ ...bookingDraft, startDate: e.target.value })
+                          }
+                          className="p-2 border rounded-lg bg-white"
+                        />
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <input
+                          type="number"
+                          min="1"
+                          value={bookingDraft.durationDays}
+                          onChange={(e) =>
+                            setBookingDraft({ ...bookingDraft, durationDays: e.target.value })
+                          }
+                          placeholder="Days"
+                          className="p-2 border rounded-lg bg-white"
+                        />
+                        <input
+                          type="number"
+                          min="1"
+                          value={bookingDraft.groupSize}
+                          onChange={(e) =>
+                            setBookingDraft({ ...bookingDraft, groupSize: e.target.value })
+                          }
+                          placeholder="Pax"
+                          className="p-2 border rounded-lg bg-white"
+                        />
+                        <input
+                          type="text"
+                          value={bookingDraft.budgetRwf}
+                          onChange={(e) =>
+                            setBookingDraft({ ...bookingDraft, budgetRwf: e.target.value })
+                          }
+                          placeholder="Budget / Rate"
+                          className="p-2 border rounded-lg bg-white"
+                        />
+                      </div>
+                      {['agency', 'tour_company', 'car_rental', 'graduate'].includes(
+                        activeUserRole
+                      ) && (
+                        <div className="space-y-1.5 pt-1 border-t border-amber-200">
+                          <input
+                            type="text"
+                            value={bookingDraft.companyName}
+                            onChange={(e) =>
+                              setBookingDraft({ ...bookingDraft, companyName: e.target.value })
+                            }
+                            placeholder="Company / Graduate Name"
+                            className="w-full p-2 border rounded-lg bg-white"
+                          />
+                          <input
+                            type="text"
+                            value={bookingDraft.companyRegistration}
+                            onChange={(e) =>
+                              setBookingDraft({
+                                ...bookingDraft,
+                                companyRegistration: e.target.value
+                              })
+                            }
+                            placeholder="Company Reg / RDB License / Diploma"
+                            className="w-full p-2 border rounded-lg bg-white"
+                          />
+                          <input
+                            type="text"
+                            value={bookingDraft.companyServiceDetails}
+                            onChange={(e) =>
+                              setBookingDraft({
+                                ...bookingDraft,
+                                companyServiceDetails: e.target.value
+                              })
+                            }
+                            placeholder="Booking / Fleet / Tour Requirements"
+                            className="w-full p-2 border rounded-lg bg-white"
+                          />
+                          {activeUserRole === 'graduate' && (
+                            <input
+                              type="text"
+                              value={bookingDraft.graduateCredentials}
+                              onChange={(e) =>
+                                setBookingDraft({
+                                  ...bookingDraft,
+                                  graduateCredentials: e.target.value
+                                })
+                              }
+                              placeholder="Graduate Specialization / Guiding Credentials"
+                              className="w-full p-2 border rounded-lg bg-white"
+                            />
+                          )}
+                        </div>
+                      )}
+                      <input
+                        type="text"
+                        value={bookingDraft.notes}
+                        onChange={(e) =>
+                          setBookingDraft({ ...bookingDraft, notes: e.target.value })
+                        }
+                        placeholder="Booking Notes"
+                        className="w-full p-2 border rounded-lg bg-white"
+                      />
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditingBookingId(null)}
+                          className="px-3 py-1 bg-slate-200 text-slate-800 rounded-lg font-bold"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="px-3 py-1 bg-[#234E40] text-white rounded-lg font-bold"
+                        >
+                          Save Booking
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
                   <div className="bg-slate-100 p-2.5 rounded-xl grid grid-cols-3 gap-1 text-[11px]">
                     <div>
                       <span className="text-slate-400 block">Date</span>
@@ -3331,13 +3757,29 @@ function BookingMarketplace({
 
                       {(!isTargetedToMe || isJob) &&
                         (alreadyApplied ? (
-                          <button
-                            type="button"
-                            disabled
-                            className="w-full py-2 bg-slate-200 text-slate-600 rounded-xl font-bold cursor-not-allowed"
-                          >
-                            ⚡ Active — Application Sent
-                          </button>
+                          <div className="space-y-1.5">
+                            <button
+                              type="button"
+                              disabled
+                              className="w-full py-2 bg-slate-200 text-slate-600 rounded-xl font-bold cursor-not-allowed"
+                            >
+                              ⚡ Active — Application Sent
+                            </button>
+                            {isJob && isGraduateGuideConsultant && editingJobAppId !== booking.id && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const mine = (booking.applicants || []).find(
+                                    (a) => a.providerId === activeUserId
+                                  );
+                                  startEditingJobApplication(booking, mine);
+                                }}
+                                className="w-full py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-950 rounded-xl font-extrabold text-[11px] transition"
+                              >
+                                ✏️ Edit My Job Application (Graduate / Consultant / Guide)
+                              </button>
+                            )}
+                          </div>
                         ) : (
                           <button
                             type="button"
@@ -3353,6 +3795,82 @@ function BookingMarketplace({
                               : 'Respond to Move to Active →'}
                           </button>
                         ))}
+
+                      {isJob && isGraduateGuideConsultant && editingJobAppId === booking.id && (
+                        <form
+                          onSubmit={(e) => handleSaveEditedJobApplication(e, booking)}
+                          className="p-3 rounded-xl border-2 border-purple-400 bg-purple-50/70 space-y-2 text-[11px]"
+                        >
+                          <p className="font-extrabold text-purple-950">
+                            Edit Your Job Application
+                          </p>
+                          <select
+                            value={jobAppDraft.applicantRoleType}
+                            onChange={(e) =>
+                              setJobAppDraft({
+                                ...jobAppDraft,
+                                applicantRoleType: e.target.value
+                              })
+                            }
+                            className="w-full p-2 border rounded-lg bg-white font-semibold"
+                          >
+                            <option value="Tourism Graduate">Tourism Graduate</option>
+                            <option value="Tourism Consultant">Tourism Consultant</option>
+                            <option value="Tour Guide">Tour Guide</option>
+                          </select>
+                          <input
+                            type="text"
+                            value={jobAppDraft.proposedRate}
+                            onChange={(e) =>
+                              setJobAppDraft({
+                                ...jobAppDraft,
+                                proposedRate: e.target.value
+                              })
+                            }
+                            placeholder="Proposed Rate / Pay"
+                            className="w-full p-2 border rounded-lg bg-white"
+                          />
+                          <input
+                            type="text"
+                            value={jobAppDraft.availabilityNote}
+                            onChange={(e) =>
+                              setJobAppDraft({
+                                ...jobAppDraft,
+                                availabilityNote: e.target.value
+                              })
+                            }
+                            placeholder="Availability Dates / Notes"
+                            className="w-full p-2 border rounded-lg bg-white"
+                          />
+                          <input
+                            type="text"
+                            value={jobAppDraft.coverNote}
+                            onChange={(e) =>
+                              setJobAppDraft({
+                                ...jobAppDraft,
+                                coverNote: e.target.value
+                              })
+                            }
+                            placeholder="Application pitch / qualifications note"
+                            className="w-full p-2 border rounded-lg bg-white"
+                          />
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setEditingJobAppId(null)}
+                              className="px-3 py-1 bg-slate-200 text-slate-800 rounded-lg font-bold"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="submit"
+                              className="px-3 py-1 bg-purple-700 text-white rounded-lg font-bold"
+                            >
+                              Save Application
+                            </button>
+                          </div>
+                        </form>
+                      )}
 
                       <button
                         type="button"
@@ -3944,9 +4462,19 @@ export default function App() {
   };
 
   const handleBookPackageOrProvider = async (item, bookingForm) => {
+    const isCompanyOrGraduateBooker =
+      Boolean(currentUser) &&
+      ['graduate', 'agency', 'tour_company', 'car_rental'].includes(
+        (currentRole || currentUser?.role || '').toLowerCase()
+      );
+
     const activePI = bookingForm.travelerPI || travelerPI;
-    if (!activePI?.fullName || !activePI?.phone) {
+    if (!isCompanyOrGraduateBooker && (!activePI?.fullName || !activePI?.phone)) {
       setShowPiFormModal(true);
+      notify(
+        'warning',
+        'Travelers must complete their Personal Information (PI) first before booking.'
+      );
       return;
     }
 
@@ -3963,6 +4491,28 @@ export default function App() {
       : normalizeContact(item.contact || item.id || item.name);
     const targetContact = isPkg ? item.providerContact || '' : item.contact || '';
 
+    const bookerDisplayName = isCompanyOrGraduateBooker
+      ? bookingForm.organizationName || currentUser?.name || 'Partner Organization'
+      : activePI.fullName;
+    const bookerContact = isCompanyOrGraduateBooker
+      ? bookingForm.contactPhoneOrEmail || currentUser?.contact || ''
+      : activePI.phone;
+
+    const companyBookingInfo = isCompanyOrGraduateBooker
+      ? {
+          role: currentRole || currentUser?.role,
+          organizationName: bookingForm.organizationName || currentUser?.name || '',
+          registrationOrLicense:
+            bookingForm.registrationOrLicense || currentUser?.license || '',
+          contactPhoneOrEmail:
+            bookingForm.contactPhoneOrEmail || currentUser?.contact || '',
+          serviceOrFleetDetails:
+            bookingForm.serviceOrFleetDetails || currentUser?.title || '',
+          graduateSpecialization:
+            bookingForm.graduateSpecialization || currentUser?.institution || ''
+        }
+      : null;
+
     const bookingDoc = {
       id: bookingId,
       title: isPkg
@@ -3977,19 +4527,33 @@ export default function App() {
       budgetRwf: item.priceLabel || 'Negotiable',
       targetRole: targetName,
       targetProviderId,
-      travelerPI: activePI,
+      travelerPI: isCompanyOrGraduateBooker ? null : activePI,
+      companyBookingInfo,
       notes: [
         bookingForm.notes,
-        `Traveler PI: ${activePI.fullName} (${activePI.nationality || 'Rwanda'})`,
+        !isCompanyOrGraduateBooker && activePI
+          ? `Traveler PI: ${activePI.fullName} (${activePI.nationality || 'Rwanda'})`
+          : '',
+        companyBookingInfo
+          ? `${companyBookingInfo.organizationName}${
+              companyBookingInfo.registrationOrLicense
+                ? ` • Reg/Lic: ${companyBookingInfo.registrationOrLicense}`
+                : ''
+            }${
+              companyBookingInfo.graduateSpecialization
+                ? ` • Graduate Info: ${companyBookingInfo.graduateSpecialization}`
+                : ''
+            }`
+          : '',
         targetContact ? `Provider Contact: ${targetContact}` : ''
       ]
         .filter(Boolean)
         .join(' • '),
       ownerId:
-        normalizeContact(activePI.phone || activePI.fullName) ||
-        `traveler_${Date.now()}`,
-      ownerName: activePI.fullName,
-      ownerPhone: activePI.phone,
+        normalizeContact(bookerContact || bookerDisplayName) ||
+        `booker_${Date.now()}`,
+      ownerName: bookerDisplayName,
+      ownerPhone: bookerContact,
       status: 'open',
       movementStage: 'pending',
       applicants: [],
