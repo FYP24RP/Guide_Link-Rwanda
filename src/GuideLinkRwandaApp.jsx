@@ -148,15 +148,41 @@ const DEFAULT_APP_SERVER_CONFIG = {
   appName: 'GuideLink Rwanda',
   welcomeNote: 'WELCOME TO GUIDE LINK RWANDA',
   tagline: 'Connecting Travelers, Guides, Consultants, Agencies, Tour Companies & Car Rentals Across Rwanda',
+  heroBadgeText: 'Rwanda Tourism, Booking & Job Network',
   subtitle:
     'Discover verified tour packages, experienced guides & tourism consultants, tour operators, travel agencies, and car rental fleets across Kigali, Volcanoes, Nyungwe, Akagera, and Lake Kivu.',
   welcomeBannerText:
     'Live created bookings auto-scroll below • Partners are ready to serve • Fill out your Personal Info (PI) as a Traveler to unlock the full dashboard!',
   travelerFreeBadge: '🌍 Travelers: Free PI & Full Dashboard',
   primaryColor: '#234E40',
+  accentColor: '#3B6E5B',
   momoCode: '*182*8*1*123456#',
   ownerPassword: 'FYP$2026',
   footerLocation: 'Kigali • Kitabi • Rusizi, Rwanda',
+  footerLeadershipText:
+    'RUTUNGURA Bonheur (C.E.O & Developer) • IRANZI Honorine (MD & Project Assistant)',
+  roleCardsCustom: {
+    graduate: {
+      title: 'Tourism Graduates / Guides / Consultants',
+      desc: 'Receive jobs automatically, showcase availability & credentials, and manage bookings.'
+    },
+    agency: {
+      title: 'Travel Agencies',
+      desc: 'Create bookings or post jobs to all graduates/guides/consultants and manage trips.'
+    },
+    tour_company: {
+      title: 'Tour Companies',
+      desc: 'Publish tour packages & bookings, hire guides/consultants, and coordinate tours.'
+    },
+    car_rental: {
+      title: 'Car Rentals Companies',
+      desc: 'List 4x4 & safari vehicles, accept bookings, and coordinate transport.'
+    },
+    traveler: {
+      title: 'Traveler / Visitor',
+      desc: 'Fill out Personal Info (PI) once to unlock the full dashboard, bookings & partners.'
+    }
+  },
   allowNewSignups: true,
   maintenanceMode: false,
   maintenanceMessage: 'GuideLink Rwanda is undergoing scheduled maintenance. Please check back shortly.',
@@ -3462,6 +3488,21 @@ export default function App() {
     active: true
   });
 
+  const [newAnnouncementForm, setNewAnnouncementForm] = useState({
+    title: '',
+    body: '',
+    targetRole: 'all'
+  });
+
+  const [newPlanForm, setNewPlanForm] = useState({
+    id: '',
+    name: '',
+    durationLabel: '30 Days Access',
+    days: 30,
+    price: 15000,
+    badge: 'Partner Plan'
+  });
+
   const [appConfig, setAppConfig] = useState(DEFAULT_APP_SERVER_CONFIG);
   const [subscriptionPlans, setSubscriptionPlans] = useState(DEFAULT_SUBSCRIPTION_PLANS);
   const [subscribers, setSubscribers] = useState([]);
@@ -4009,6 +4050,94 @@ export default function App() {
     await saveAppServerConfig({ ...appConfig, ads: nextAds });
   };
 
+  const handleAddAnnouncement = async (e) => {
+    e.preventDefault();
+    if (!newAnnouncementForm.title.trim() || !newAnnouncementForm.body.trim()) {
+      notify('warning', 'Please enter both an announcement title and message.');
+      return;
+    }
+    const createdAnn = {
+      id: `ann-${Date.now()}`,
+      title: newAnnouncementForm.title.trim(),
+      body: newAnnouncementForm.body.trim(),
+      targetRole: newAnnouncementForm.targetRole || 'all',
+      createdAt: new Date().toISOString()
+    };
+    const nextConfig = {
+      ...appConfig,
+      announcements: [createdAnn, ...(appConfig.announcements || [])]
+    };
+    await saveAppServerConfig(nextConfig);
+    setNewAnnouncementForm({ title: '', body: '', targetRole: 'all' });
+    notify('success', 'Platform announcement published and saved to Firebase.');
+  };
+
+  const handleDeleteAnnouncement = async (annId) => {
+    const nextConfig = {
+      ...appConfig,
+      announcements: (appConfig.announcements || []).filter((a) => a.id !== annId)
+    };
+    await saveAppServerConfig(nextConfig);
+    notify('success', 'Announcement removed.');
+  };
+
+  const handleSaveSubscriptionPlan = async (e) => {
+    e.preventDefault();
+    if (!newPlanForm.name.trim()) {
+      notify('warning', 'Please enter a subscription plan name.');
+      return;
+    }
+    const planId =
+      (newPlanForm.id && newPlanForm.id.trim()) ||
+      newPlanForm.name
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_') + '_' + Date.now().toString().slice(-4);
+    const planDoc = {
+      id: planId,
+      name: newPlanForm.name.trim(),
+      durationLabel: newPlanForm.durationLabel.trim() || `${Number(newPlanForm.days) || 30} Days Access`,
+      days: Number(newPlanForm.days) || 30,
+      price: Number(newPlanForm.price) || 0,
+      badge: newPlanForm.badge.trim() || 'Partner Plan',
+      order: subscriptionPlans.length + 1
+    };
+    setSubscriptionPlans((prev) => {
+      const exists = prev.some((p) => p.id === planId);
+      return exists ? prev.map((p) => (p.id === planId ? planDoc : p)) : [...prev, planDoc];
+    });
+    await firestoreSaveDoc('subscriptionPlans', planId, planDoc);
+    setNewPlanForm({
+      id: '',
+      name: '',
+      durationLabel: '30 Days Access',
+      days: 30,
+      price: 15000,
+      badge: 'Partner Plan'
+    });
+    notify('success', `Subscription plan "${planDoc.name}" saved to Firebase.`);
+  };
+
+  const handleDeleteSubscriptionPlan = async (planId) => {
+    setSubscriptionPlans((prev) => prev.filter((p) => p.id !== planId));
+    await firestoreDeleteDoc('subscriptionPlans', planId);
+    notify('success', 'Subscription plan deleted.');
+  };
+
+  const handleUpdateRoleCardCustom = (roleKey, field, val) => {
+    setAppConfig((prev) => ({
+      ...prev,
+      roleCardsCustom: {
+        ...(prev.roleCardsCustom || DEFAULT_APP_SERVER_CONFIG.roleCardsCustom),
+        [roleKey]: {
+          ...((prev.roleCardsCustom && prev.roleCardsCustom[roleKey]) ||
+            DEFAULT_APP_SERVER_CONFIG.roleCardsCustom[roleKey]),
+          [field]: val
+        }
+      }
+    }));
+  };
+
   const handleOwnerLogin = (e) => {
     e.preventDefault();
     const validOwnerPass = appConfig.ownerPassword || 'FYP$2026';
@@ -4152,6 +4281,11 @@ export default function App() {
   const visibleAnnouncements = (appConfig.announcements || []).filter(
     (ann) => ann.targetRole === 'all' || ann.targetRole === currentRole
   );
+
+  const primaryTheme = appConfig.primaryColor || '#234E40';
+  const accentTheme = appConfig.accentColor || '#3B6E5B';
+  const customRoleCards =
+    appConfig.roleCardsCustom || DEFAULT_APP_SERVER_CONFIG.roleCardsCustom;
 
   const pendingSignupsCount = subscribers.filter((s) => s.status === 'pending').length;
 
@@ -5107,136 +5241,52 @@ export default function App() {
                           <div>
                             <div className="flex items-center gap-2">
                               <p className="font-extrabold text-sm text-slate-900">{sub.name}</p>
-                              <span
-                                className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
-                                  sub.status === 'approved'
-                                    ? 'bg-emerald-100 text-emerald-800'
-                                    : sub.status === 'suspended'
-                                    ? 'bg-red-100 text-red-800'
-                                    : 'bg-amber-100 text-amber-800'
-                                }`}
-                              >
-                                {sub.status || 'pending'}
+                              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-[#234E40]">
+                                {roleLabelMap[sub.role] || sub.role}
                               </span>
                             </div>
                             <p className="text-[11px] text-slate-600">
-                              Role: <strong>{roleLabelMap[sub.role] || sub.role}</strong> • Contact:{' '}
-                              <strong>{sub.contact}</strong> • Plan:{' '}
-                              <strong>{sub.planName || 'Starter'}</strong>
+                              📞 <strong>{sub.contact}</strong> • Plan:{' '}
+                              <strong>{sub.planName || 'Starter'}</strong> (
+                              {Number(sub.amountPaid || 0).toLocaleString()} RWF)
                             </p>
                           </div>
                         </div>
 
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`px-2.5 py-1 rounded-full font-bold text-[10px] ${
+                              sub.status === 'approved'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : sub.status === 'suspended'
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-amber-100 text-amber-800'
+                            }`}
+                          >
+                            {sub.status}
+                          </span>
                           <button
                             type="button"
                             onClick={() => handleApproveSubscriber(sub)}
-                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold"
+                            className="px-3 py-1.5 bg-emerald-600 text-white rounded-xl font-bold"
                           >
                             ✓ Grant Access
                           </button>
                           <button
                             type="button"
                             onClick={() => handleRevokeSubscriber(sub)}
-                            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold"
+                            className="px-3 py-1.5 bg-amber-500 text-white rounded-xl font-bold"
                           >
-                            ⛔ Revoke Access
+                            ⛔ Revoke
                           </button>
                           <button
                             type="button"
                             onClick={() =>
                               setPendingDeleteAction({ type: 'subscriber', id: sub.id })
                             }
-                            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold"
+                            className="px-3 py-1.5 bg-red-600 text-white rounded-xl font-bold"
                           >
                             🗑 Delete
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {ownerTab === 'all_roles' && (
-              <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-4 text-xs">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
-                  <div>
-                    <h3 className="font-bold text-base text-slate-900">
-                      🎭 All Roles Management &amp; Role Editor
-                    </h3>
-                    <p className="text-slate-500">
-                      Filter across every platform role and edit any user&apos;s role or profile immediately.
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5 font-bold">
-                    {[
-                      { id: 'all', label: `All (${subscribers.length})` },
-                      { id: 'graduate', label: 'Guides / Consultants' },
-                      { id: 'agency', label: 'Agencies' },
-                      { id: 'tour_company', label: 'Tour Cos.' },
-                      { id: 'car_rental', label: 'Car Rentals' },
-                      { id: 'traveler', label: 'Travelers' }
-                    ].map((rt) => (
-                      <button
-                        key={rt.id}
-                        type="button"
-                        onClick={() => setAllRolesFilter(rt.id)}
-                        className={`px-3 py-1.5 rounded-xl ${
-                          allRolesFilter === rt.id
-                            ? 'bg-[#234E40] text-white'
-                            : 'bg-slate-100 text-slate-700'
-                        }`}
-                      >
-                        {rt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {filteredRoleUsers.length === 0 ? (
-                  <p className="text-slate-400 italic">No accounts in this role category.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {filteredRoleUsers.map((u) => (
-                      <div
-                        key={u.id}
-                        className="p-4 rounded-2xl border bg-slate-50 flex flex-wrap items-center justify-between gap-3"
-                      >
-                        <div>
-                          <p className="font-extrabold text-sm text-slate-900">{u.name}</p>
-                          <p className="text-[11px] text-slate-600">
-                            {u.contact} • Current Role:{' '}
-                            <strong>{roleLabelMap[u.role] || u.role}</strong>
-                          </p>
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-2">
-                          <select
-                            value={u.role || 'graduate'}
-                            onChange={(e) => handleOwnerUpdateUserRole(u.id, e.target.value)}
-                            className="p-2 border rounded-xl bg-white font-bold text-slate-800"
-                          >
-                            <option value="graduate">
-                              Tourism Graduate / Guide / Consultant
-                            </option>
-                            <option value="agency">Travel Agency</option>
-                            <option value="tour_company">Tour Company</option>
-                            <option value="car_rental">Car Rentals Company</option>
-                            <option value="traveler">Traveler / Visitor</option>
-                          </select>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedInspectedUser(u);
-                              setOwnerTab('pending');
-                            }}
-                            className="px-3 py-2 bg-slate-800 text-white rounded-xl font-bold"
-                          >
-                            Inspect / Edit Profile
                           </button>
                         </div>
                       </div>
@@ -5635,11 +5685,26 @@ export default function App() {
 
             {ownerTab === 'server' && (
               <div className="space-y-6">
-                <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-4 text-xs">
-                  <h3 className="font-bold text-base text-slate-900">
-                    Live Firebase App Configuration &amp; Welcome Tab Notes
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-5 text-xs">
+                  <div className="border-b pb-3 flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <span className="text-[10px] font-extrabold uppercase bg-emerald-100 text-[#234E40] px-2.5 py-0.5 rounded-full">
+                        🎨 Full App &amp; Welcome Page Studio
+                      </span>
+                      <h3 className="font-bold text-base text-slate-900 mt-1">
+                        Edit Welcome Page, Theme Colors, Leadership Credits &amp; App Settings
+                      </h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAppConfig(DEFAULT_APP_SERVER_CONFIG)}
+                      className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold"
+                    >
+                      ↺ Reset Defaults
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="font-bold text-slate-700">Platform Name</label>
                       <input
@@ -5663,6 +5728,74 @@ export default function App() {
                       />
                     </div>
                     <div>
+                      <label className="font-bold text-slate-700">Traveler Free Badge</label>
+                      <input
+                        type="text"
+                        value={appConfig.travelerFreeBadge || ''}
+                        onChange={(e) =>
+                          setAppConfig({ ...appConfig, travelerFreeBadge: e.target.value })
+                        }
+                        className="w-full mt-1 p-2.5 border rounded-xl"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="font-bold text-slate-700">Primary Theme Color</label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <input
+                          type="color"
+                          value={primaryTheme}
+                          onChange={(e) =>
+                            setAppConfig({ ...appConfig, primaryColor: e.target.value })
+                          }
+                          className="h-10 w-14 rounded-lg border cursor-pointer"
+                        />
+                        <input
+                          type="text"
+                          value={primaryTheme}
+                          onChange={(e) =>
+                            setAppConfig({ ...appConfig, primaryColor: e.target.value })
+                          }
+                          className="flex-1 p-2.5 border rounded-xl font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="font-bold text-slate-700">Accent Theme Color</label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <input
+                          type="color"
+                          value={accentTheme}
+                          onChange={(e) =>
+                            setAppConfig({ ...appConfig, accentColor: e.target.value })
+                          }
+                          className="h-10 w-14 rounded-lg border cursor-pointer"
+                        />
+                        <input
+                          type="text"
+                          value={accentTheme}
+                          onChange={(e) =>
+                            setAppConfig({ ...appConfig, accentColor: e.target.value })
+                          }
+                          className="flex-1 p-2.5 border rounded-xl font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="font-bold text-slate-700">Footer Location</label>
+                      <input
+                        type="text"
+                        value={appConfig.footerLocation || ''}
+                        onChange={(e) =>
+                          setAppConfig({ ...appConfig, footerLocation: e.target.value })
+                        }
+                        className="w-full mt-1 p-2.5 border rounded-xl"
+                      />
+                    </div>
+
+                    <div>
                       <label className="font-bold text-slate-700">Top Welcome Note</label>
                       <input
                         type="text"
@@ -5674,7 +5807,7 @@ export default function App() {
                       />
                     </div>
                     <div>
-                      <label className="font-bold text-slate-700">Tagline</label>
+                      <label className="font-bold text-slate-700">Hero Tagline</label>
                       <input
                         type="text"
                         value={appConfig.tagline}
@@ -5684,7 +5817,31 @@ export default function App() {
                         className="w-full mt-1 p-2.5 border rounded-xl"
                       />
                     </div>
-                    <div className="md:col-span-2">
+                    <div>
+                      <label className="font-bold text-slate-700">Hero Badge Text</label>
+                      <input
+                        type="text"
+                        value={appConfig.heroBadgeText || ''}
+                        onChange={(e) =>
+                          setAppConfig({ ...appConfig, heroBadgeText: e.target.value })
+                        }
+                        className="w-full mt-1 p-2.5 border rounded-xl"
+                      />
+                    </div>
+
+                    <div className="md:col-span-3">
+                      <label className="font-bold text-slate-700">Welcome Hero Subtitle</label>
+                      <input
+                        type="text"
+                        value={appConfig.subtitle || ''}
+                        onChange={(e) =>
+                          setAppConfig({ ...appConfig, subtitle: e.target.value })
+                        }
+                        className="w-full mt-1 p-2.5 border rounded-xl"
+                      />
+                    </div>
+
+                    <div className="md:col-span-3">
                       <label className="font-bold text-slate-700">
                         Welcome Tab Highlight Note
                       </label>
@@ -5698,19 +5855,283 @@ export default function App() {
                         className="w-full mt-1 p-2.5 border rounded-xl"
                       />
                     </div>
+
+                    <div className="md:col-span-3">
+                      <label className="font-bold text-slate-700">
+                        Footer Leadership &amp; Team Credits
+                      </label>
+                      <input
+                        type="text"
+                        value={appConfig.footerLeadershipText || ''}
+                        onChange={(e) =>
+                          setAppConfig({
+                            ...appConfig,
+                            footerLeadershipText: e.target.value
+                          })
+                        }
+                        className="w-full mt-1 p-2.5 border rounded-xl"
+                      />
+                    </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await saveAppServerConfig(appConfig);
-                      notify('success', 'Server configuration saved.');
-                    }}
-                    disabled={isSaving}
-                    className="px-6 py-2.5 bg-[#234E40] text-white rounded-xl font-bold shadow"
+                  <div className="p-4 rounded-2xl border bg-slate-50 space-y-3">
+                    <h4 className="font-extrabold text-sm text-slate-900">
+                      Welcome Page Role Cards Text Editor
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {[
+                        { key: 'graduate', label: '1. Graduates / Guides / Consultants' },
+                        { key: 'agency', label: '2. Travel Agencies' },
+                        { key: 'tour_company', label: '3. Tour Companies' },
+                        { key: 'car_rental', label: '4. Car Rentals Companies' },
+                        { key: 'traveler', label: '5. Traveler / Visitor' }
+                      ].map((item) => (
+                        <div key={item.key} className="p-3 bg-white rounded-xl border space-y-2">
+                          <p className="font-bold text-[#234E40]">{item.label}</p>
+                          <input
+                            type="text"
+                            value={customRoleCards?.[item.key]?.title || ''}
+                            onChange={(e) =>
+                              handleUpdateRoleCardCustom(item.key, 'title', e.target.value)
+                            }
+                            placeholder="Card Title"
+                            className="w-full p-2 border rounded-lg"
+                          />
+                          <input
+                            type="text"
+                            value={customRoleCards?.[item.key]?.desc || ''}
+                            onChange={(e) =>
+                              handleUpdateRoleCardCustom(item.key, 'desc', e.target.value)
+                            }
+                            placeholder="Card Description"
+                            className="w-full p-2 border rounded-lg"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t">
+                    <div className="flex flex-wrap items-center gap-5">
+                      <label className="inline-flex items-center gap-2 font-bold text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(appConfig.allowNewSignups)}
+                          onChange={(e) =>
+                            setAppConfig({
+                              ...appConfig,
+                              allowNewSignups: e.target.checked
+                            })
+                          }
+                        />
+                        <span>Allow New Partner Registrations</span>
+                      </label>
+
+                      <label className="inline-flex items-center gap-2 font-bold text-red-700">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(appConfig.maintenanceMode)}
+                          onChange={(e) =>
+                            setAppConfig({
+                              ...appConfig,
+                              maintenanceMode: e.target.checked
+                            })
+                          }
+                        />
+                        <span>Maintenance Mode</span>
+                      </label>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await saveAppServerConfig(appConfig);
+                        notify('success', 'All app, welcome page & theme settings saved to Firebase.');
+                      }}
+                      disabled={isSaving}
+                      className="px-6 py-2.5 bg-[#234E40] text-white rounded-xl font-bold shadow"
+                    >
+                      {isSaving ? 'Saving...' : 'Save Server Config to Firebase'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-4 text-xs">
+                  <div>
+                    <h3 className="font-bold text-base text-slate-900">
+                      📢 Platform Announcements Manager
+                    </h3>
+                    <p className="text-slate-500">
+                      Publish top notices across all users or target a specific role.
+                    </p>
+                  </div>
+
+                  <form
+                    onSubmit={handleAddAnnouncement}
+                    className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-2xl border"
                   >
-                    {isSaving ? 'Saving...' : 'Save Server Config to Firebase'}
-                  </button>
+                    <input
+                      type="text"
+                      value={newAnnouncementForm.title}
+                      onChange={(e) =>
+                        setNewAnnouncementForm({
+                          ...newAnnouncementForm,
+                          title: e.target.value
+                        })
+                      }
+                      placeholder="Notice Title *"
+                      className="p-2.5 border rounded-xl bg-white"
+                    />
+                    <input
+                      type="text"
+                      value={newAnnouncementForm.body}
+                      onChange={(e) =>
+                        setNewAnnouncementForm({
+                          ...newAnnouncementForm,
+                          body: e.target.value
+                        })
+                      }
+                      placeholder="Announcement message *"
+                      className="md:col-span-2 p-2.5 border rounded-xl bg-white"
+                    />
+                    <div className="flex gap-2">
+                      <select
+                        value={newAnnouncementForm.targetRole}
+                        onChange={(e) =>
+                          setNewAnnouncementForm({
+                            ...newAnnouncementForm,
+                            targetRole: e.target.value
+                          })
+                        }
+                        className="flex-1 p-2.5 border rounded-xl bg-white"
+                      >
+                        <option value="all">All Roles</option>
+                        <option value="traveler">Travelers</option>
+                        <option value="graduate">Graduates/Guides</option>
+                        <option value="agency">Agencies</option>
+                        <option value="tour_company">Tour Cos.</option>
+                        <option value="car_rental">Car Rentals</option>
+                      </select>
+                      <button
+                        type="submit"
+                        className="px-4 py-2.5 bg-[#234E40] text-white rounded-xl font-bold"
+                      >
+                        + Post
+                      </button>
+                    </div>
+                  </form>
+
+                  {(appConfig.announcements || []).length > 0 && (
+                    <div className="space-y-2">
+                      {(appConfig.announcements || []).map((ann) => (
+                        <div
+                          key={ann.id}
+                          className="p-3 rounded-xl border bg-amber-50/50 flex items-center justify-between gap-2"
+                        >
+                          <div>
+                            <strong>{ann.title}:</strong> <span>{ann.body}</span>{' '}
+                            <span className="text-[10px] font-bold uppercase text-slate-500">
+                              ({ann.targetRole})
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteAnnouncement(ann.id)}
+                            className="text-red-600 font-bold"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-4 text-xs">
+                  <div>
+                    <h3 className="font-bold text-base text-slate-900">
+                      💳 Subscription Plans Editor
+                    </h3>
+                    <p className="text-slate-500">
+                      Add or remove partner subscription tiers stored in Firebase.
+                    </p>
+                  </div>
+
+                  <form
+                    onSubmit={handleSaveSubscriptionPlan}
+                    className="grid grid-cols-1 md:grid-cols-5 gap-3 bg-slate-50 p-4 rounded-2xl border"
+                  >
+                    <input
+                      type="text"
+                      value={newPlanForm.name}
+                      onChange={(e) =>
+                        setNewPlanForm({ ...newPlanForm, name: e.target.value })
+                      }
+                      placeholder="Plan Name (e.g. Monthly Pro) *"
+                      className="p-2.5 border rounded-xl bg-white"
+                    />
+                    <input
+                      type="text"
+                      value={newPlanForm.durationLabel}
+                      onChange={(e) =>
+                        setNewPlanForm({
+                          ...newPlanForm,
+                          durationLabel: e.target.value
+                        })
+                      }
+                      placeholder="Duration Label"
+                      className="p-2.5 border rounded-xl bg-white"
+                    />
+                    <input
+                      type="number"
+                      min="1"
+                      value={newPlanForm.days}
+                      onChange={(e) =>
+                        setNewPlanForm({ ...newPlanForm, days: e.target.value })
+                      }
+                      placeholder="Days"
+                      className="p-2.5 border rounded-xl bg-white"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      value={newPlanForm.price}
+                      onChange={(e) =>
+                        setNewPlanForm({ ...newPlanForm, price: e.target.value })
+                      }
+                      placeholder="Price (RWF)"
+                      className="p-2.5 border rounded-xl bg-white"
+                    />
+                    <button
+                      type="submit"
+                      className="px-4 py-2.5 bg-[#234E40] text-white rounded-xl font-bold"
+                    >
+                      + Save Plan
+                    </button>
+                  </form>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {subscriptionPlans.map((plan) => (
+                      <div
+                        key={plan.id}
+                        className="p-3.5 rounded-2xl border bg-slate-50 flex items-center justify-between gap-2"
+                      >
+                        <div>
+                          <p className="font-extrabold text-slate-900">{plan.name}</p>
+                          <p className="text-[11px] text-slate-600">
+                            {Number(plan.price || 0).toLocaleString()} RWF • {plan.days || 30}d
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSubscriptionPlan(plan.id)}
+                          className="text-red-600 font-bold"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 <form
@@ -5897,7 +6318,10 @@ export default function App() {
       )}
 
       <footer className="bg-white border-t py-4 px-6 text-center text-xs text-slate-500">
-        © {new Date().getFullYear()} {appConfig.appName} • {appConfig.footerLocation} • Powered by Firebase
+        © {new Date().getFullYear()} {appConfig.appName} •{' '}
+        {appConfig.footerLeadershipText ||
+          'RUTUNGURA Bonheur (C.E.O & Developer) • IRANZI Honorine (MD & Project Assistant)'}{' '}
+        • {appConfig.footerLocation} • Powered by Firebase
       </footer>
     </div>
   );
