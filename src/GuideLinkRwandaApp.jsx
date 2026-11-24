@@ -198,7 +198,9 @@ const DEFAULT_APP_SERVER_CONFIG = {
     qualifications: []
   },
   announcements: [],
-  ads: []
+  ads: [],
+  welcomeCustomFeatures: [],
+  appCustomFeatures: []
 };
 
 const DEFAULT_SUBSCRIPTION_PLANS = [
@@ -370,6 +372,470 @@ function StatusBanner({ banner, onDismiss }) {
           Dismiss ✕
         </button>
       )}
+    </div>
+  );
+}
+
+// =========================================================================
+// CUSTOM FEATURES DISPLAY FOR APP DASHBOARDS / ROLES
+// =========================================================================
+function RoleCustomFeaturesSection({ features = [], currentRole = 'all', onTriggerFeature }) {
+  const matching = (features || []).filter(
+    (f) => f && f.active !== false && (!f.targetRole || f.targetRole === 'all' || f.targetRole === currentRole)
+  );
+  if (matching.length === 0) return null;
+
+  return (
+    <div className="bg-white p-5 rounded-2xl border shadow-sm space-y-3 text-xs">
+      <div className="border-b pb-2">
+        <span className="text-[10px] font-extrabold uppercase text-[#3B6E5B]">
+          ✨ Owner Added App Features
+        </span>
+        <h4 className="font-black text-sm text-slate-900">
+          Custom Platform Features ({matching.length})
+        </h4>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {matching.map((feat) => (
+          <div
+            key={feat.id}
+            className="p-4 rounded-2xl border bg-emerald-50/40 flex flex-col justify-between gap-3"
+          >
+            <div className="space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-base">{feat.icon || '✨'}</span>
+                <span className="text-[10px] font-extrabold uppercase bg-emerald-100 text-[#234E40] px-2 py-0.5 rounded-full">
+                  {feat.badge || 'New Feature'}
+                </span>
+              </div>
+              <h5 className="font-extrabold text-sm text-slate-900">{feat.title}</h5>
+              {feat.description && <p className="text-slate-600">{feat.description}</p>}
+            </div>
+            {feat.ctaLabel && (
+              <button
+                type="button"
+                onClick={() => onTriggerFeature && onTriggerFeature(feat)}
+                className="self-start px-3.5 py-1.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold transition"
+              >
+                {feat.ctaLabel} →
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// =========================================================================
+// OWNER FEATURE BUILDER (WELCOMING PAGE FEATURES & APP FEATURES)
+// =========================================================================
+function OwnerCustomFeaturesManager({
+  welcomeFeatures = [],
+  appFeatures = [],
+  onSaveFeatures,
+  isSaving,
+  onNotify
+}) {
+  const [scope, setScope] = useState('welcome'); // 'welcome' | 'app'
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState({
+    icon: '✨',
+    badge: 'New Feature',
+    title: '',
+    description: '',
+    ctaLabel: 'Open Feature',
+    actionType: 'role_traveler', // 'role_traveler' | 'role_graduate' | 'role_agency' | 'role_tour_company' | 'role_car_rental' | 'open_pi' | 'url'
+    actionTarget: '',
+    targetRole: 'all',
+    active: true
+  });
+
+  const resetForm = (nextScope = scope) => {
+    setEditingId(null);
+    setForm({
+      icon: '✨',
+      badge: nextScope === 'welcome' ? 'Welcome Feature' : 'App Feature',
+      title: '',
+      description: '',
+      ctaLabel: 'Open Feature',
+      actionType: 'role_traveler',
+      actionTarget: '',
+      targetRole: 'all',
+      active: true
+    });
+  };
+
+  const currentList = scope === 'welcome' ? welcomeFeatures : appFeatures;
+
+  const handleEdit = (feat, targetScope) => {
+    setScope(targetScope);
+    setEditingId(feat.id);
+    setForm({
+      icon: feat.icon || '✨',
+      badge: feat.badge || 'Feature',
+      title: feat.title || '',
+      description: feat.description || '',
+      ctaLabel: feat.ctaLabel || 'Open Feature',
+      actionType: feat.actionType || 'role_traveler',
+      actionTarget: feat.actionTarget || '',
+      targetRole: feat.targetRole || 'all',
+      active: feat.active !== false
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.title.trim()) {
+      onNotify && onNotify('warning', 'Please enter a Feature Title.');
+      return;
+    }
+
+    const featureObj = {
+      id: editingId || `feat-${Date.now()}`,
+      icon: form.icon.trim() || '✨',
+      badge: form.badge.trim() || (scope === 'welcome' ? 'Welcome Feature' : 'App Feature'),
+      title: form.title.trim(),
+      description: form.description.trim(),
+      ctaLabel: form.ctaLabel.trim() || 'Open',
+      actionType: form.actionType,
+      actionTarget: form.actionTarget.trim(),
+      targetRole: scope === 'app' ? form.targetRole : 'all',
+      active: Boolean(form.active),
+      updatedAt: new Date().toISOString()
+    };
+
+    const nextWelcome =
+      scope === 'welcome'
+        ? editingId
+          ? welcomeFeatures.map((f) => (f.id === editingId ? featureObj : f))
+          : [featureObj, ...welcomeFeatures]
+        : welcomeFeatures;
+
+    const nextApp =
+      scope === 'app'
+        ? editingId
+          ? appFeatures.map((f) => (f.id === editingId ? featureObj : f))
+          : [featureObj, ...appFeatures]
+        : appFeatures;
+
+    await onSaveFeatures(nextWelcome, nextApp);
+    resetForm(scope);
+    onNotify &&
+      onNotify(
+        'success',
+        `${editingId ? 'Updated' : 'Added'} ${
+          scope === 'welcome' ? 'Welcoming Page' : 'App'
+        } feature "${featureObj.title}".`
+      );
+  };
+
+  const handleToggle = async (featId, targetScope) => {
+    const nextWelcome =
+      targetScope === 'welcome'
+        ? welcomeFeatures.map((f) => (f.id === featId ? { ...f, active: f.active === false ? true : !f.active } : f))
+        : welcomeFeatures;
+    const nextApp =
+      targetScope === 'app'
+        ? appFeatures.map((f) => (f.id === featId ? { ...f, active: f.active === false ? true : !f.active } : f))
+        : appFeatures;
+    await onSaveFeatures(nextWelcome, nextApp);
+  };
+
+  const handleDelete = async (featId, targetScope) => {
+    const nextWelcome =
+      targetScope === 'welcome' ? welcomeFeatures.filter((f) => f.id !== featId) : welcomeFeatures;
+    const nextApp =
+      targetScope === 'app' ? appFeatures.filter((f) => f.id !== featId) : appFeatures;
+    if (editingId === featId) resetForm(targetScope);
+    await onSaveFeatures(nextWelcome, nextApp);
+    onNotify && onNotify('success', 'Feature removed.');
+  };
+
+  return (
+    <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-5 text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
+        <div>
+          <span className="text-[10px] font-extrabold uppercase bg-emerald-100 text-[#234E40] px-2.5 py-0.5 rounded-full">
+            🧩 Owner Feature Builder
+          </span>
+          <h3 className="font-bold text-base text-slate-900 mt-1">
+            Add, Change &amp; Edit Features on Welcoming Page &amp; In the App
+          </h3>
+          <p className="text-slate-500">
+            Create new feature cards or edit existing ones for the Welcoming Page or any App role dashboard.
+          </p>
+        </div>
+
+        <div className="flex bg-slate-100 p-1 rounded-xl font-bold">
+          <button
+            type="button"
+            onClick={() => {
+              setScope('welcome');
+              resetForm('welcome');
+            }}
+            className={`px-3.5 py-1.5 rounded-lg ${
+              scope === 'welcome' ? 'bg-[#234E40] text-white' : 'text-slate-700'
+            }`}
+          >
+            Welcoming Page ({welcomeFeatures.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setScope('app');
+              resetForm('app');
+            }}
+            className={`px-3.5 py-1.5 rounded-lg ${
+              scope === 'app' ? 'bg-[#234E40] text-white' : 'text-slate-700'
+            }`}
+          >
+            In the App ({appFeatures.length})
+          </button>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="bg-slate-50 p-4 rounded-2xl border space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="font-extrabold text-sm text-slate-900">
+            {editingId ? '✏️ Edit Feature' : '+ Add New Feature'} (
+            {scope === 'welcome' ? 'Welcoming Page' : 'In the App'})
+          </p>
+          {editingId && (
+            <button
+              type="button"
+              onClick={() => resetForm(scope)}
+              className="text-slate-600 hover:underline font-bold"
+            >
+              Cancel Edit
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div>
+            <label className="font-bold text-slate-700">Icon / Emoji</label>
+            <input
+              type="text"
+              value={form.icon}
+              onChange={(e) => setForm({ ...form, icon: e.target.value })}
+              placeholder="✨"
+              className="w-full mt-1 p-2.5 border rounded-xl bg-white"
+            />
+          </div>
+
+          <div>
+            <label className="font-bold text-slate-700">Badge Label</label>
+            <input
+              type="text"
+              value={form.badge}
+              onChange={(e) => setForm({ ...form, badge: e.target.value })}
+              placeholder="New Feature"
+              className="w-full mt-1 p-2.5 border rounded-xl bg-white"
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="font-bold text-slate-700">Feature Title *</label>
+            <input
+              type="text"
+              required
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              placeholder="e.g. Custom Safari & Guide Request"
+              className="w-full mt-1 p-2.5 border rounded-xl bg-white"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="md:col-span-2">
+            <label className="font-bold text-slate-700">Feature Description</label>
+            <input
+              type="text"
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              placeholder="Describe what this feature offers..."
+              className="w-full mt-1 p-2.5 border rounded-xl bg-white"
+            />
+          </div>
+
+          <div>
+            <label className="font-bold text-slate-700">Button Text</label>
+            <input
+              type="text"
+              value={form.ctaLabel}
+              onChange={(e) => setForm({ ...form, ctaLabel: e.target.value })}
+              placeholder="Open Feature"
+              className="w-full mt-1 p-2.5 border rounded-xl bg-white"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <label className="font-bold text-slate-700">When Clicked</label>
+            <select
+              value={form.actionType}
+              onChange={(e) => setForm({ ...form, actionType: e.target.value })}
+              className="w-full mt-1 p-2.5 border rounded-xl bg-white font-semibold"
+            >
+              <option value="role_traveler">Open Traveler Dashboard</option>
+              <option value="open_pi">Open Traveler PI Form</option>
+              <option value="role_graduate">Open Graduates / Guides Portal</option>
+              <option value="role_agency">Open Travel Agencies Portal</option>
+              <option value="role_tour_company">Open Tour Companies Portal</option>
+              <option value="role_car_rental">Open Car Rentals Portal</option>
+              <option value="url">Open External Link (URL)</option>
+            </select>
+          </div>
+
+          {form.actionType === 'url' ? (
+            <div>
+              <label className="font-bold text-slate-700">Destination URL</label>
+              <input
+                type="text"
+                value={form.actionTarget}
+                onChange={(e) => setForm({ ...form, actionTarget: e.target.value })}
+                placeholder="https://example.com"
+                className="w-full mt-1 p-2.5 border rounded-xl bg-white"
+              />
+            </div>
+          ) : (
+            <div>
+              <label className="font-bold text-slate-700">Optional Note / Target</label>
+              <input
+                type="text"
+                value={form.actionTarget}
+                onChange={(e) => setForm({ ...form, actionTarget: e.target.value })}
+                placeholder="Optional note or tag"
+                className="w-full mt-1 p-2.5 border rounded-xl bg-white"
+              />
+            </div>
+          )}
+
+          {scope === 'app' ? (
+            <div>
+              <label className="font-bold text-slate-700">Visible To Role</label>
+              <select
+                value={form.targetRole}
+                onChange={(e) => setForm({ ...form, targetRole: e.target.value })}
+                className="w-full mt-1 p-2.5 border rounded-xl bg-white font-semibold"
+              >
+                <option value="all">All Roles</option>
+                <option value="traveler">Traveler / Visitor</option>
+                <option value="graduate">Tourism Graduates / Guides / Consultants</option>
+                <option value="agency">Travel Agencies</option>
+                <option value="tour_company">Tour Companies</option>
+                <option value="car_rental">Car Rentals Companies</option>
+              </select>
+            </div>
+          ) : (
+            <div className="flex items-end pb-2">
+              <label className="inline-flex items-center gap-2 font-bold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={Boolean(form.active)}
+                  onChange={(e) => setForm({ ...form, active: e.target.checked })}
+                />
+                <span>Active on Welcoming Page</span>
+              </label>
+            </div>
+          )}
+        </div>
+
+        {scope === 'app' && (
+          <div className="pt-1">
+            <label className="inline-flex items-center gap-2 font-bold text-slate-700">
+              <input
+                type="checkbox"
+                checked={Boolean(form.active)}
+                onChange={(e) => setForm({ ...form, active: e.target.checked })}
+              />
+              <span>Active in App</span>
+            </label>
+          </div>
+        )}
+
+        <div className="flex justify-end pt-1">
+          <button
+            type="submit"
+            disabled={isSaving}
+            className="px-5 py-2.5 bg-[#234E40] hover:bg-slate-900 text-white font-bold rounded-xl shadow"
+          >
+            {isSaving ? 'Saving...' : editingId ? 'Save Feature Changes' : '+ Add Feature'}
+          </button>
+        </div>
+      </form>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {[
+          { key: 'welcome', label: 'Welcoming Page Features', list: welcomeFeatures },
+          { key: 'app', label: 'In-App Features', list: appFeatures }
+        ].map((group) => (
+          <div key={group.key} className="space-y-2.5">
+            <h4 className="font-extrabold text-sm text-slate-900">
+              {group.label} ({group.list.length})
+            </h4>
+            {group.list.length === 0 ? (
+              <p className="text-slate-400 italic">No custom features added yet.</p>
+            ) : (
+              group.list.map((feat) => (
+                <div
+                  key={feat.id}
+                  className="p-3.5 rounded-2xl border bg-slate-50 flex items-start justify-between gap-3"
+                >
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span>{feat.icon || '✨'}</span>
+                      <span className="font-extrabold text-slate-900">{feat.title}</span>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          feat.active !== false
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-slate-200 text-slate-600'
+                        }`}
+                      >
+                        {feat.active !== false ? 'Active' : 'Hidden'}
+                      </span>
+                      {group.key === 'app' && (
+                        <span className="text-[10px] font-bold bg-white border px-2 py-0.5 rounded-full text-slate-600">
+                          {feat.targetRole || 'all'}
+                        </span>
+                      )}
+                    </div>
+                    {feat.description && <p className="text-slate-600">{feat.description}</p>}
+                  </div>
+
+                  <div className="flex flex-col gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleEdit(feat, group.key)}
+                      className="px-2.5 py-1 bg-slate-800 text-white rounded-lg font-bold"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleToggle(feat.id, group.key)}
+                      className="px-2.5 py-1 bg-amber-500 text-white rounded-lg font-bold"
+                    >
+                      {feat.active !== false ? 'Hide' : 'Show'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(feat.id, group.key)}
+                      className="px-2.5 py-1 bg-red-600 text-white rounded-lg font-bold"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -3948,6 +4414,11 @@ export default function App() {
           display: block !important;
           overflow-x: hidden !important;
         }
+        .gl-welcome-caps-tnr,
+        .gl-welcome-caps-tnr * {
+          font-family: 'Times New Roman', Times, serif !important;
+          text-transform: uppercase !important;
+        }
       `;
       document.head.appendChild(style);
     }
@@ -4076,7 +4547,16 @@ export default function App() {
 
     if (fbConfigs.length > 0) {
       const mainCfg = fbConfigs.find((c) => c.id === 'main') || fbConfigs[0];
-      setAppConfig((prev) => ({ ...prev, ...mainCfg }));
+      setAppConfig((prev) => ({
+        ...prev,
+        ...mainCfg,
+        welcomeCustomFeatures: Array.isArray(mainCfg.welcomeCustomFeatures)
+          ? mainCfg.welcomeCustomFeatures
+          : prev.welcomeCustomFeatures || [],
+        appCustomFeatures: Array.isArray(mainCfg.appCustomFeatures)
+          ? mainCfg.appCustomFeatures
+          : prev.appCustomFeatures || []
+      }));
     }
 
     if (fbPlans.length > 0) {
@@ -4239,6 +4719,33 @@ export default function App() {
     await firestoreSaveDoc('appConfig', 'main', updatedConfig);
     setLastAutoUpdateAt(new Date());
     setIsSaving(false);
+  };
+
+  const handleTriggerCustomFeature = (feat) => {
+    if (!feat) return;
+    if (feat.actionType === 'url' && feat.actionTarget) {
+      window.open(feat.actionTarget, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    if (feat.actionType === 'open_pi') {
+      setCurrentRole('traveler');
+      setShowPiFormModal(true);
+      return;
+    }
+    if (feat.actionType === 'role_traveler') {
+      setCurrentRole('traveler');
+      if (!isTravelerPiCompleted) setShowPiFormModal(true);
+      return;
+    }
+    if (
+      ['role_graduate', 'role_agency', 'role_tour_company', 'role_car_rental'].includes(
+        feat.actionType
+      )
+    ) {
+      const targetRole = feat.actionType.replace('role_', '');
+      setSelectedRoleForAuth(targetRole);
+      setCurrentRole('auth');
+    }
   };
 
   const handleSaveOwnerProfile = async (updatedOwnerProfile) => {
@@ -4859,6 +5366,10 @@ export default function App() {
 
   const isTravelerPiCompleted = Boolean(travelerPI?.fullName && travelerPI?.phone);
 
+  const activeWelcomeFeatures = (appConfig.welcomeCustomFeatures || []).filter(
+    (f) => f && f.active !== false
+  );
+
   if (appConfig.maintenanceMode && currentRole !== 'owner') {
     return (
       <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-6 text-center space-y-4">
@@ -5072,7 +5583,7 @@ export default function App() {
         />
 
         {currentRole === 'welcome' && (
-          <div className="space-y-8">
+          <div className="gl-welcome-caps-tnr space-y-8">
             <div className="bg-white rounded-3xl p-6 md:p-10 border shadow-sm text-center space-y-4">
               <div className="inline-block px-4 py-1.5 rounded-full bg-[#234E40] text-amber-300 font-black text-xs md:text-sm tracking-widest uppercase shadow-sm">
                 🇷🇼 {appConfig.welcomeNote || t.welcomeNoteTop}
@@ -5101,32 +5612,32 @@ export default function App() {
                   {
                     role: 'graduate',
                     icon: '🎓',
-                    title: t.graduateTitle,
-                    desc: t.graduateDesc
+                    title: customRoleCards?.graduate?.title || t.graduateTitle,
+                    desc: customRoleCards?.graduate?.desc || t.graduateDesc
                   },
                   {
                     role: 'agency',
                     icon: '✈️',
-                    title: t.agencyTitle,
-                    desc: t.agencyDesc
+                    title: customRoleCards?.agency?.title || t.agencyTitle,
+                    desc: customRoleCards?.agency?.desc || t.agencyDesc
                   },
                   {
                     role: 'tour_company',
                     icon: '🚐',
-                    title: t.tourCompanyTitle,
-                    desc: t.tourCompanyDesc
+                    title: customRoleCards?.tour_company?.title || t.tourCompanyTitle,
+                    desc: customRoleCards?.tour_company?.desc || t.tourCompanyDesc
                   },
                   {
                     role: 'car_rental',
                     icon: '🚗',
-                    title: t.carRentalTitle,
-                    desc: t.carRentalDesc
+                    title: customRoleCards?.car_rental?.title || t.carRentalTitle,
+                    desc: customRoleCards?.car_rental?.desc || t.carRentalDesc
                   },
                   {
                     role: 'traveler',
                     icon: '🌍',
-                    title: t.travelerTitle,
-                    desc: t.travelerDesc
+                    title: customRoleCards?.traveler?.title || t.travelerTitle,
+                    desc: customRoleCards?.traveler?.desc || t.travelerDesc
                   }
                 ].map((card) => (
                   <div
@@ -5158,6 +5669,45 @@ export default function App() {
                 ))}
               </div>
             </div>
+
+            {activeWelcomeFeatures.length > 0 && (
+              <div className="bg-white p-6 rounded-3xl border shadow-sm space-y-4 text-xs">
+                <div className="border-b pb-3">
+                  <span className="text-[10px] font-extrabold uppercase text-[#3B6E5B]">
+                    ✨ CUSTOM WELCOMING FEATURES
+                  </span>
+                  <h3 className="text-base md:text-lg font-black text-slate-900 mt-1">
+                    FEATURED SERVICES &amp; TOOLS ({activeWelcomeFeatures.length})
+                  </h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {activeWelcomeFeatures.map((feat) => (
+                    <div
+                      key={feat.id}
+                      className="p-4 rounded-2xl border bg-slate-50 flex flex-col justify-between gap-3"
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xl">{feat.icon || '✨'}</span>
+                          <span className="text-[10px] font-extrabold uppercase bg-emerald-100 text-[#234E40] px-2.5 py-0.5 rounded-full">
+                            {feat.badge || 'FEATURE'}
+                          </span>
+                        </div>
+                        <h4 className="font-extrabold text-sm text-slate-900">{feat.title}</h4>
+                        {feat.description && <p className="text-slate-600">{feat.description}</p>}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleTriggerCustomFeature(feat)}
+                        className="w-full py-2 bg-[#234E40] hover:bg-slate-900 text-white font-bold rounded-xl transition"
+                      >
+                        {feat.ctaLabel || 'OPEN'} →
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <WelcomeAutoScrollingBookings
               publishedPackages={publishedPackages}
@@ -5457,6 +6007,12 @@ export default function App() {
               </div>
             </div>
 
+            <RoleCustomFeaturesSection
+              features={appConfig.appCustomFeatures || []}
+              currentRole={currentRole}
+              onTriggerFeature={handleTriggerCustomFeature}
+            />
+
             {currentRole === 'traveler' && !isTravelerPiCompleted && (
               <TravelerPersonalInfoForm
                 travelerPI={travelerPI}
@@ -5739,7 +6295,7 @@ export default function App() {
                       : 'bg-white/10 text-white'
                   }`}
                 >
-                  ⚙️ Server &amp; Password
+                  ⚙️ Features &amp; Server
                 </button>
               </div>
             </div>
@@ -5832,23 +6388,23 @@ export default function App() {
                           <button
                             type="button"
                             onClick={() => handleApproveSubscriber(sub)}
-                            className="px-3 py-1.5 bg-emerald-600 text-white rounded-xl font-bold"
+                            className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-bold"
                           >
                             ✓ Grant Access
                           </button>
                           <button
                             type="button"
                             onClick={() => handleRevokeSubscriber(sub)}
-                            className="px-3 py-1.5 bg-amber-500 text-white rounded-xl font-bold"
+                            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold"
                           >
-                            ⛔ Revoke
+                            Revoke Access
                           </button>
                           <button
                             type="button"
                             onClick={() =>
                               setPendingDeleteAction({ type: 'subscriber', id: sub.id })
                             }
-                            className="px-3 py-1.5 bg-red-600 text-white rounded-xl font-bold"
+                            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold"
                           >
                             🗑 Delete
                           </button>
@@ -5860,123 +6416,276 @@ export default function App() {
               </div>
             )}
 
-            {ownerTab === 'pending' && (
+            {ownerTab === 'all_roles' && (
               <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-4 text-xs">
-                <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
                   <div>
+                    <span className="text-[10px] font-extrabold uppercase text-[#3B6E5B]">
+                      Role Directory &amp; Role Assignment
+                    </span>
                     <h3 className="font-bold text-base text-slate-900">
-                      All Registered Users — Full Owner Access
+                      🎭 All Users Across Every Role ({subscribers.length})
                     </h3>
-                    <p className="text-slate-500">
-                      Click &quot;Inspect User&quot; to view or manage any user&apos;s full profile, availability, experience &amp; qualifications.
-                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5 font-bold">
+                    {[
+                      { id: 'all', label: `All (${subscribers.length})` },
+                      {
+                        id: 'graduate',
+                        label: `Graduates/Guides (${
+                          subscribers.filter((u) => u.role === 'graduate').length
+                        })`
+                      },
+                      {
+                        id: 'agency',
+                        label: `Agencies (${
+                          subscribers.filter((u) => u.role === 'agency').length
+                        })`
+                      },
+                      {
+                        id: 'tour_company',
+                        label: `Tour Cos (${
+                          subscribers.filter((u) => u.role === 'tour_company').length
+                        })`
+                      },
+                      {
+                        id: 'car_rental',
+                        label: `Car Rentals (${
+                          subscribers.filter((u) => u.role === 'car_rental').length
+                        })`
+                      },
+                      {
+                        id: 'traveler',
+                        label: `Travelers (${
+                          subscribers.filter((u) => u.role === 'traveler').length
+                        })`
+                      }
+                    ].map((f) => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => setAllRolesFilter(f.id)}
+                        className={`px-3 py-1.5 rounded-xl ${
+                          allRolesFilter === f.id
+                            ? 'bg-[#234E40] text-white'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }`}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
-                {subscribers.length === 0 ? (
-                  <p className="text-slate-500">No subscribers registered yet.</p>
+                {filteredRoleUsers.length === 0 ? (
+                  <p className="text-slate-500">No users found for this role filter.</p>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="border-b text-slate-500 uppercase text-[10px]">
-                          <th className="py-2.5">User</th>
-                          <th className="py-2.5">Role</th>
-                          <th className="py-2.5">Contact</th>
-                          <th className="py-2.5">Plan</th>
-                          <th className="py-2.5">Status</th>
-                          <th className="py-2.5 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {subscribers.map((sub) => (
-                          <tr key={sub.id}>
-                            <td className="py-3 font-bold text-slate-900">
-                              <div className="flex items-center gap-2">
-                                {sub.photoUrl && (
-                                  <img
-                                    src={sub.photoUrl}
-                                    alt={sub.name}
-                                    className="w-8 h-8 rounded-lg object-cover border"
-                                  />
-                                )}
-                                <span>{sub.name}</span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {filteredRoleUsers.map((usr) => (
+                      <div
+                        key={usr.id}
+                        className="p-4 rounded-2xl border bg-slate-50 flex flex-col justify-between gap-3"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-3">
+                            {usr.photoUrl ? (
+                              <img
+                                src={usr.photoUrl}
+                                alt={usr.name}
+                                className="w-11 h-11 rounded-xl object-cover border"
+                              />
+                            ) : (
+                              <div className="w-11 h-11 rounded-xl bg-emerald-100 text-[#234E40] font-black flex items-center justify-center text-sm">
+                                {(usr.name || 'U').charAt(0).toUpperCase()}
                               </div>
-                            </td>
-                            <td className="py-3">
-                              <select
-                                value={sub.role || 'graduate'}
-                                onChange={(e) =>
-                                  handleOwnerUpdateUserRole(sub.id, e.target.value)
-                                }
-                                className="p-1.5 border rounded-lg bg-slate-50 font-semibold text-xs"
-                              >
-                                <option value="graduate">graduate</option>
-                                <option value="agency">agency</option>
-                                <option value="tour_company">tour_company</option>
-                                <option value="car_rental">car_rental</option>
-                                <option value="traveler">traveler</option>
-                              </select>
-                            </td>
-                            <td className="py-3">{sub.contact}</td>
-                            <td className="py-3">
-                              {sub.planName} ({Number(sub.amountPaid || 0).toLocaleString()} RWF)
-                            </td>
-                            <td className="py-3">
-                              <span
-                                className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${
-                                  sub.status === 'approved'
-                                    ? 'bg-emerald-100 text-emerald-800'
-                                    : sub.status === 'suspended'
-                                    ? 'bg-red-100 text-red-800'
-                                    : 'bg-amber-100 text-amber-800'
-                                }`}
-                              >
-                                {sub.status}
-                              </span>
-                            </td>
-                            <td className="py-3 text-right space-x-1.5">
-                              <button
-                                type="button"
-                                onClick={() => setSelectedInspectedUser(sub)}
-                                className="px-2.5 py-1 bg-slate-800 text-white rounded-lg font-bold"
-                              >
-                                Inspect User
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleApproveSubscriber(sub)}
-                                className="px-2.5 py-1 bg-emerald-600 text-white rounded-lg font-bold"
-                              >
-                                Access
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleRevokeSubscriber(sub)}
-                                className="px-2.5 py-1 bg-amber-500 text-white rounded-lg font-bold"
-                              >
-                                Revoke
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setPendingDeleteAction({ type: 'subscriber', id: sub.id })
-                                }
-                                className="px-2.5 py-1 bg-red-600 text-white rounded-lg font-bold"
-                              >
-                                Delete
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                            )}
+                            <div>
+                              <p className="font-extrabold text-sm text-slate-900">
+                                {usr.name}
+                              </p>
+                              <p className="text-[11px] text-slate-600">
+                                {usr.contact} {usr.email ? `• ${usr.email}` : ''}
+                              </p>
+                              {usr.title && (
+                                <p className="text-[11px] text-[#3B6E5B] font-semibold">
+                                  {usr.title}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              usr.status === 'approved'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : usr.status === 'suspended'
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-amber-100 text-amber-800'
+                            }`}
+                          >
+                            {usr.status}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-bold text-slate-500">Role:</span>
+                            <select
+                              value={usr.role || 'traveler'}
+                              onChange={(e) =>
+                                handleOwnerUpdateUserRole(usr.id, e.target.value)
+                              }
+                              className="p-1.5 border rounded-lg bg-white font-bold text-[11px]"
+                            >
+                              <option value="graduate">Graduate / Guide / Consultant</option>
+                              <option value="agency">Travel Agency</option>
+                              <option value="tour_company">Tour Company</option>
+                              <option value="car_rental">Car Rental</option>
+                              <option value="traveler">Traveler</option>
+                            </select>
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedInspectedUser(usr);
+                                setOwnerTab('pending');
+                              }}
+                              className="px-2.5 py-1 bg-slate-800 text-white rounded-lg font-bold"
+                            >
+                              Inspect CV
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPendingDeleteAction({ type: 'subscriber', id: usr.id })
+                              }
+                              className="px-2.5 py-1 bg-red-600 text-white rounded-lg font-bold"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
+              </div>
+            )}
+
+            {ownerTab === 'pending' && (
+              <div className="space-y-4">
+                <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-4 text-xs">
+                  <h3 className="font-bold text-base">
+                    All Registered Users ({subscribers.length})
+                  </h3>
+                  {subscribers.length === 0 ? (
+                    <p className="text-slate-500">No users registered yet.</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="border-b text-slate-500">
+                            <th className="py-2">Photo &amp; Name</th>
+                            <th className="py-2">Role</th>
+                            <th className="py-2">Contact</th>
+                            <th className="py-2">Plan &amp; Amount</th>
+                            <th className="py-2">Status</th>
+                            <th className="py-2 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {subscribers.map((sub) => (
+                            <tr key={sub.id}>
+                              <td className="py-3">
+                                <div className="flex items-center gap-2.5">
+                                  {sub.photoUrl ? (
+                                    <img
+                                      src={sub.photoUrl}
+                                      alt={sub.name}
+                                      className="w-9 h-9 rounded-lg object-cover border"
+                                    />
+                                  ) : (
+                                    <div className="w-9 h-9 rounded-lg bg-emerald-100 text-[#234E40] font-black flex items-center justify-center text-xs">
+                                      {(sub.name || 'U').charAt(0).toUpperCase()}
+                                    </div>
+                                  )}
+                                  <div>
+                                    <p className="font-bold text-slate-900">{sub.name}</p>
+                                    <p className="text-[11px] text-slate-500">
+                                      {sub.institution || sub.title || ''}
+                                    </p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-3 capitalize">{sub.role}</td>
+                              <td className="py-3 font-semibold">{sub.contact}</td>
+                              <td className="py-3">
+                                <span className="font-bold text-[#234E40]">
+                                  {sub.planName || 'Monthly'}
+                                </span>{' '}
+                                • {Number(sub.amountPaid || 0).toLocaleString()} RWF
+                              </td>
+                              <td className="py-3">
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                    sub.status === 'approved'
+                                      ? 'bg-emerald-100 text-emerald-800'
+                                      : sub.status === 'suspended'
+                                      ? 'bg-red-100 text-red-800'
+                                      : 'bg-amber-100 text-amber-800'
+                                  }`}
+                                >
+                                  {sub.status}
+                                </span>
+                              </td>
+                              <td className="py-3 text-right space-x-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedInspectedUser(sub)}
+                                  className="px-2.5 py-1 bg-slate-800 text-white rounded-lg font-bold"
+                                >
+                                  Inspect CV
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleApproveSubscriber(sub)}
+                                  className="px-3 py-1 bg-emerald-700 text-white rounded-lg font-bold"
+                                >
+                                  Approve
+                                </button>
+                                {sub.status === 'approved' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRevokeSubscriber(sub)}
+                                    className="px-2.5 py-1 bg-amber-500 text-white rounded-lg font-bold"
+                                  >
+                                    Revoke
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setPendingDeleteAction({ type: 'subscriber', id: sub.id })
+                                  }
+                                  className="px-2.5 py-1 bg-red-600 text-white rounded-lg font-bold"
+                                >
+                                  Delete
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
 
                 {selectedInspectedUser && (
-                  <div className="p-5 rounded-2xl border-2 border-[#234E40] bg-emerald-50/40 space-y-4">
-                    <div className="flex items-center justify-between border-b pb-2">
+                  <div className="bg-white p-6 rounded-2xl border-2 border-[#234E40] shadow-md space-y-4 text-xs">
+                    <div className="flex items-center justify-between border-b pb-3">
                       <div className="flex items-center gap-3">
                         {selectedInspectedUser.photoUrl && (
                           <img
@@ -5986,285 +6695,390 @@ export default function App() {
                           />
                         )}
                         <div>
-                          <h4 className="font-extrabold text-sm text-slate-900">
-                            {selectedInspectedUser.name} ({selectedInspectedUser.role})
+                          <span className="text-[10px] font-extrabold uppercase text-[#3B6E5B]">
+                            Inspected User Profile &amp; CV
+                          </span>
+                          <h4 className="text-base font-black text-slate-900">
+                            {selectedInspectedUser.name}
                           </h4>
-                          <p className="text-[11px] text-slate-600">
-                            Contact: {selectedInspectedUser.contact} • Email:{' '}
-                            {selectedInspectedUser.email || 'N/A'} • Availability:{' '}
-                            {selectedInspectedUser.availabilityStatus || 'Available Now'}
+                          <p className="text-slate-500">
+                            {selectedInspectedUser.title || selectedInspectedUser.role} •{' '}
+                            {selectedInspectedUser.contact}
                           </p>
                         </div>
                       </div>
                       <button
                         type="button"
                         onClick={() => setSelectedInspectedUser(null)}
-                        className="px-3 py-1 bg-slate-200 rounded-lg font-bold"
+                        className="px-3 py-1 bg-slate-100 rounded-lg font-bold text-slate-600"
                       >
-                        Close
+                        Close ✕
                       </button>
                     </div>
 
-                    <UserAndOwnerProfileSection
-                      profileData={selectedInspectedUser}
-                      label={`Owner Editing: ${selectedInspectedUser.name}`}
-                      isSaving={isSaving}
-                      showProviderExtras={[
-                        'graduate',
-                        'agency',
-                        'tour_company',
-                        'car_rental'
-                      ].includes(selectedInspectedUser.role)}
-                      onNotify={notify}
-                      onSave={async (updatedUserProfile) => {
-                        setIsSaving(true);
-                        const merged = {
-                          ...selectedInspectedUser,
-                          ...updatedUserProfile,
-                          updatedAt: new Date().toISOString()
-                        };
-                        setSelectedInspectedUser(merged);
-                        setSubscribers((prev) =>
-                          prev.map((item) => (item.id === merged.id ? merged : item))
-                        );
-                        await firestoreSaveDoc('subscribers', merged.id, merged);
-                        setLastAutoUpdateAt(new Date());
-                        setIsSaving(false);
-                        notify('success', `Saved changes for ${merged.name}.`);
-                      }}
-                    />
+                    {selectedInspectedUser.bio && (
+                      <p className="text-slate-700">{selectedInspectedUser.bio}</p>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-slate-50 p-3.5 rounded-xl border space-y-1.5">
+                        <p className="font-extrabold text-[#234E40]">Services Provided</p>
+                        {(selectedInspectedUser.servicesProvided || []).length === 0 ? (
+                          <p className="text-slate-400 italic">None added yet.</p>
+                        ) : (
+                          (selectedInspectedUser.servicesProvided || []).map((s, idx) => (
+                            <p key={idx} className="font-semibold text-slate-800">
+                              • {s}
+                            </p>
+                          ))
+                        )}
+                      </div>
+
+                      <div className="bg-slate-50 p-3.5 rounded-xl border space-y-1.5">
+                        <p className="font-extrabold text-[#234E40]">Experience</p>
+                        {(selectedInspectedUser.experiences || []).length === 0 ? (
+                          <p className="text-slate-400 italic">None added yet.</p>
+                        ) : (
+                          (selectedInspectedUser.experiences || []).map((exp) => (
+                            <div key={exp.id} className="border-b last:border-b-0 pb-1.5">
+                              <p className="font-bold text-slate-900">
+                                {exp.role}{' '}
+                                {exp.organization ? `— ${exp.organization}` : ''}
+                              </p>
+                              {exp.duration && (
+                                <p className="text-[11px] text-[#3B6E5B]">{exp.duration}</p>
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </div>
+
+                      <div className="bg-slate-50 p-3.5 rounded-xl border space-y-1.5">
+                        <p className="font-extrabold text-[#234E40]">Qualifications</p>
+                        {(selectedInspectedUser.qualifications || []).length === 0 ? (
+                          <p className="text-slate-400 italic">None added yet.</p>
+                        ) : (
+                          (selectedInspectedUser.qualifications || []).map((q) => (
+                            <div key={q.id} className="border-b last:border-b-0 pb-1.5">
+                              <p className="font-bold text-slate-900">🎓 {q.title}</p>
+                              <p className="text-[11px] text-slate-600">
+                                {[q.institution, q.year].filter(Boolean).join(' • ')}
+                              </p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
             )}
 
             {ownerTab === 'ads' && (
-              <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-6 text-xs">
-                <div>
-                  <h3 className="font-bold text-base text-slate-900">
-                    📢 Set Advertising for Paid Companies
-                  </h3>
-                  <p className="text-slate-500">
-                    Create and toggle pop-up advertisements for paid partner companies. Clicking the ad CTA opens the booking form directly.
-                  </p>
-                </div>
-
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 text-xs">
                 <form
                   onSubmit={handleCreatePaidAd}
-                  className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-2xl border"
+                  className="bg-white p-6 rounded-2xl border shadow-sm space-y-3"
                 >
+                  <h3 className="font-bold text-base text-slate-900">
+                    Create Paid Company Pop-Up Ad
+                  </h3>
+                  <p className="text-slate-500">
+                    Paid company ads pop up for users and let travelers/clients book directly from the ad.
+                  </p>
                   <div>
                     <label className="font-bold text-slate-700">Paid Company Name *</label>
                     <input
                       type="text"
                       required
+                      placeholder="e.g. Volcanoes Gorilla Lodge / Rwanda 4x4 Fleet"
                       value={newAdForm.advertiserName}
                       onChange={(e) =>
                         setNewAdForm({ ...newAdForm, advertiserName: e.target.value })
                       }
-                      placeholder="e.g. Echo Travels Ltd"
-                      className="w-full mt-1 p-2.5 border rounded-xl bg-white"
+                      className="w-full mt-1 p-2.5 border rounded-xl"
                     />
                   </div>
-                  <div>
-                    <label className="font-bold text-slate-700">Company Contact</label>
-                    <input
-                      type="text"
-                      value={newAdForm.advertiserContact}
-                      onChange={(e) =>
-                        setNewAdForm({ ...newAdForm, advertiserContact: e.target.value })
-                      }
-                      placeholder="+250780558555"
-                      className="w-full mt-1 p-2.5 border rounded-xl bg-white"
-                    />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="font-bold text-slate-700">Company Phone / Contact</label>
+                      <input
+                        type="text"
+                        placeholder="+25078XXXXXXX"
+                        value={newAdForm.advertiserContact}
+                        onChange={(e) =>
+                          setNewAdForm({
+                            ...newAdForm,
+                            advertiserContact: e.target.value
+                          })
+                        }
+                        className="w-full mt-1 p-2.5 border rounded-xl"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700">Ad Badge / Offer Tag</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 20% Off Safari"
+                        value={newAdForm.badge}
+                        onChange={(e) =>
+                          setNewAdForm({ ...newAdForm, badge: e.target.value })
+                        }
+                        className="w-full mt-1 p-2.5 border rounded-xl"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="font-bold text-slate-700">Target Audience</label>
-                    <select
-                      value={newAdForm.targetAudience}
-                      onChange={(e) =>
-                        setNewAdForm({ ...newAdForm, targetAudience: e.target.value })
-                      }
-                      className="w-full mt-1 p-2.5 border rounded-xl bg-white"
-                    >
-                      <option value="all">All Users &amp; Visitors</option>
-                      <option value="traveler">Travelers</option>
-                      <option value="graduate">Tourism Graduates / Guides</option>
-                      <option value="agency">Travel Agencies</option>
-                      <option value="tour_company">Tour Companies</option>
-                      <option value="car_rental">Car Rentals Companies</option>
-                    </select>
-                  </div>
-
                   <div>
                     <label className="font-bold text-slate-700">Ad Headline *</label>
                     <input
                       type="text"
                       required
+                      placeholder="e.g. Book 4x4 Safari Vehicles &amp; Guided Tours Today"
                       value={newAdForm.headline}
                       onChange={(e) =>
                         setNewAdForm({ ...newAdForm, headline: e.target.value })
                       }
-                      placeholder="e.g. Discounted Volcanoes & Kivu Packages"
-                      className="w-full mt-1 p-2.5 border rounded-xl bg-white"
+                      className="w-full mt-1 p-2.5 border rounded-xl"
                     />
                   </div>
-
                   <div>
-                    <label className="font-bold text-slate-700">Badge Label</label>
+                    <label className="font-bold text-slate-700">Ad Details</label>
                     <input
                       type="text"
-                      value={newAdForm.badge}
-                      onChange={(e) =>
-                        setNewAdForm({ ...newAdForm, badge: e.target.value })
-                      }
-                      placeholder="Paid Partner"
-                      className="w-full mt-1 p-2.5 border rounded-xl bg-white"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="font-bold text-slate-700">Button / CTA Label</label>
-                    <input
-                      type="text"
-                      value={newAdForm.ctaLabel}
-                      onChange={(e) =>
-                        setNewAdForm({ ...newAdForm, ctaLabel: e.target.value })
-                      }
-                      placeholder="Book Now"
-                      className="w-full mt-1 p-2.5 border rounded-xl bg-white"
-                    />
-                  </div>
-
-                  <div className="md:col-span-3">
-                    <label className="font-bold text-slate-700">Ad Description</label>
-                    <input
-                      type="text"
+                      placeholder="Short promotion message..."
                       value={newAdForm.description}
                       onChange={(e) =>
                         setNewAdForm({ ...newAdForm, description: e.target.value })
                       }
-                      placeholder="Describe the company's offer or promotion..."
-                      className="w-full mt-1 p-2.5 border rounded-xl bg-white"
+                      className="w-full mt-1 p-2.5 border rounded-xl"
                     />
                   </div>
-
-                  <div className="md:col-span-3 flex items-center justify-between pt-1">
-                    <label className="inline-flex items-center gap-2 font-bold text-slate-700">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="font-bold text-slate-700">Booking Button Text</label>
                       <input
-                        type="checkbox"
-                        checked={newAdForm.active}
+                        type="text"
+                        value={newAdForm.ctaLabel}
                         onChange={(e) =>
-                          setNewAdForm({ ...newAdForm, active: e.target.checked })
+                          setNewAdForm({ ...newAdForm, ctaLabel: e.target.value })
                         }
+                        className="w-full mt-1 p-2.5 border rounded-xl"
                       />
-                      <span>Active (Show in pop-up rotation)</span>
-                    </label>
-                    <button
-                      type="submit"
-                      disabled={isSaving}
-                      className="px-5 py-2.5 bg-[#234E40] hover:bg-slate-900 text-white font-bold rounded-xl shadow"
-                    >
-                      {isSaving ? 'Saving...' : '+ Publish Paid Company Ad'}
-                    </button>
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700">Show To</label>
+                      <select
+                        value={newAdForm.targetAudience}
+                        onChange={(e) =>
+                          setNewAdForm({ ...newAdForm, targetAudience: e.target.value })
+                        }
+                        className="w-full mt-1 p-2.5 border rounded-xl bg-white"
+                      >
+                        <option value="all">All Visitors &amp; Users</option>
+                        <option value="traveler">Travelers</option>
+                        <option value="graduate">Graduates / Guides / Consultants</option>
+                        <option value="agency">Travel Agencies</option>
+                        <option value="tour_company">Tour Companies</option>
+                        <option value="car_rental">Car Rentals</option>
+                      </select>
+                    </div>
                   </div>
+                  <label className="flex items-center gap-2 font-bold text-slate-700 pt-1">
+                    <input
+                      type="checkbox"
+                      checked={newAdForm.active}
+                      onChange={(e) =>
+                        setNewAdForm({ ...newAdForm, active: e.target.checked })
+                      }
+                    />
+                    <span>Active Pop-Up Ad</span>
+                  </label>
+                  <button
+                    type="submit"
+                    className="w-full py-2.5 bg-[#234E40] text-white font-bold rounded-xl"
+                  >
+                    + Publish Paid Company Ad
+                  </button>
                 </form>
 
-                <div className="space-y-2.5">
-                  <h4 className="font-bold text-sm text-slate-800">
-                    Configured Company Ads ({(appConfig.ads || []).length})
-                  </h4>
+                <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-3">
+                  <h3 className="font-bold text-base text-slate-900">
+                    Active &amp; Saved Ads ({(appConfig.ads || []).length})
+                  </h3>
                   {(appConfig.ads || []).length === 0 ? (
-                    <p className="text-slate-400 italic">No ads created yet.</p>
+                    <p className="text-slate-400 italic">No paid ads created yet.</p>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {(appConfig.ads || []).map((ad) => (
-                        <div
-                          key={ad.id}
-                          className="p-4 rounded-2xl border bg-slate-50 flex flex-col justify-between gap-2"
-                        >
-                          <div>
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-[10px] font-extrabold uppercase bg-amber-300 text-slate-950 px-2 py-0.5 rounded-full">
-                                {ad.badge || 'Paid Partner'}
-                              </span>
-                              <span
-                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                  ad.active
-                                    ? 'bg-emerald-100 text-emerald-800'
-                                    : 'bg-slate-200 text-slate-600'
-                                }`}
-                              >
-                                {ad.active ? '● Active' : '○ Paused'}
-                              </span>
-                            </div>
-                            <h5 className="font-extrabold text-sm text-slate-900 mt-1.5">
-                              {ad.headline}
-                            </h5>
-                            <p className="text-[11px] text-slate-600">
-                              Company: <strong>{ad.advertiserName}</strong> • Audience:{' '}
-                              {ad.targetAudience}
-                            </p>
-                            {ad.description && (
-                              <p className="text-slate-600 mt-1">{ad.description}</p>
-                            )}
-                          </div>
-
-                          <div className="flex justify-end gap-2 pt-2 border-t">
-                            <button
-                              type="button"
-                              onClick={() => handleToggleAdActive(ad.id)}
-                              className="px-3 py-1 bg-slate-800 text-white rounded-lg font-bold"
+                    (appConfig.ads || []).map((ad) => (
+                      <div
+                        key={ad.id}
+                        className="p-4 rounded-2xl border bg-slate-50 flex items-start justify-between gap-3"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-extrabold text-[10px]">
+                              {ad.badge || 'Paid Partner'}
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
+                                ad.active
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-slate-200 text-slate-600'
+                              }`}
                             >
-                              {ad.active ? 'Pause' : 'Activate'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setPendingDeleteAction({ type: 'ad', id: ad.id })
-                              }
-                              className="px-3 py-1 bg-red-600 text-white rounded-lg font-bold"
-                            >
-                              Delete
-                            </button>
+                              {ad.active ? 'Pop-Up Active' : 'Paused'}
+                            </span>
                           </div>
+                          <p className="font-extrabold text-sm text-slate-900">
+                            {ad.headline}
+                          </p>
+                          <p className="text-[11px] text-slate-600">
+                            Company: <strong>{ad.advertiserName}</strong>{' '}
+                            {ad.advertiserContact ? `(${ad.advertiserContact})` : ''}
+                          </p>
+                          {ad.description && (
+                            <p className="text-slate-600">{ad.description}</p>
+                          )}
                         </div>
-                      ))}
-                    </div>
+                        <div className="flex flex-col gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleAdActive(ad.id)}
+                            className="px-2.5 py-1 bg-amber-500 text-white rounded-lg font-bold"
+                          >
+                            {ad.active ? 'Pause' : 'Activate'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPendingDeleteAction({ type: 'ad', id: ad.id })
+                            }
+                            className="px-2.5 py-1 bg-red-600 text-white rounded-lg font-bold"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))
                   )}
                 </div>
               </div>
             )}
 
             {ownerTab === 'owner_profile' && (
-              <UserAndOwnerProfileSection
-                profileData={appConfig.ownerProfile || {}}
-                label="Platform Owner (C.E.O.)"
-                onSave={handleSaveOwnerProfile}
-                isSaving={isSaving}
-                showProviderExtras={false}
-                onNotify={notify}
-              />
+              <div className="space-y-6">
+                <UserAndOwnerProfileSection
+                  profileData={appConfig.ownerProfile}
+                  label="Owner / C.E.O."
+                  onSave={handleSaveOwnerProfile}
+                  isSaving={isSaving}
+                  showProviderExtras={false}
+                  onNotify={notify}
+                />
+
+                <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-4 text-xs">
+                  <div className="border-b pb-3">
+                    <span className="text-[10px] font-extrabold uppercase text-[#3B6E5B]">
+                      Owner Security
+                    </span>
+                    <h3 className="text-base font-black text-slate-900">
+                      Change Owner Dashboard Password
+                    </h3>
+                    <p className="text-slate-500">
+                      Update the password used to unlock the Owner C.E.O. dashboard.
+                    </p>
+                  </div>
+
+                  <form
+                    onSubmit={handleChangeOwnerPassword}
+                    className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end"
+                  >
+                    <div>
+                      <label className="font-bold text-slate-700">Current Owner Password *</label>
+                      <input
+                        type="password"
+                        required
+                        value={ownerCurrentPassInput}
+                        onChange={(e) => setOwnerCurrentPassInput(e.target.value)}
+                        placeholder="Enter current password"
+                        className="w-full mt-1 p-2.5 border rounded-xl"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700">New Owner Password *</label>
+                      <input
+                        type="password"
+                        required
+                        value={ownerNewPassInput}
+                        onChange={(e) => setOwnerNewPassInput(e.target.value)}
+                        placeholder="New password (min 4 chars)"
+                        className="w-full mt-1 p-2.5 border rounded-xl"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700">Confirm New Password *</label>
+                      <input
+                        type="password"
+                        required
+                        value={ownerConfirmPassInput}
+                        onChange={(e) => setOwnerConfirmPassInput(e.target.value)}
+                        placeholder="Confirm new password"
+                        className="w-full mt-1 p-2.5 border rounded-xl"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isSaving}
+                      className="px-5 py-2.5 bg-[#234E40] hover:bg-slate-900 text-white font-bold rounded-xl shadow"
+                    >
+                      {isSaving ? 'Saving...' : 'Update Owner Password'}
+                    </button>
+                  </form>
+                </div>
+              </div>
             )}
 
             {ownerTab === 'server' && (
-              <div className="space-y-6">
-                <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-5 text-xs">
-                  <div className="border-b pb-3 flex flex-wrap items-center justify-between gap-2">
+              <div className="space-y-6 text-xs">
+                <OwnerCustomFeaturesManager
+                  welcomeFeatures={appConfig.welcomeCustomFeatures || []}
+                  appFeatures={appConfig.appCustomFeatures || []}
+                  onSaveFeatures={async (nextWelcome, nextApp) => {
+                    await saveAppServerConfig({
+                      ...appConfig,
+                      welcomeCustomFeatures: nextWelcome,
+                      appCustomFeatures: nextApp
+                    });
+                  }}
+                  isSaving={isSaving}
+                  onNotify={notify}
+                />
+
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    await saveAppServerConfig(appConfig);
+                    notify(
+                      'success',
+                      'All Server & App configuration settings saved to Firebase.'
+                    );
+                  }}
+                  className="bg-white p-6 rounded-2xl border shadow-sm space-y-5"
+                >
+                  <div className="flex items-center justify-between border-b pb-3">
                     <div>
-                      <span className="text-[10px] font-extrabold uppercase bg-emerald-100 text-[#234E40] px-2.5 py-0.5 rounded-full">
-                        🎨 Full App &amp; Welcome Page Studio
-                      </span>
-                      <h3 className="font-bold text-base text-slate-900 mt-1">
-                        Edit Welcome Page, Theme Colors, Leadership Credits &amp; App Settings
+                      <h3 className="font-bold text-base text-slate-900">
+                        Global App &amp; Server Configuration
                       </h3>
+                      <p className="text-slate-500">
+                        Changes save to Firebase and update the platform across users.
+                      </p>
                     </div>
                     <button
-                      type="button"
-                      onClick={() => setAppConfig(DEFAULT_APP_SERVER_CONFIG)}
-                      className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold"
+                      type="submit"
+                      disabled={isSaving}
+                      className="px-5 py-2.5 bg-[#234E40] text-white font-bold rounded-xl shadow"
                     >
-                      ↺ Reset Defaults
+                      {isSaving ? 'Saving...' : 'Save All Server Settings'}
                     </button>
                   </div>
 
@@ -6281,7 +7095,22 @@ export default function App() {
                       />
                     </div>
                     <div>
-                      <label className="font-bold text-slate-700">MTN MoMo Payment Code</label>
+                      <label className="font-bold text-slate-700">
+                        Welcome Banner Top Note
+                      </label>
+                      <input
+                        type="text"
+                        value={appConfig.welcomeNote || ''}
+                        onChange={(e) =>
+                          setAppConfig({ ...appConfig, welcomeNote: e.target.value })
+                        }
+                        className="w-full mt-1 p-2.5 border rounded-xl"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700">
+                        MTN MoMo Merchant / Code
+                      </label>
                       <input
                         type="text"
                         value={appConfig.momoCode}
@@ -6291,85 +7120,9 @@ export default function App() {
                         className="w-full mt-1 p-2.5 border rounded-xl"
                       />
                     </div>
-                    <div>
-                      <label className="font-bold text-slate-700">Traveler Free Badge</label>
-                      <input
-                        type="text"
-                        value={appConfig.travelerFreeBadge || ''}
-                        onChange={(e) =>
-                          setAppConfig({ ...appConfig, travelerFreeBadge: e.target.value })
-                        }
-                        className="w-full mt-1 p-2.5 border rounded-xl"
-                      />
-                    </div>
+                  </div>
 
-                    <div>
-                      <label className="font-bold text-slate-700">Primary Theme Color</label>
-                      <div className="flex items-center gap-2 mt-1">
-                        <input
-                          type="color"
-                          value={primaryTheme}
-                          onChange={(e) =>
-                            setAppConfig({ ...appConfig, primaryColor: e.target.value })
-                          }
-                          className="h-10 w-14 rounded-lg border cursor-pointer"
-                        />
-                        <input
-                          type="text"
-                          value={primaryTheme}
-                          onChange={(e) =>
-                            setAppConfig({ ...appConfig, primaryColor: e.target.value })
-                          }
-                          className="flex-1 p-2.5 border rounded-xl font-mono"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="font-bold text-slate-700">Accent Theme Color</label>
-                      <div className="flex items-center gap-2 mt-1">
-                        <input
-                          type="color"
-                          value={accentTheme}
-                          onChange={(e) =>
-                            setAppConfig({ ...appConfig, accentColor: e.target.value })
-                          }
-                          className="h-10 w-14 rounded-lg border cursor-pointer"
-                        />
-                        <input
-                          type="text"
-                          value={accentTheme}
-                          onChange={(e) =>
-                            setAppConfig({ ...appConfig, accentColor: e.target.value })
-                          }
-                          className="flex-1 p-2.5 border rounded-xl font-mono"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="font-bold text-slate-700">Footer Location</label>
-                      <input
-                        type="text"
-                        value={appConfig.footerLocation || ''}
-                        onChange={(e) =>
-                          setAppConfig({ ...appConfig, footerLocation: e.target.value })
-                        }
-                        className="w-full mt-1 p-2.5 border rounded-xl"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="font-bold text-slate-700">Top Welcome Note</label>
-                      <input
-                        type="text"
-                        value={appConfig.welcomeNote || 'WELCOME TO GUIDE LINK RWANDA'}
-                        onChange={(e) =>
-                          setAppConfig({ ...appConfig, welcomeNote: e.target.value })
-                        }
-                        className="w-full mt-1 p-2.5 border rounded-xl"
-                      />
-                    </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="font-bold text-slate-700">Hero Tagline</label>
                       <input
@@ -6382,55 +7135,14 @@ export default function App() {
                       />
                     </div>
                     <div>
-                      <label className="font-bold text-slate-700">Hero Badge Text</label>
+                      <label className="font-bold text-slate-700">Traveler Badge Text</label>
                       <input
                         type="text"
-                        value={appConfig.heroBadgeText || ''}
-                        onChange={(e) =>
-                          setAppConfig({ ...appConfig, heroBadgeText: e.target.value })
-                        }
-                        className="w-full mt-1 p-2.5 border rounded-xl"
-                      />
-                    </div>
-
-                    <div className="md:col-span-3">
-                      <label className="font-bold text-slate-700">Welcome Hero Subtitle</label>
-                      <input
-                        type="text"
-                        value={appConfig.subtitle || ''}
-                        onChange={(e) =>
-                          setAppConfig({ ...appConfig, subtitle: e.target.value })
-                        }
-                        className="w-full mt-1 p-2.5 border rounded-xl"
-                      />
-                    </div>
-
-                    <div className="md:col-span-3">
-                      <label className="font-bold text-slate-700">
-                        Welcome Tab Highlight Note
-                      </label>
-                      <input
-                        type="text"
-                        value={appConfig.welcomeBannerText || ''}
-                        onChange={(e) =>
-                          setAppConfig({ ...appConfig, welcomeBannerText: e.target.value })
-                        }
-                        placeholder="Welcome message shown on the Welcome tab..."
-                        className="w-full mt-1 p-2.5 border rounded-xl"
-                      />
-                    </div>
-
-                    <div className="md:col-span-3">
-                      <label className="font-bold text-slate-700">
-                        Footer Leadership &amp; Team Credits
-                      </label>
-                      <input
-                        type="text"
-                        value={appConfig.footerLeadershipText || ''}
+                        value={appConfig.travelerFreeBadge}
                         onChange={(e) =>
                           setAppConfig({
                             ...appConfig,
-                            footerLeadershipText: e.target.value
+                            travelerFreeBadge: e.target.value
                           })
                         }
                         className="w-full mt-1 p-2.5 border rounded-xl"
@@ -6438,20 +7150,84 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="p-4 rounded-2xl border bg-slate-50 space-y-3">
-                    <h4 className="font-extrabold text-sm text-slate-900">
-                      Welcome Page Role Cards Text Editor
+                  <div>
+                    <label className="font-bold text-slate-700">Hero Subtitle</label>
+                    <input
+                      type="text"
+                      value={appConfig.subtitle}
+                      onChange={(e) =>
+                        setAppConfig({ ...appConfig, subtitle: e.target.value })
+                      }
+                      className="w-full mt-1 p-2.5 border rounded-xl"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t">
+                    <div>
+                      <label className="font-bold text-slate-700">
+                        Primary Brand Color
+                      </label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <input
+                          type="color"
+                          value={primaryTheme}
+                          onChange={(e) =>
+                            setAppConfig({ ...appConfig, primaryColor: e.target.value })
+                          }
+                          className="h-10 w-14 rounded cursor-pointer border"
+                        />
+                        <input
+                          type="text"
+                          value={primaryTheme}
+                          onChange={(e) =>
+                            setAppConfig({ ...appConfig, primaryColor: e.target.value })
+                          }
+                          className="flex-1 p-2.5 border rounded-xl font-mono"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700">
+                        Accent / Secondary Color
+                      </label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <input
+                          type="color"
+                          value={accentTheme}
+                          onChange={(e) =>
+                            setAppConfig({ ...appConfig, accentColor: e.target.value })
+                          }
+                          className="h-10 w-14 rounded cursor-pointer border"
+                        />
+                        <input
+                          type="text"
+                          value={accentTheme}
+                          onChange={(e) =>
+                            setAppConfig({ ...appConfig, accentColor: e.target.value })
+                          }
+                          className="flex-1 p-2.5 border rounded-xl font-mono"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 pt-3 border-t">
+                    <h4 className="font-extrabold text-sm text-[#234E40]">
+                      Customize Welcome Role Cards
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {[
-                        { key: 'graduate', label: '1. Graduates / Guides / Consultants' },
-                        { key: 'agency', label: '2. Travel Agencies' },
-                        { key: 'tour_company', label: '3. Tour Companies' },
-                        { key: 'car_rental', label: '4. Car Rentals Companies' },
-                        { key: 'traveler', label: '5. Traveler / Visitor' }
+                        { key: 'graduate', label: 'Graduates / Guides / Consultants Card' },
+                        { key: 'agency', label: 'Travel Agencies Card' },
+                        { key: 'tour_company', label: 'Tour Companies Card' },
+                        { key: 'car_rental', label: 'Car Rentals Card' },
+                        { key: 'traveler', label: 'Traveler / Visitor Card' }
                       ].map((item) => (
-                        <div key={item.key} className="p-3 bg-white rounded-xl border space-y-2">
-                          <p className="font-bold text-[#234E40]">{item.label}</p>
+                        <div
+                          key={item.key}
+                          className="p-3 rounded-xl border bg-slate-50 space-y-2"
+                        >
+                          <p className="font-bold text-slate-800">{item.label}</p>
                           <input
                             type="text"
                             value={customRoleCards?.[item.key]?.title || ''}
@@ -6459,7 +7235,7 @@ export default function App() {
                               handleUpdateRoleCardCustom(item.key, 'title', e.target.value)
                             }
                             placeholder="Card Title"
-                            className="w-full p-2 border rounded-lg"
+                            className="w-full p-2 border rounded-lg bg-white"
                           />
                           <input
                             type="text"
@@ -6468,339 +7244,260 @@ export default function App() {
                               handleUpdateRoleCardCustom(item.key, 'desc', e.target.value)
                             }
                             placeholder="Card Description"
-                            className="w-full p-2 border rounded-lg"
+                            className="w-full p-2 border rounded-lg bg-white"
                           />
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t">
-                    <div className="flex flex-wrap items-center gap-5">
-                      <label className="inline-flex items-center gap-2 font-bold text-slate-700">
-                        <input
-                          type="checkbox"
-                          checked={Boolean(appConfig.allowNewSignups)}
-                          onChange={(e) =>
-                            setAppConfig({
-                              ...appConfig,
-                              allowNewSignups: e.target.checked
-                            })
-                          }
-                        />
-                        <span>Allow New Partner Registrations</span>
-                      </label>
-
-                      <label className="inline-flex items-center gap-2 font-bold text-red-700">
-                        <input
-                          type="checkbox"
-                          checked={Boolean(appConfig.maintenanceMode)}
-                          onChange={(e) =>
-                            setAppConfig({
-                              ...appConfig,
-                              maintenanceMode: e.target.checked
-                            })
-                          }
-                        />
-                        <span>Maintenance Mode</span>
-                      </label>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await saveAppServerConfig(appConfig);
-                        notify('success', 'All app, welcome page & theme settings saved to Firebase.');
-                      }}
-                      disabled={isSaving}
-                      className="px-6 py-2.5 bg-[#234E40] text-white rounded-xl font-bold shadow"
-                    >
-                      {isSaving ? 'Saving...' : 'Save Server Config to Firebase'}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-4 text-xs">
-                  <div>
-                    <h3 className="font-bold text-base text-slate-900">
-                      📢 Platform Announcements Manager
-                    </h3>
-                    <p className="text-slate-500">
-                      Publish top notices across all users or target a specific role.
-                    </p>
-                  </div>
-
-                  <form
-                    onSubmit={handleAddAnnouncement}
-                    className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-2xl border"
-                  >
-                    <input
-                      type="text"
-                      value={newAnnouncementForm.title}
-                      onChange={(e) =>
-                        setNewAnnouncementForm({
-                          ...newAnnouncementForm,
-                          title: e.target.value
-                        })
-                      }
-                      placeholder="Notice Title *"
-                      className="p-2.5 border rounded-xl bg-white"
-                    />
-                    <input
-                      type="text"
-                      value={newAnnouncementForm.body}
-                      onChange={(e) =>
-                        setNewAnnouncementForm({
-                          ...newAnnouncementForm,
-                          body: e.target.value
-                        })
-                      }
-                      placeholder="Announcement message *"
-                      className="md:col-span-2 p-2.5 border rounded-xl bg-white"
-                    />
-                    <div className="flex gap-2">
-                      <select
-                        value={newAnnouncementForm.targetRole}
+                  <div className="flex flex-wrap gap-6 pt-2 border-t">
+                    <label className="flex items-center gap-2 font-bold text-slate-800">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(appConfig.allowNewSignups)}
                         onChange={(e) =>
-                          setNewAnnouncementForm({
-                            ...newAnnouncementForm,
-                            targetRole: e.target.value
+                          setAppConfig({
+                            ...appConfig,
+                            allowNewSignups: e.target.checked
                           })
                         }
-                        className="flex-1 p-2.5 border rounded-xl bg-white"
-                      >
-                        <option value="all">All Roles</option>
-                        <option value="traveler">Travelers</option>
-                        <option value="graduate">Graduates/Guides</option>
-                        <option value="agency">Agencies</option>
-                        <option value="tour_company">Tour Cos.</option>
-                        <option value="car_rental">Car Rentals</option>
-                      </select>
+                      />
+                      <span>Allow New Partner Registrations</span>
+                    </label>
+                    <label className="flex items-center gap-2 font-bold text-red-700">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(appConfig.maintenanceMode)}
+                        onChange={(e) =>
+                          setAppConfig({
+                            ...appConfig,
+                            maintenanceMode: e.target.checked
+                          })
+                        }
+                      />
+                      <span>Enable Maintenance Mode</span>
+                    </label>
+                  </div>
+
+                  {appConfig.maintenanceMode && (
+                    <div>
+                      <label className="font-bold text-slate-700">Maintenance Notice</label>
+                      <input
+                        type="text"
+                        value={appConfig.maintenanceMessage}
+                        onChange={(e) =>
+                          setAppConfig({
+                            ...appConfig,
+                            maintenanceMessage: e.target.value
+                          })
+                        }
+                        className="w-full mt-1 p-2.5 border rounded-xl"
+                      />
+                    </div>
+                  )}
+                </form>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-4">
+                    <h3 className="font-bold text-base text-slate-900">
+                      Subscription Plans Manager
+                    </h3>
+                    <form
+                      onSubmit={handleSaveSubscriptionPlan}
+                      className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-slate-50 p-3.5 rounded-xl border"
+                    >
+                      <input
+                        type="text"
+                        required
+                        placeholder="Plan Name (e.g. Half-Year Pass)"
+                        value={newPlanForm.name}
+                        onChange={(e) =>
+                          setNewPlanForm({ ...newPlanForm, name: e.target.value })
+                        }
+                        className="p-2 border rounded-xl bg-white"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Duration Label (e.g. 180 Days)"
+                        value={newPlanForm.durationLabel}
+                        onChange={(e) =>
+                          setNewPlanForm({
+                            ...newPlanForm,
+                            durationLabel: e.target.value
+                          })
+                        }
+                        className="p-2 border rounded-xl bg-white"
+                      />
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="Days"
+                        value={newPlanForm.days}
+                        onChange={(e) =>
+                          setNewPlanForm({ ...newPlanForm, days: e.target.value })
+                        }
+                        className="p-2 border rounded-xl bg-white"
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="Price (RWF)"
+                        value={newPlanForm.price}
+                        onChange={(e) =>
+                          setNewPlanForm({ ...newPlanForm, price: e.target.value })
+                        }
+                        className="p-2 border rounded-xl bg-white"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Badge (e.g. Save 20%)"
+                        value={newPlanForm.badge}
+                        onChange={(e) =>
+                          setNewPlanForm({ ...newPlanForm, badge: e.target.value })
+                        }
+                        className="p-2 border rounded-xl bg-white"
+                      />
                       <button
                         type="submit"
-                        className="px-4 py-2.5 bg-[#234E40] text-white rounded-xl font-bold"
+                        className="p-2 bg-[#234E40] text-white font-bold rounded-xl"
                       >
-                        + Post
+                        + Save Plan
                       </button>
-                    </div>
-                  </form>
+                    </form>
 
-                  {(appConfig.announcements || []).length > 0 && (
                     <div className="space-y-2">
-                      {(appConfig.announcements || []).map((ann) => (
+                      {subscriptionPlans.map((pl) => (
                         <div
-                          key={ann.id}
-                          className="p-3 rounded-xl border bg-amber-50/50 flex items-center justify-between gap-2"
+                          key={pl.id}
+                          className="p-3 rounded-xl border flex items-center justify-between bg-slate-50"
                         >
                           <div>
-                            <strong>{ann.title}:</strong> <span>{ann.body}</span>{' '}
-                            <span className="text-[10px] font-bold uppercase text-slate-500">
-                              ({ann.targetRole})
-                            </span>
+                            <p className="font-bold text-slate-900">
+                              {pl.name} •{' '}
+                              <span className="text-[#234E40]">
+                                {Number(pl.price).toLocaleString()} RWF
+                              </span>
+                            </p>
+                            <p className="text-[11px] text-slate-500">
+                              {pl.durationLabel} ({pl.days} days) • {pl.badge}
+                            </p>
                           </div>
                           <button
                             type="button"
-                            onClick={() => handleDeleteAnnouncement(ann.id)}
-                            className="text-red-600 font-bold"
+                            onClick={() => handleDeleteSubscriptionPlan(pl.id)}
+                            className="text-red-600 font-bold hover:underline"
                           >
                             Delete
                           </button>
                         </div>
                       ))}
                     </div>
-                  )}
-                </div>
-
-                <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-4 text-xs">
-                  <div>
-                    <h3 className="font-bold text-base text-slate-900">
-                      💳 Subscription Plans Editor
-                    </h3>
-                    <p className="text-slate-500">
-                      Add or remove partner subscription tiers stored in Firebase.
-                    </p>
                   </div>
 
-                  <form
-                    onSubmit={handleSaveSubscriptionPlan}
-                    className="grid grid-cols-1 md:grid-cols-5 gap-3 bg-slate-50 p-4 rounded-2xl border"
-                  >
-                    <input
-                      type="text"
-                      value={newPlanForm.name}
-                      onChange={(e) =>
-                        setNewPlanForm({ ...newPlanForm, name: e.target.value })
-                      }
-                      placeholder="Plan Name (e.g. Monthly Pro) *"
-                      className="p-2.5 border rounded-xl bg-white"
-                    />
-                    <input
-                      type="text"
-                      value={newPlanForm.durationLabel}
-                      onChange={(e) =>
-                        setNewPlanForm({
-                          ...newPlanForm,
-                          durationLabel: e.target.value
-                        })
-                      }
-                      placeholder="Duration Label"
-                      className="p-2.5 border rounded-xl bg-white"
-                    />
-                    <input
-                      type="number"
-                      min="1"
-                      value={newPlanForm.days}
-                      onChange={(e) =>
-                        setNewPlanForm({ ...newPlanForm, days: e.target.value })
-                      }
-                      placeholder="Days"
-                      className="p-2.5 border rounded-xl bg-white"
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      value={newPlanForm.price}
-                      onChange={(e) =>
-                        setNewPlanForm({ ...newPlanForm, price: e.target.value })
-                      }
-                      placeholder="Price (RWF)"
-                      className="p-2.5 border rounded-xl bg-white"
-                    />
-                    <button
-                      type="submit"
-                      className="px-4 py-2.5 bg-[#234E40] text-white rounded-xl font-bold"
+                  <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-4">
+                    <h3 className="font-bold text-base text-slate-900">
+                      Platform Announcements Banner
+                    </h3>
+                    <form
+                      onSubmit={handleAddAnnouncement}
+                      className="space-y-2.5 bg-slate-50 p-3.5 rounded-xl border"
                     >
-                      + Save Plan
-                    </button>
-                  </form>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    {subscriptionPlans.map((plan) => (
-                      <div
-                        key={plan.id}
-                        className="p-3.5 rounded-2xl border bg-slate-50 flex items-center justify-between gap-2"
-                      >
-                        <div>
-                          <p className="font-extrabold text-slate-900">{plan.name}</p>
-                          <p className="text-[11px] text-slate-600">
-                            {Number(plan.price || 0).toLocaleString()} RWF • {plan.days || 30}d
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteSubscriptionPlan(plan.id)}
-                          className="text-red-600 font-bold"
+                      <input
+                        type="text"
+                        required
+                        placeholder="Announcement Title"
+                        value={newAnnouncementForm.title}
+                        onChange={(e) =>
+                          setNewAnnouncementForm({
+                            ...newAnnouncementForm,
+                            title: e.target.value
+                          })
+                        }
+                        className="w-full p-2 border rounded-xl bg-white"
+                      />
+                      <input
+                        type="text"
+                        required
+                        placeholder="Announcement Message..."
+                        value={newAnnouncementForm.body}
+                        onChange={(e) =>
+                          setNewAnnouncementForm({
+                            ...newAnnouncementForm,
+                            body: e.target.value
+                          })
+                        }
+                        className="w-full p-2 border rounded-xl bg-white"
+                      />
+                      <div className="flex gap-2">
+                        <select
+                          value={newAnnouncementForm.targetRole}
+                          onChange={(e) =>
+                            setNewAnnouncementForm({
+                              ...newAnnouncementForm,
+                              targetRole: e.target.value
+                            })
+                          }
+                          className="flex-1 p-2 border rounded-xl bg-white"
                         >
-                          Remove
+                          <option value="all">All Roles</option>
+                          <option value="traveler">Travelers</option>
+                          <option value="graduate">Graduates / Guides / Consultants</option>
+                          <option value="agency">Travel Agencies</option>
+                          <option value="tour_company">Tour Companies</option>
+                          <option value="car_rental">Car Rentals</option>
+                        </select>
+                        <button
+                          type="submit"
+                          className="px-4 py-2 bg-[#3B6E5B] text-white font-bold rounded-xl"
+                        >
+                          Publish Notice
                         </button>
                       </div>
-                    ))}
+                    </form>
+
+                    <div className="space-y-2">
+                      {(appConfig.announcements || []).map((ann) => (
+                        <div
+                          key={ann.id}
+                          className="p-3 rounded-xl border flex items-center justify-between bg-amber-50/50"
+                        >
+                          <div>
+                            <p className="font-bold text-slate-900">
+                              {ann.title}{' '}
+                              <span className="text-[10px] uppercase text-[#3B6E5B]">
+                                ({ann.targetRole})
+                              </span>
+                            </p>
+                            <p className="text-slate-600">{ann.body}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteAnnouncement(ann.id)}
+                            className="text-red-600 font-bold hover:underline"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-
-                <form
-                  onSubmit={handleChangeOwnerPassword}
-                  className="bg-white p-6 rounded-2xl border shadow-sm space-y-4 text-xs"
-                >
-                  <div>
-                    <span className="text-[10px] font-extrabold uppercase text-[#3B6E5B]">
-                      Owner Security
-                    </span>
-                    <h3 className="font-bold text-base text-slate-900">
-                      🔑 Change Owner Password Anytime
-                    </h3>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div>
-                      <label className="font-bold text-slate-700">Current Owner Password *</label>
-                      <input
-                        type="password"
-                        required
-                        value={ownerCurrentPassInput}
-                        onChange={(e) => setOwnerCurrentPassInput(e.target.value)}
-                        placeholder="Enter current owner password"
-                        className="w-full mt-1 p-2.5 border rounded-xl"
-                      />
-                    </div>
-                    <div>
-                      <label className="font-bold text-slate-700">New Owner Password *</label>
-                      <input
-                        type="password"
-                        required
-                        value={ownerNewPassInput}
-                        onChange={(e) => setOwnerNewPassInput(e.target.value)}
-                        placeholder="Enter new owner password"
-                        className="w-full mt-1 p-2.5 border rounded-xl"
-                      />
-                    </div>
-                    <div>
-                      <label className="font-bold text-slate-700">Confirm New Password *</label>
-                      <input
-                        type="password"
-                        required
-                        value={ownerConfirmPassInput}
-                        onChange={(e) => setOwnerConfirmPassInput(e.target.value)}
-                        placeholder="Re-enter new owner password"
-                        className="w-full mt-1 p-2.5 border rounded-xl"
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isSaving}
-                    className="px-6 py-2.5 bg-slate-900 hover:bg-[#234E40] text-white rounded-xl font-bold shadow"
-                  >
-                    {isSaving ? 'Updating Password...' : 'Update Owner Password'}
-                  </button>
-                </form>
               </div>
             )}
           </div>
         )}
       </main>
 
-      {pendingDeleteAction && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-xs">
-            <h4 className="font-black text-base text-slate-900">Confirm Deletion</h4>
-            <p className="text-slate-600">
-              {pendingDeleteAction.type === 'booking'
-                ? 'Are you sure you want to delete this booking record?'
-                : pendingDeleteAction.type === 'subscriber'
-                ? 'Are you sure you want to permanently delete this user account?'
-                : 'Are you sure you want to delete this advertisement?'}
-            </p>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setPendingDeleteAction(null)}
-                className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-bold"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={executePendingDelete}
-                className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {showPiFormModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="max-w-2xl w-full my-auto">
+        <div className="fixed inset-0 bg-black/65 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-2xl my-auto">
             <TravelerPersonalInfoForm
               travelerPI={travelerPI}
               onSavePI={handleSaveTravelerPI}
               onCancel={() => {
-                setPendingPiAction(null);
                 setShowPiFormModal(false);
+                setPendingPiAction(null);
               }}
               lang={language}
               onNotify={notify}
@@ -6809,31 +7506,51 @@ export default function App() {
         </div>
       )}
 
-      {activePopupAd && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 relative">
-            <button
-              type="button"
-              onClick={() => setActivePopupAd(null)}
-              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 font-bold text-xs"
-            >
-              ✕
-            </button>
-            <span className="text-[10px] font-extrabold uppercase bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full">
-              {activePopupAd.badge || 'Sponsored Partner'}
-            </span>
-            <h3 className="text-lg font-black text-slate-900">
-              {activePopupAd.headline}
-            </h3>
-            <p className="text-xs text-slate-600">{activePopupAd.description}</p>
-            <div className="flex justify-between items-center pt-2 border-t text-xs">
-              <span className="font-bold text-slate-700">
-                {activePopupAd.advertiserName}
+      {activePopupAd && currentRole !== 'owner' && (
+        <div className="fixed inset-0 bg-black/55 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border-2 border-amber-400 space-y-4 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="px-3 py-1 rounded-full bg-amber-400 text-slate-950 font-extrabold text-[10px] uppercase">
+                Sponsored • {activePopupAd.badge || 'Paid Partner'}
               </span>
               <button
                 type="button"
+                onClick={() => setActivePopupAd(null)}
+                className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg font-bold text-slate-700"
+              >
+                Close ✕
+              </button>
+            </div>
+
+            <div className="space-y-1.5">
+              <p className="text-[11px] font-bold uppercase text-[#3B6E5B]">
+                {activePopupAd.advertiserName}
+              </p>
+              <h3 className="text-lg font-black text-slate-900">
+                {activePopupAd.headline}
+              </h3>
+              {activePopupAd.description && (
+                <p className="text-slate-600 text-xs">{activePopupAd.description}</p>
+              )}
+              {activePopupAd.advertiserContact && (
+                <p className="text-[11px] text-slate-500">
+                  Contact: <strong>{activePopupAd.advertiserContact}</strong>
+                </p>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t">
+              <button
+                type="button"
+                onClick={() => setActivePopupAd(null)}
+                className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-bold"
+              >
+                Maybe Later
+              </button>
+              <button
+                type="button"
                 onClick={() => handleBookFromAd(activePopupAd)}
-                className="px-4 py-2 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-bold shadow"
+                className="px-5 py-2.5 bg-[#234E40] hover:bg-slate-900 text-white rounded-xl font-extrabold shadow"
               >
                 {activePopupAd.ctaLabel || 'Book Now'} →
               </button>
@@ -6846,46 +7563,90 @@ export default function App() {
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <form
             onSubmit={handleOwnerLogin}
-            className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-xs space-y-4"
+            className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-xs"
           >
-            <h3 className="font-extrabold text-base text-slate-900">
-              👑 C.E.O. Owner Verification
-            </h3>
-            <p className="text-xs text-slate-500">
-              Enter your Owner password to manage subscribers, approvals, and live Firebase settings.
-            </p>
-            <input
-              type="password"
-              autoFocus
-              placeholder="Enter Owner Password"
-              value={ownerPinInput}
-              onChange={(e) => setOwnerPinInput(e.target.value)}
-              className="w-full p-3 border rounded-xl text-sm"
-            />
-            <div className="flex justify-end gap-2 text-xs font-bold">
+            <div className="border-b pb-2">
+              <span className="text-[10px] font-extrabold uppercase text-[#3B6E5B]">
+                Restricted C.E.O. Access
+              </span>
+              <h3 className="text-base font-black text-slate-900">
+                Enter Owner Password
+              </h3>
+            </div>
+            <div>
+              <label className="font-bold text-slate-700">Owner Password</label>
+              <input
+                type="password"
+                autoFocus
+                placeholder="Enter Owner Password"
+                value={ownerPinInput}
+                onChange={(e) => setOwnerPinInput(e.target.value)}
+                className="w-full mt-1 p-2.5 border rounded-xl"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
-                onClick={() => setShowOwnerPinModal(false)}
-                className="px-4 py-2 text-slate-500"
+                onClick={() => {
+                  setShowOwnerPinModal(false);
+                  setOwnerPinInput('');
+                }}
+                className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-bold"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 bg-[#234E40] text-white rounded-xl"
+                className="px-5 py-2 bg-[#234E40] text-white rounded-xl font-bold"
               >
-                Unlock
+                Unlock Dashboard →
               </button>
             </div>
           </form>
         </div>
       )}
 
-      <footer className="bg-white border-t py-4 px-6 text-center text-xs text-slate-500">
-        © {new Date().getFullYear()} {appConfig.appName} •{' '}
-        {appConfig.footerLeadershipText ||
-          'RUTUNGURA Bonheur (C.E.O & Developer) • IRANZI Honorine (MD & Project Assistant)'}{' '}
-        • {appConfig.footerLocation} • Powered by Firebase
+      {pendingDeleteAction && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-xs">
+            <h4 className="font-black text-base text-slate-900">Confirm Deletion</h4>
+            <p className="text-slate-600">
+              Are you sure you want to permanently delete this{' '}
+              {pendingDeleteAction.type === 'booking'
+                ? 'booking record'
+                : pendingDeleteAction.type === 'subscriber'
+                ? 'user account'
+                : 'advertisement'}
+              ?
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setPendingDeleteAction(null)}
+                className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-bold"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={executePendingDelete}
+                className="px-5 py-2 bg-red-600 text-white rounded-xl font-bold"
+              >
+                Confirm Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <footer className="bg-slate-900 text-slate-400 py-6 px-4 md:px-8 text-xs mt-12">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div>
+            <strong className="text-white">{appConfig.appName}</strong> •{' '}
+            {appConfig.footerLocation}
+          </div>
+          <div>{appConfig.footerLeadershipText}</div>
+        </div>
       </footer>
     </div>
   );
